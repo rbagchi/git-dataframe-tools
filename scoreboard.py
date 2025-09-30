@@ -61,8 +61,7 @@ class GitAnalysisConfig:
         elif isinstance(self.end_date, str):
             parsed_end_date, parse_status = cal.parseDT(self.end_date)
             if parse_status == 0: # 0 means parsing failed
-                print_error(f"Invalid end date format: {self.end_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
-                sys.exit(1)
+                raise ValueError(f"Invalid end date format: {self.end_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
             end_date = parsed_end_date
         
         if self.start_date is None:
@@ -71,8 +70,7 @@ class GitAnalysisConfig:
                     time_delta = _parse_period_string(self.default_period)
                     start_date = end_date - time_delta
                 except ValueError as e:
-                    print_error(f"Error parsing default period: {e}")
-                    sys.exit(1)
+                    raise ValueError(f"Error parsing default period: {e}") from e
             else:
                 # Default to "3 months" using the same parsing logic
                 try:
@@ -80,18 +78,15 @@ class GitAnalysisConfig:
                     start_date = end_date - time_delta
                 except ValueError as e:
                     # This should ideally not happen for a hardcoded valid string
-                    print_error(f"Internal error parsing default '3 months' period: {e}")
-                    sys.exit(1)
+                    raise ValueError(f"Internal error parsing default '3 months' period: {e}") from e
         elif isinstance(self.start_date, str):
             parsed_start_date, parse_status = cal.parseDT(self.start_date)
             if parse_status == 0: # 0 means parsing failed
-                print_error(f"Invalid start date format: {self.start_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
-                sys.exit(1)
+                raise ValueError(f"Invalid start date format: {self.start_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
             start_date = parsed_start_date
         
         if start_date >= end_date:
-            print_error("Start date must be before end date.")
-            sys.exit(1)
+            raise ValueError("Start date must be before end date.")
         
         return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
     

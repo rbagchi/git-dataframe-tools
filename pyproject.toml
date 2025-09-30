@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-scoreboard"
+version = "0.1.0"
+authors = [
+  { name="Ranjan", email="ranjan@example.com" }, # Placeholder, user should update
+]
+description = "A command-line tool to analyze git history and rank authors by total lines changed."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Version Control",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "tqdm>=4.0.0",
+    "parsedatetime",
+]
+
+[project.scripts]
+git-scoreboard = "scoreboard:main"
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/git-scoreboard" # Placeholder, user should update
+"Bug Tracker" = "https://github.com/yourusername/git-scoreboard/issues" # Placeholder, user should update

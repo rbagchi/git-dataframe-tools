@@ -74,7 +74,14 @@ class GitAnalysisConfig:
                     print_error(f"Error parsing default period: {e}")
                     sys.exit(1)
             else:
-                start_date = end_date - timedelta(days=90)  # Default 3 months
+                # Default to "3 months" using the same parsing logic
+                try:
+                    time_delta = _parse_period_string("3 months")
+                    start_date = end_date - time_delta
+                except ValueError as e:
+                    # This should ideally not happen for a hardcoded valid string
+                    print_error(f"Internal error parsing default '3 months' period: {e}")
+                    sys.exit(1)
         elif isinstance(self.start_date, str):
             parsed_start_date, parse_status = cal.parseDT(self.start_date)
             if parse_status == 0: # 0 means parsing failed

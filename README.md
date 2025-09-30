@@ -145,6 +145,35 @@ Here are common scenarios and how to execute them:
     git-scoreboard --exclude-path docs tests
     ```
 
+### Example: Analyzing the Flask Project
+
+Let's see `git-scoreboard` in action on a popular open-source project like [Flask](https://github.com/pallets/flask).
+
+1.  **Clone the Flask repository** (if you haven't already):
+    ```bash
+    git clone https://github.com/pallets/flask.git
+    cd flask
+    ```
+    *(Ensure your `git-scoreboard` tool is installed and accessible in your PATH, ideally within an activated virtual environment.)*
+
+2.  **Get the overall scoreboard for Flask's core development over the last year**:
+    ```bash
+    git-scoreboard --default-period "1 year" --path src/flask
+    ```
+    *This command will show you the top contributors to Flask's core source code over the past year, ranked by lines changed.*
+
+3.  **Deep dive into a specific core contributor (e.g., "davidism") for their merged contributions**:
+    ```bash
+    git-scoreboard --author "davidism" --merged-only --default-period "6 months"
+    ```
+    *This will provide detailed statistics for "davidism" on code that has been merged into Flask's main branch in the last six months, showcasing their direct impact.*
+
+4.  **Analyze contributions to Flask's documentation**:
+    ```bash
+    git-scoreboard --path docs --default-period "2 years"
+    ```
+    *This helps identify who has been most active in maintaining and improving Flask's documentation over a longer period.*
+
 ### Arguments
 
 -   `--start`, `-s` (type: `str`): Start date for analysis (YYYY-MM-DD or natural language like "last week", "3 months ago"). Default: 3 months ago.

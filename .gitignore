@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+.venv/
+virtualenv/
+env/
+
+# Distribution
+dist/
+*.egg-info/
+build/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# uv lock file
+uv.lock
+
+# OS generated files
+.DS_Store
+.Trashes
+Thumbs.db

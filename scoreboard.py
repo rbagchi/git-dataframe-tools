@@ -4,6 +4,8 @@ Git Author Ranking by Diff Size (Last 3 Months)
 This script analyzes git history and ranks authors by total lines changed
 """
 
+__version__ = "0.1.0"
+
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -13,6 +15,7 @@ import math
 import argparse
 from dataclasses import dataclass
 from typing import Optional
+from parsedatetime import Calendar
 
 try:
     from tqdm import tqdm
@@ -29,6 +32,9 @@ class GitAnalysisConfig:
     author_query: Optional[str] = None
     use_current_user: bool = False
     merged_only: bool = False
+    include_paths: Optional[list[str]] = None
+    exclude_paths: Optional[list[str]] = None
+    default_period: Optional[str] = None # Changed from default_days
     
     def __post_init__(self):
         """Process and validate configuration after initialization"""
@@ -48,23 +54,33 @@ class GitAnalysisConfig:
     
     def _get_date_range(self):
         """Get date range for git log analysis"""
+        cal = Calendar()
+
         if self.end_date is None:
             end_date = datetime.now()
         elif isinstance(self.end_date, str):
-            try:
-                end_date = datetime.strptime(self.end_date, '%Y-%m-%d')
-            except ValueError:
-                print_error(f"Invalid end date format: {self.end_date}. Use YYYY-MM-DD format.")
+            parsed_end_date, parse_status = cal.parseDT(self.end_date)
+            if parse_status == 0: # 0 means parsing failed
+                print_error(f"Invalid end date format: {self.end_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
                 sys.exit(1)
+            end_date = parsed_end_date
         
         if self.start_date is None:
-            start_date = end_date - timedelta(days=90)  # Default 3 months
+            if self.default_period:
+                try:
+                    time_delta = _parse_period_string(self.default_period)
+                    start_date = end_date - time_delta
+                except ValueError as e:
+                    print_error(f"Error parsing default period: {e}")
+                    sys.exit(1)
+            else:
+                start_date = end_date - timedelta(days=90)  # Default 3 months
         elif isinstance(self.start_date, str):
-            try:
-                start_date = datetime.strptime(self.start_date, '%Y-%m-%d')
-            except ValueError:
-                print_error(f"Invalid start date format: {self.start_date}. Use YYYY-MM-DD format.")
+            parsed_start_date, parse_status = cal.parseDT(self.start_date)
+            if parse_status == 0: # 0 means parsing failed
+                print_error(f"Invalid start date format: {self.start_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
                 sys.exit(1)
+            start_date = parsed_start_date
         
         if start_date >= end_date:
             print_error("Start date must be before end date.")
@@ -163,6 +179,15 @@ class GitAnalysisConfig:
                 '--pretty=format:%H|%an|%ae',
                 '--numstat'
             ])
+            
+            # Add path filtering
+            if self.include_paths or self.exclude_paths:
+                cmd.append('--') # Separator for pathspecs
+                if self.include_paths:
+                    cmd.extend(self.include_paths)
+                if self.exclude_paths:
+                    # Git exclusion syntax: ':!path'
+                    cmd.extend([f':!{p}' for p in self.exclude_paths])
             
             # Try to estimate commit count for progress bar
             commit_count = self._estimate_commit_count()
@@ -352,30 +377,34 @@ def parse_git_data(git_data):
     
     return authors
 
-def calculate_deciles(values):
-    """Calculate decile rankings for a list of values"""
-    if not values:
-        return []
-    
-    # Sort values in descending order
-    sorted_values = sorted(values, reverse=True)
-    n = len(sorted_values)
-    
-    deciles = []
-    for value in values:
-        # Find position in sorted list (0-based)
-        position = sorted_values.index(value)
-        # Calculate decile (1-10, where 1 is top 10%)
-        decile = min(10, math.ceil((position + 1) * 10 / n))
-        deciles.append(decile)
-    
-    return deciles
+def _parse_period_string(period_str: str) -> timedelta:
+    """Parses a period string like '3 months' or '1 year' into a timedelta."""
+    period_str = period_str.lower().strip()
+    match = re.match(r'^(\d+)\s*(day|week|month|year)s?$', period_str)
+    if not match:
+        raise ValueError(f"Invalid period format: {period_str}. Use format like '3 months' or '1 year'.")
 
-def find_author_stats(authors, config: GitAnalysisConfig):
-    """Find and display stats for a specific author"""
-    # Convert to list and sort by total diff size (same as main ranking)
+    value = int(match.group(1))
+    unit = match.group(2)
+
+    if unit == 'day':
+        return timedelta(days=value)
+    elif unit == 'week':
+        return timedelta(weeks=value)
+    elif unit == 'month':
+        # Approximate months to 30 days for simplicity in timedelta
+        return timedelta(days=value * 30)
+    elif unit == 'year':
+        # Approximate years to 365 days for simplicity in timedelta
+        return timedelta(days=value * 365)
+    else:
+        # Should not happen due to regex, but for safety
+        raise ValueError(f"Unknown unit: {unit}")
+
+def _prepare_author_data(authors_dict):
+    """Prepares author data with ranks and deciles."""
     author_list = []
-    for email, stats in authors.items():
+    for email, stats in authors_dict.items():
         author_list.append({
             'email': email,
             'name': stats['name'],
@@ -384,27 +413,53 @@ def find_author_stats(authors, config: GitAnalysisConfig):
             'total': stats['total'],
             'commits': len(stats['commits'])
         })
-    
-    # Sort by total diff size (descending)
+
+    if not author_list:
+        return []
+
+    # Sort by total diff size (descending) for initial ranking
     author_list.sort(key=lambda x: x['total'], reverse=True)
+
+    # Calculate ranks and deciles for diff size
+    n = len(author_list)
+    
+    # Assign ranks and deciles based on diff values
+    current_rank = 1
+    current_decile = 1
+    for i in range(n):
+        if i > 0 and author_list[i]['total'] < author_list[i-1]['total']:
+            current_rank = i + 1
+            current_decile = min(10, math.ceil(current_rank * 10 / n))
+        
+        author_list[i]['rank'] = current_rank
+        author_list[i]['diff_decile'] = current_decile
+
+    # Sort by commit count (descending) for commit decile calculation
+    author_list.sort(key=lambda x: x['commits'], reverse=True)
+
+    # Assign deciles based on commit values
+    current_rank = 1
+    current_decile = 1
+    for i in range(n):
+        if i > 0 and author_list[i]['commits'] < author_list[i-1]['commits']:
+            current_rank = i + 1
+            current_decile = min(10, math.ceil(current_rank * 10 / n))
+        
+        author_list[i]['commit_decile'] = current_decile
+    
+    # Re-sort by total diff size for consistent output order
+    author_list.sort(key=lambda x: x['total'], reverse=True)
+
+    return author_list
+
+def find_author_stats(authors_dict, config: GitAnalysisConfig):
+    """Find and display stats for a specific author"""
+    author_list = _prepare_author_data(authors_dict)
     
     if not author_list:
         analysis_type = "merged commits" if config.merged_only else "commits"
         print_warning(f"No {analysis_type} found in the specified time period.")
         return
-    
-    # Calculate deciles for diff size and commits
-    diff_values = [author['total'] for author in author_list]
-    commit_values = [author['commits'] for author in author_list]
-    
-    diff_deciles = calculate_deciles(diff_values)
-    commit_deciles = calculate_deciles(commit_values)
-    
-    # Add rankings and deciles to author data
-    for i, author in enumerate(author_list):
-        author['rank'] = i + 1
-        author['diff_decile'] = diff_deciles[i]
-        author['commit_decile'] = commit_deciles[i]
     
     # Find matching authors
     query_lower = config.author_query.lower()
@@ -449,44 +504,18 @@ def find_author_stats(authors, config: GitAnalysisConfig):
         
         print()
 
-def print_ranking(authors, config: GitAnalysisConfig):
+def print_ranking(authors_dict, config: GitAnalysisConfig):
     """Print the author ranking"""
     print()
     print_header("Git Author Ranking by Diff Size")
     print_header(config.get_analysis_description())
     print()
     
-    # Convert to list and sort by total diff size
-    author_list = []
-    for email, stats in authors.items():
-        author_list.append({
-            'email': email,
-            'name': stats['name'],
-            'added': stats['added'],
-            'deleted': stats['deleted'],
-            'total': stats['total'],
-            'commits': len(stats['commits'])
-        })
-    
-    # Sort by total diff size (descending)
-    author_list.sort(key=lambda x: x['total'], reverse=True)
+    author_list = _prepare_author_data(authors_dict)
     
     if not author_list:
         print_warning("No commits found in the last 3 months.")
         return
-    
-    # Calculate deciles for diff size and commits
-    diff_values = [author['total'] for author in author_list]
-    commit_values = [author['commits'] for author in author_list]
-    
-    diff_deciles = calculate_deciles(diff_values)
-    commit_deciles = calculate_deciles(commit_values)
-    
-    # Add rankings and deciles to author data
-    for i, author in enumerate(author_list):
-        author['rank'] = i + 1
-        author['diff_decile'] = diff_deciles[i]
-        author['commit_decile'] = commit_deciles[i]
     
     # Print table header
     print(f"{'Rank':>4} {'Author':<45} {'Lines Added':>11} {'Lines Deleted':>12} {'Total Diff':>11} {'Commits':>7} {'Diff D':>6} {'Comm D':>6}")
@@ -517,20 +546,12 @@ def print_ranking(authors, config: GitAnalysisConfig):
             diff_range = f"{min_diff:,}-{max_diff:,}" if min_diff != max_diff else f"{min_diff:,}"
             print(f"{decile:>6} {diff_range:>25} {len(diff_authors):>8}")
     
-    # Sort by commits for commit decile distribution
-    author_list_by_commits = sorted(author_list, key=lambda x: x['commits'], reverse=True)
-    commit_values_sorted = [author['commits'] for author in author_list_by_commits]
-    commit_deciles_sorted = calculate_deciles(commit_values_sorted)
-    
-    for i, author in enumerate(author_list_by_commits):
-        author['commit_decile_by_commits'] = commit_deciles_sorted[i]
-    
     print(f"\nCommit Count Decile Distribution:")
     print(f"{'Decile':>6} {'Commit Range':>15} {'Authors':>8}")
     print(f"{'-'*6:>6} {'-'*15:>15} {'-'*8:>8}")
     
     for decile in range(1, 11):
-        commit_authors = [a for a in author_list_by_commits if a['commit_decile_by_commits'] == decile]
+        commit_authors = [a for a in author_list if a['commit_decile'] == decile]
         if commit_authors:
             min_commits = min(a['commits'] for a in commit_authors)
             max_commits = max(a['commits'] for a in commit_authors)
@@ -596,6 +617,24 @@ Date format: YYYY-MM-DD
         help='Only analyze commits that have been merged to the main branch (origin/master or origin/main)'
     )
     
+    parser.add_argument(
+        '--default-period',
+        type=str,
+        help='Default period to look back if --start is not specified (e.g., "3 months", "1 year"). Default: "3 months".'
+    )
+    
+    parser.add_argument(
+        '--path',
+        nargs='*',
+        help='Include only changes to files within these paths (e.g., "src/frontend" "src/backend"). Can be specified multiple times.'
+    )
+    
+    parser.add_argument(
+        '--exclude-path',
+        nargs='*',
+        help='Exclude changes to files within these paths (e.g., "docs" "tests"). Can be specified multiple times.'
+    )
+    
     return parser.parse_args()
 
 def main():
@@ -617,7 +656,10 @@ def main():
         end_date=args.end,
         author_query=args.author,
         use_current_user=args.me,
-        merged_only=args.merged_only
+        merged_only=args.merged_only,
+        include_paths=args.path,
+        exclude_paths=args.exclude_path,
+        default_period=args.default_period
     )
     
     print_success("Gathering commit data...")

@@ -55,11 +55,12 @@ class GitAnalysisConfig:
     def _get_date_range(self):
         """Get date range for git log analysis"""
         cal = Calendar()
+        now = datetime.now()
 
         if self.end_date is None:
             end_date = datetime.now()
         elif isinstance(self.end_date, str):
-            parsed_end_date, parse_status = cal.parseDT(self.end_date)
+            parsed_end_date, parse_status = cal.parseDT(self.end_date, now)
             if parse_status == 0: # 0 means parsing failed
                 raise ValueError(f"Invalid end date format: {self.end_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
             end_date = parsed_end_date
@@ -80,7 +81,7 @@ class GitAnalysisConfig:
                     # This should ideally not happen for a hardcoded valid string
                     raise ValueError(f"Internal error parsing default '3 months' period: {e}") from e
         elif isinstance(self.start_date, str):
-            parsed_start_date, parse_status = cal.parseDT(self.start_date)
+            parsed_start_date, parse_status = cal.parseDT(self.start_date, now)
             if parse_status == 0: # 0 means parsing failed
                 raise ValueError(f"Invalid start date format: {self.start_date}. Use YYYY-MM-DD or natural language (e.g., 'yesterday', 'last week').")
             start_date = parsed_start_date

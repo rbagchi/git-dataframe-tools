@@ -3,6 +3,9 @@ import re
 import math
 from .scoreboard import GitAnalysisConfig
 
+def _calculate_decile_from_rank(rank, n):
+    return min(10, math.ceil(rank * 10 / n))
+
 def parse_git_log_to_dataframe(git_data: str) -> pd.DataFrame:
     """Parses raw git log --numstat output into a Pandas DataFrame."""
     lines = git_data.splitlines()
@@ -61,20 +64,43 @@ def get_author_stats_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         commits=('commit_hash', 'nunique')
     ).reset_index()
 
+    if author_stats.empty:
+        return pd.DataFrame(columns=['author_name', 'author_email', 'added', 'deleted', 'total', 'commits', 'rank', 'diff_decile', 'commit_decile'])
+
     author_stats['total'] = author_stats['added'] + author_stats['deleted']
 
     # Calculate ranks for total diff
     author_stats['rank'] = author_stats['total'].rank(method='min', ascending=False).astype(int)
-    
-    # Calculate diff deciles
-    # qcut requires at least 2 unique values for quantiles. If not enough, handle gracefully.
-    author_stats['diff_decile'] = author_stats['rank'].apply(lambda x: min(10, math.ceil(x * 10 / len(author_stats))))
 
-    # Calculate commit deciles
-    author_stats['commit_decile'] = author_stats['rank'].apply(lambda x: min(10, math.ceil(x * 10 / len(author_stats))))
+    # Simulate original decile calculation logic
+    author_stats = author_stats.sort_values(by='total', ascending=False).reset_index(drop=True)
+    
+    n = len(author_stats)
+    if n > 0:
+        current_decile_diff = 1
+        current_decile_commit = 1
+        author_stats.loc[0, 'diff_decile'] = current_decile_diff
+        author_stats.loc[0, 'commit_decile'] = current_decile_commit
+
+        for i in range(1, n):
+            if author_stats.loc[i, 'total'] < author_stats.loc[i-1, 'total']:
+                current_rank_diff = i + 1
+                current_decile_diff = min(10, math.ceil(current_rank_diff * 10 / n))
+            author_stats.loc[i, 'diff_decile'] = int(current_decile_diff)
+
+            if author_stats.loc[i, 'commits'] < author_stats.loc[i-1, 'commits']:
+                current_rank_commit = i + 1
+                current_decile_commit = min(10, math.ceil(current_rank_commit * 10 / n))
+            author_stats.loc[i, 'commit_decile'] = int(current_decile_commit)
+    else:
+        author_stats['diff_decile'] = pd.Series(dtype='int')
+        author_stats['commit_decile'] = pd.Series(dtype='int')
 
     # Sort by total diff size (descending) for consistent output order
     author_stats = author_stats.sort_values(by='total', ascending=False).reset_index(drop=True)
+
+    if author_stats.empty:
+        return pd.DataFrame(columns=['author_name', 'author_email', 'added', 'deleted', 'total', 'commits', 'rank', 'diff_decile', 'commit_decile'])
 
     return author_stats
 

@@ -138,20 +138,20 @@ commit4|D|d@example.com|msg
     # C: total 200, commits 1
     assert author_stats.iloc[0]['author_email'] == 'c@example.com'
     assert author_stats.iloc[0]['rank'] == 1
-    assert author_stats.iloc[0]['diff_decile'] == 3
-    assert author_stats.iloc[0]['commit_decile'] == 3 # All have 1 commit, so all are in decile 1
+    assert author_stats.iloc[0]['diff_decile'] == 1
+    assert author_stats.iloc[0]['commit_decile'] == 1 # All have 1 commit, so all are in decile 1
 
     # A: total 100, commits 1
     assert author_stats.iloc[1]['author_email'] == 'a@example.com'
     assert author_stats.iloc[1]['rank'] == 2
-    assert author_stats.iloc[1]['diff_decile'] == 5
-    assert author_stats.iloc[1]['commit_decile'] == 5
+    assert author_stats.iloc[1]['diff_decile'] == 7
+    assert author_stats.iloc[1]['commit_decile'] == 7
 
     # B: total 50, commits 1
     assert author_stats.iloc[2]['author_email'] == 'b@example.com'
     assert author_stats.iloc[2]['rank'] == 3
-    assert author_stats.iloc[2]['diff_decile'] == 8
-    assert author_stats.iloc[2]['commit_decile'] == 8
+    assert author_stats.iloc[2]['diff_decile'] == 10
+    assert author_stats.iloc[2]['commit_decile'] == 10
 
     # D: total 10, commits 1
     assert author_stats.iloc[3]['author_email'] == 'd@example.com'

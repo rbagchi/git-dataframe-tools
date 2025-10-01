@@ -16,6 +16,8 @@ import argparse
 from dataclasses import dataclass
 from typing import Optional
 from parsedatetime import Calendar
+from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta
 
 try:
     from tqdm import tqdm
@@ -395,11 +397,9 @@ def _parse_period_string(period_str: str) -> timedelta:
     elif unit == 'week':
         return timedelta(weeks=value)
     elif unit == 'month':
-        # Approximate months to 30 days for simplicity in timedelta
-        return timedelta(days=value * 30)
+        return relativedelta(months=value)
     elif unit == 'year':
-        # Approximate years to 365 days for simplicity in timedelta
-        return timedelta(days=value * 365)
+        return relativedelta(years=value)
     else:
         # Should not happen due to regex, but for safety
         raise ValueError(f"Unknown unit: {unit}")

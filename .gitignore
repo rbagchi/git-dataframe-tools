@@ -27,3 +27,6 @@ uv.lock
 .DS_Store
 .Trashes
 Thumbs.db
+
+# Test documentation
+tests/RUNBOOK.md

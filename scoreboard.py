@@ -181,7 +181,7 @@ class GitAnalysisConfig:
             cmd.extend([
                 f'--since={self.start_date}',
                 f'--until={self.end_date}',
-                '--pretty=format:%H|%an|%ae',
+                '--pretty=format:%H|%an|%ae|%s',
                 '--numstat'
             ])
             
@@ -358,10 +358,11 @@ def parse_git_data(git_data):
         if '|' in line:
             # Commit info line
             parts = line.split('|')
-            if len(parts) >= 3:
+            if len(parts) >= 4:
                 current_commit = parts[0]
                 current_author_name = parts[1]
                 current_author_email = parts[2]
+                current_commit_message = parts[3]
             continue
             
         # File stat line (format: added\tdeleted\tfilename)

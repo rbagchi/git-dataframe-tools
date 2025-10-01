@@ -9,15 +9,12 @@ __version__ = "0.1.0"
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from collections import defaultdict
-import re
-import math
 import argparse
 from dataclasses import dataclass
 from typing import Optional
 from parsedatetime import Calendar
-from dateutil.relativedelta import relativedelta
-from dateutil.relativedelta import relativedelta
+
+from git_scoreboard.git_stats import parse_git_data, _parse_period_string, _prepare_author_data, find_author_stats, print_ranking
 
 try:
     from tqdm import tqdm
@@ -331,244 +328,6 @@ def check_git_repo():
     except subprocess.CalledProcessError:
         return False
 
-def parse_git_data(git_data):
-    """Parse git log data and calculate stats per author"""
-    authors = defaultdict(lambda: {
-        'name': '',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': set()
-    })
-    
-    current_commit = None
-    current_author_name = None
-    current_author_email = None
-    
-    for line in git_data.split('\n'):
-        line = line.strip()
-        
-        if not line:
-            # Empty line - reset current commit info
-            current_commit = None
-            current_author_name = None
-            current_author_email = None
-            continue
-            
-        if '|' in line:
-            # Commit info line
-            parts = line.split('|')
-            if len(parts) >= 4:
-                current_commit = parts[0]
-                current_author_name = parts[1]
-                current_author_email = parts[2]
-                current_commit_message = parts[3]
-            continue
-            
-        # File stat line (format: added\tdeleted\tfilename)
-        if current_commit and current_author_name and current_author_email:
-            # Match lines that start with numbers or dashes (for binary files)
-            stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
-            if stat_match:
-                added_str, deleted_str = stat_match.groups()
-                
-                added = 0 if added_str == '-' else int(added_str)
-                deleted = 0 if deleted_str == '-' else int(deleted_str)
-                
-                authors[current_author_email]['name'] = current_author_name
-                authors[current_author_email]['added'] += added
-                authors[current_author_email]['deleted'] += deleted
-                authors[current_author_email]['total'] += (added + deleted)
-                authors[current_author_email]['commits'].add(current_commit)
-    
-    return authors
-
-def _parse_period_string(period_str: str) -> timedelta:
-    """Parses a period string like '3 months' or '1 year' into a timedelta."""
-    period_str = period_str.lower().strip()
-    match = re.match(r'^(\d+)\s*(day|week|month|year)s?$', period_str)
-    if not match:
-        raise ValueError(f"Invalid period format: {period_str}. Use format like '3 months' or '1 year'.")
-
-    value = int(match.group(1))
-    unit = match.group(2)
-
-    if unit == 'day':
-        return timedelta(days=value)
-    elif unit == 'week':
-        return timedelta(weeks=value)
-    elif unit == 'month':
-        return relativedelta(months=value)
-    elif unit == 'year':
-        return relativedelta(years=value)
-    else:
-        # Should not happen due to regex, but for safety
-        raise ValueError(f"Unknown unit: {unit}")
-
-def _prepare_author_data(authors_dict):
-    """Prepares author data with ranks and deciles."""
-    author_list = []
-    for email, stats in authors_dict.items():
-        author_list.append({
-            'email': email,
-            'name': stats['name'],
-            'added': stats['added'],
-            'deleted': stats['deleted'],
-            'total': stats['total'],
-            'commits': len(stats['commits'])
-        })
-
-    if not author_list:
-        return []
-
-    # Sort by total diff size (descending) for initial ranking
-    author_list.sort(key=lambda x: x['total'], reverse=True)
-
-    # Calculate ranks and deciles for diff size
-    n = len(author_list)
-    
-    # Assign ranks and deciles based on diff values
-    current_rank = 1
-    current_decile = 1
-    for i in range(n):
-        if i > 0 and author_list[i]['total'] < author_list[i-1]['total']:
-            current_rank = i + 1
-            current_decile = min(10, math.ceil(current_rank * 10 / n))
-        
-        author_list[i]['rank'] = current_rank
-        author_list[i]['diff_decile'] = current_decile
-
-    # Sort by commit count (descending) for commit decile calculation
-    author_list.sort(key=lambda x: x['commits'], reverse=True)
-
-    # Assign deciles based on commit values
-    current_rank = 1
-    current_decile = 1
-    for i in range(n):
-        if i > 0 and author_list[i]['commits'] < author_list[i-1]['commits']:
-            current_rank = i + 1
-            current_decile = min(10, math.ceil(current_rank * 10 / n))
-        
-        author_list[i]['commit_decile'] = current_decile
-    
-    # Re-sort by total diff size for consistent output order
-    author_list.sort(key=lambda x: x['total'], reverse=True)
-
-    return author_list
-
-def find_author_stats(authors_dict, config: GitAnalysisConfig):
-    """Find and display stats for a specific author"""
-    author_list = _prepare_author_data(authors_dict)
-    
-    if not author_list:
-        analysis_type = "merged commits" if config.merged_only else "commits"
-        print_warning(f"No {analysis_type} found in the specified time period.")
-        return
-    
-    # Find matching authors
-    query_lower = config.author_query.lower()
-    matches = []
-    for author in author_list:
-        if (query_lower in author['name'].lower() or 
-            query_lower in author['email'].lower()):
-            matches.append(author)
-    
-    if not matches:
-        print_error(f"No authors found matching '{config.author_query}'")
-        print("\nSuggestion: Try a partial match like first name, last name, or email domain.")
-        return
-    
-    print()
-    analysis_type = "merged commits" if config.merged_only else "commits"
-    print_header(f"Author Stats for '{config.author_query}' ({analysis_type})")
-    print_header(f"Analysis period: {config.start_date} to {config.end_date}")
-    print()
-    
-    if len(matches) > 1:
-        print_warning(f"Found {len(matches)} matching authors:")
-        print()
-    
-    for author in matches:
-        print_success(f"Author: {author['name']} <{author['email']}>")
-        print(f"  Rank:          #{author['rank']} of {len(author_list)} authors")
-        print(f"  Lines Added:   {author['added']:,}")
-        print(f"  Lines Deleted: {author['deleted']:,}")
-        print(f"  Total Diff:    {author['total']:,}")
-        print(f"  Commits:       {author['commits']}")
-        print(f"  Diff Decile:   {author['diff_decile']} (1=top 10%, 10=bottom 10%)")
-        print(f"  Commit Decile: {author['commit_decile']} (1=top 10%, 10=bottom 10%)")
-        
-        # Calculate percentile more precisely
-        percentile = (author['rank'] - 1) / len(author_list) * 100
-        print(f"  Percentile:    Top {percentile:.1f}%")
-        
-        if author['commits'] > 0:
-            avg_diff_per_commit = author['total'] / author['commits']
-            print(f"  Avg Diff/Commit: {avg_diff_per_commit:.0f} lines")
-        
-        print()
-
-def print_ranking(authors_dict, config: GitAnalysisConfig):
-    """Print the author ranking"""
-    print()
-    print_header("Git Author Ranking by Diff Size")
-    print_header(config.get_analysis_description())
-    print()
-    
-    author_list = _prepare_author_data(authors_dict)
-    
-    if not author_list:
-        print_warning("No commits found in the last 3 months.")
-        return
-    
-    # Print table header
-    print(f"{'Rank':>4} {'Author':<45} {'Lines Added':>11} {'Lines Deleted':>12} {'Total Diff':>11} {'Commits':>7} {'Diff D':>6} {'Comm D':>6}")
-    print(f"{'-'*4:>4} {'-'*45:<45} {'-'*11:>11} {'-'*12:>12} {'-'*11:>11} {'-'*7:>7} {'-'*6:>6} {'-'*6:>6}")
-    
-    # Print results
-    for author in author_list:
-        author_display = f"{author['name']} <{author['email']}>"
-        # Truncate author display if too long
-        if len(author_display) > 45:
-            author_display = author_display[:42] + "..."
-            
-        added_str = str(author['added']) if author['added'] > 0 else '-'
-        deleted_str = str(author['deleted']) if author['deleted'] > 0 else '-'
-        
-        print(f"{author['rank']:>4} {author_display:<45} {added_str:>11} {deleted_str:>12} {author['total']:>11} {author['commits']:>7} {author['diff_decile']:>6} {author['commit_decile']:>6}")
-    
-    # Print decile distribution summary
-    print(f"\nDiff Size Decile Distribution:")
-    print(f"{'Decile':>6} {'Diff Size Range':>25} {'Authors':>8}")
-    print(f"{'-'*6:>6} {'-'*25:>25} {'-'*8:>8}")
-    
-    for decile in range(1, 11):
-        diff_authors = [a for a in author_list if a['diff_decile'] == decile]
-        if diff_authors:
-            min_diff = min(a['total'] for a in diff_authors)
-            max_diff = max(a['total'] for a in diff_authors)
-            diff_range = f"{min_diff:,}-{max_diff:,}" if min_diff != max_diff else f"{min_diff:,}"
-            print(f"{decile:>6} {diff_range:>25} {len(diff_authors):>8}")
-    
-    print(f"\nCommit Count Decile Distribution:")
-    print(f"{'Decile':>6} {'Commit Range':>15} {'Authors':>8}")
-    print(f"{'-'*6:>6} {'-'*15:>15} {'-'*8:>8}")
-    
-    for decile in range(1, 11):
-        commit_authors = [a for a in author_list if a['commit_decile'] == decile]
-        if commit_authors:
-            min_commits = min(a['commits'] for a in commit_authors)
-            max_commits = max(a['commits'] for a in commit_authors)
-            commit_range = f"{min_commits}-{max_commits}" if min_commits != max_commits else f"{min_commits}"
-            print(f"{decile:>6} {commit_range:>15} {len(commit_authors):>8}")
-    
-    print(f"\nSummary:")
-    print(f"- Ranking based on total lines changed (additions + deletions)")
-    print(f"- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
-    print(f"- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
-    print(f"- Analysis period: from {config.start_date} to {config.end_date}")
-    print(f"- Total unique authors: {len(author_list)}")
-
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -676,17 +435,105 @@ def main():
     if config.is_author_specific():
         if config.use_current_user:
             print_success(f"Looking up stats for current user: {config.current_user_name} <{config.current_user_email}>")
-        find_author_stats(authors, config)
+        
+        author_matches = find_author_stats(authors, config)
+        if not author_matches:
+            analysis_type = "merged commits" if config.merged_only else "commits"
+            print_warning(f"No {analysis_type} found in the specified time period.")
+            print_error(f"No authors found matching '{config.author_query}'")
+            print("Suggestion: Try a partial match like first name, last name, or email domain.")
+            return
+        
+        print()
+        analysis_type = "merged commits" if config.merged_only else "commits"
+        print_header(f"Author Stats for '{config.author_query}' ({analysis_type})")
+        print_header(f"Analysis period: {config.start_date} to {config.end_date}")
+        print()
+        
+        if len(author_matches) > 1:
+            print_warning(f"Found {len(author_matches)} matching authors:")
+            print()
+        
+        for author in author_matches:
+            print_success(f"Author: {author['name']} <{author['email']}>")
+            print(f"  Rank:          #{author['rank']} of {len(author_matches)} authors") # Changed len(author_list) to len(author_matches)
+            print(f"  Lines Added:   {author['added']:,}")
+            print(f"  Lines Deleted: {author['deleted']:,}")
+            print(f"  Total Diff:    {author['total']:,}")
+            print(f"  Commits:       {author['commits']}")
+            print(f"  Diff Decile:   {author['diff_decile']} (1=top 10%, 10=bottom 10%)")
+            print(f"  Commit Decile: {author['commit_decile']} (1=top 10%, 10=bottom 10%)")
+            
+            # Calculate percentile more precisely
+            percentile = (author['rank'] - 1) / len(author_matches) * 100 # Changed len(author_list) to len(author_matches)
+            print(f"  Percentile:    Top {percentile:.1f}%")
+            
+            if author['commits'] > 0:
+                avg_diff_per_commit = author['total'] / author['commits']
+                print(f"  Avg Diff/Commit: {avg_diff_per_commit:.0f} lines")
+            
+            print()
         return
     
     # Otherwise show full ranking
-    print_ranking(authors, config)
+    author_list = print_ranking(authors, config) # print_ranking now returns the list
     
     print()
-    print_header("Commit Count Summary:")
-    print(config.get_commit_summary())
+    print_header("Git Author Ranking by Diff Size")
+    print_header(config.get_analysis_description())
+    print()
     
-    print_success("Analysis complete!")
+    if not author_list:
+        print_warning("No commits found in the last 3 months.")
+        return
+    
+    # Print table header
+    print(f"{'Rank':>4} {'Author':<45} {'Lines Added':>11} {'Lines Deleted':>12} {'Total Diff':>11} {'Commits':>7} {'Diff D':>6} {'Comm D':>6}")
+    print(f"{'-'*4:>4} {'-'*45:<45} {'-'*11:>11} {'-'*12:>12} {'-'*11:>11} {'-'*7:>7} {'-'*6:>6} {'-'*6:>6}")
+    
+    # Print results
+    for author in author_list:
+        author_display = f"{author['name']} <{author['email']}>"
+        # Truncate author display if too long
+        if len(author_display) > 45:
+            author_display = author_display[:42] + "..."
+            
+        added_str = str(author['added']) if author['added'] > 0 else '-'
+        deleted_str = str(author['deleted']) if author['deleted'] > 0 else '-'
+        
+        print(f"{author['rank']:>4} {author_display:<45} {added_str:>11} {deleted_str:>12} {author['total']:>11} {author['commits']:>7} {author['diff_decile']:>6} {author['commit_decile']:>6}")
+    
+    # Print decile distribution summary
+    print(f"\nDiff Size Decile Distribution:")
+    print(f"{'Decile':>6} {'Diff Size Range':>25} {'Authors':>8}")
+    print(f"{'-'*6:>6} {'-'*25:>25} {'-'*8:>8}")
+    
+    for decile in range(1, 11):
+        diff_authors = [a for a in author_list if a['diff_decile'] == decile]
+        if diff_authors:
+            min_diff = min(a['total'] for a in diff_authors)
+            max_diff = max(a['total'] for a in diff_authors)
+            diff_range = f"{min_diff:,}-{max_diff:,}" if min_diff != max_diff else f"{min_diff:,}"
+            print(f"{decile:>6} {diff_range:>25} {len(diff_authors):>8}")
+    
+    print(f"\nCommit Count Decile Distribution:")
+    print(f"{'Decile':>6} {'Commit Range':>15} {'Authors':>8}")
+    print(f"{'-'*6:>6} {'-'*15:>15} {'-'*8:>8}")
+    
+    for decile in range(1, 11):
+        commit_authors = [a for a in author_list if a['commit_decile'] == decile]
+        if commit_authors:
+            min_commits = min(a['commits'] for a in commit_authors)
+            max_commits = max(a['commits'] for a in commit_authors)
+            commit_range = f"{min_commits}-{max_commits}" if min_commits != max_commits else f"{min_commits}"
+            print(f"{decile:>6} {commit_range:>15} {len(commit_authors):>8}")
+    
+    print(f"\nSummary:")
+    print(f"- Ranking based on total lines changed (additions + deletions)")
+    print(f"- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
+    print(f"- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
+    print(f"- Analysis period: from {config.start_date} to {config.end_date}")
+    print(f"- Total unique authors: {len(author_list)}")
 
 if __name__ == "__main__":
     main()

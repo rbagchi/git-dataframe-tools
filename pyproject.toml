@@ -15,7 +15,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Environment :: Console",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Version Control",
     "Topic :: Utilities",
@@ -23,11 +22,11 @@ classifiers = [
 dependencies = [
     "tqdm>=4.0.0",
     "parsedatetime",
+    "pandas",
 ]
 
-[project.scripts]
-git-scoreboard = "scoreboard:main"
+[tool.setuptools.packages.find]
+where = ["src"]
 
-[project.urls]
-"Homepage" = "https://github.com/yourusername/git-scoreboard" # Placeholder, user should update
-"Bug Tracker" = "https://github.com/yourusername/git-scoreboard/issues" # Placeholder, user should update
+[project.scripts]
+git-scoreboard = "git_scoreboard.scoreboard:main"

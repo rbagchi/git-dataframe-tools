@@ -7,9 +7,8 @@ from unittest.mock import patch
 
 import re
 
-import sys
-sys.path.insert(0, './')
-from scoreboard import GitAnalysisConfig, check_git_repo
+
+from git_scoreboard.scoreboard import GitAnalysisConfig, check_git_repo
 
 @pytest.fixture(scope="function")
 def temp_git_repo(tmp_path):

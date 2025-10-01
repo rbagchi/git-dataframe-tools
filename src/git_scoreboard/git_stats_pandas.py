@@ -72,29 +72,49 @@ def get_author_stats_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     # Calculate ranks for total diff
     author_stats['rank'] = author_stats['total'].rank(method='min', ascending=False).astype(int)
 
-    # Simulate original decile calculation logic
-    author_stats = author_stats.sort_values(by='total', ascending=False).reset_index(drop=True)
-    
-    n = len(author_stats)
-    if n > 0:
+    # Calculate diff_decile
+    author_stats_diff_sorted = author_stats.sort_values(by='total', ascending=False).reset_index(drop=True)
+    n_diff = len(author_stats_diff_sorted)
+    if n_diff > 0:
         current_decile_diff = 1
-        current_decile_commit = 1
-        author_stats.loc[0, 'diff_decile'] = current_decile_diff
-        author_stats.loc[0, 'commit_decile'] = current_decile_commit
-
-        for i in range(1, n):
-            if author_stats.loc[i, 'total'] < author_stats.loc[i-1, 'total']:
+        for i in range(n_diff):
+            if i > 0 and author_stats_diff_sorted.loc[i, 'total'] < author_stats_diff_sorted.loc[i-1, 'total']:
                 current_rank_diff = i + 1
-                current_decile_diff = min(10, math.ceil(current_rank_diff * 10 / n))
-            author_stats.loc[i, 'diff_decile'] = int(current_decile_diff)
-
-            if author_stats.loc[i, 'commits'] < author_stats.loc[i-1, 'commits']:
-                current_rank_commit = i + 1
-                current_decile_commit = min(10, math.ceil(current_rank_commit * 10 / n))
-            author_stats.loc[i, 'commit_decile'] = int(current_decile_commit)
+                current_decile_diff = min(10, math.ceil(current_rank_diff * 10 / n_diff))
+            author_stats_diff_sorted.loc[i, 'diff_decile'] = int(current_decile_diff)
     else:
-        author_stats['diff_decile'] = pd.Series(dtype='int')
-        author_stats['commit_decile'] = pd.Series(dtype='int')
+        author_stats_diff_sorted['diff_decile'] = pd.Series(dtype=pd.Int64Dtype())
+
+    # Calculate commit_decile
+    author_stats_commit_sorted = author_stats.sort_values(by='commits', ascending=False).reset_index(drop=True)
+    n_commit = len(author_stats_commit_sorted)
+    if n_commit > 0:
+        current_decile_commit = 1
+        for i in range(n_commit):
+            if i > 0 and author_stats_commit_sorted.loc[i, 'commits'] < author_stats_commit_sorted.loc[i-1, 'commits']:
+                current_rank_commit = i + 1
+                current_decile_commit = min(10, math.ceil(current_rank_commit * 10 / n_commit))
+            author_stats_commit_sorted.loc[i, 'commit_decile'] = int(current_decile_commit)
+    else:
+        author_stats_commit_sorted['commit_decile'] = pd.Series(dtype=pd.Int64Dtype())
+
+    # Merge diff_decile back to the original author_stats DataFrame
+    author_stats = author_stats.merge(
+        author_stats_diff_sorted[['author_email', 'diff_decile']],
+        on='author_email',
+        how='left'
+    )
+
+    # Merge commit_decile back to the original author_stats DataFrame
+    author_stats = author_stats.merge(
+        author_stats_commit_sorted[['author_email', 'commit_decile']],
+        on='author_email',
+        how='left'
+    )
+
+    # Ensure decile columns are of Int64Dtype after merge
+    author_stats['diff_decile'] = author_stats['diff_decile'].astype(pd.Int64Dtype())
+    author_stats['commit_decile'] = author_stats['commit_decile'].astype(pd.Int64Dtype())
 
     # Sort by total diff size (descending) for consistent output order
     author_stats = author_stats.sort_values(by='total', ascending=False).reset_index(drop=True)

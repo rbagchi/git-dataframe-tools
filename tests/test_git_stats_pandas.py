@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+
 from git_scoreboard.git_stats_pandas import parse_git_log_to_dataframe, get_author_stats_dataframe, find_author_stats_pandas, print_ranking_pandas
 
 def test_parse_git_log_to_dataframe_empty_input():
@@ -144,20 +145,19 @@ commit4|D|d@example.com|msg
     # A: total 100, commits 1
     assert author_stats.iloc[1]['author_email'] == 'a@example.com'
     assert author_stats.iloc[1]['rank'] == 2
-    assert author_stats.iloc[1]['diff_decile'] == 7
-    assert author_stats.iloc[1]['commit_decile'] == 7
-
+    assert author_stats.iloc[1]['diff_decile'] == 5
+    assert author_stats.iloc[1]['commit_decile'] == 1
     # B: total 50, commits 1
     assert author_stats.iloc[2]['author_email'] == 'b@example.com'
     assert author_stats.iloc[2]['rank'] == 3
-    assert author_stats.iloc[2]['diff_decile'] == 10
-    assert author_stats.iloc[2]['commit_decile'] == 10
+    assert author_stats.iloc[2]['diff_decile'] == 8
+    assert author_stats.iloc[2]['commit_decile'] == 1
 
     # D: total 10, commits 1
     assert author_stats.iloc[3]['author_email'] == 'd@example.com'
     assert author_stats.iloc[3]['rank'] == 4
     assert author_stats.iloc[3]['diff_decile'] == 10
-    assert author_stats.iloc[3]['commit_decile'] == 10
+    assert author_stats.iloc[3]['commit_decile'] == 1
 
 def test_find_author_stats_pandas_found():
     author_stats_df = pd.DataFrame({

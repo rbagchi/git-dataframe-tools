@@ -33,6 +33,10 @@ commit_hash5|Author One|one@example.com|Commit message E
     original_df = original_df.rename(columns={'email': 'author_email', 'name': 'author_name'})
     original_df = original_df.sort_values(by='author_email').reset_index(drop=True)
 
+    # Convert decile columns to nullable integer type for consistent comparison
+    original_df['diff_decile'] = original_df['diff_decile'].astype(pd.Int64Dtype())
+    original_df['commit_decile'] = original_df['commit_decile'].astype(pd.Int64Dtype())
+
     # --- Test git_stats_pandas module ---
     pandas_df_raw = parse_git_log_to_dataframe(mock_git_data)
     pandas_author_stats_df = get_author_stats_dataframe(pandas_df_raw)

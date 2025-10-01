@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 
 SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
 
-SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
+
 
 
 # Test cases for _parse_period_string

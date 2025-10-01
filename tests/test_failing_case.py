@@ -7,7 +7,9 @@ import sys
 
 from git_scoreboard.scoreboard import GitAnalysisConfig
 
-@patch('git_scoreboard.scoreboard.datetime')
+SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
+
+@patch(f'{SCOREBOARD_MODULE_PATH}.datetime')
 def test_get_date_range_natural_language_start_end(mock_datetime):
     mock_datetime.now.return_value = datetime(2025, 9, 29, 10, 0, 0) # Add time for parsedatetime context
     mock_datetime.strptime = datetime.strptime

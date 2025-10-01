@@ -10,6 +10,8 @@ import re
 
 from git_scoreboard.scoreboard import GitAnalysisConfig, check_git_repo
 
+SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
+
 @pytest.fixture(scope="function")
 def temp_git_repo(tmp_path):
     """Fixture to create a temporary git repository for integration tests."""

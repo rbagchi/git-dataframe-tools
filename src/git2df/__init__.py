@@ -17,8 +17,17 @@ def get_commits_df(repo_path: str, log_args: Optional[List[str]] = None) -> pd.D
     Returns:
         A Pandas DataFrame containing commit information.
     """
+    default_log_args = [
+        '--numstat',
+        '--pretty=format:--%H--%an--%ae--%ad--%s',
+        '--date=iso'
+    ]
+
     if log_args is None:
-        log_args = []
+        log_args = default_log_args
+    else:
+        # Prepend default args if custom args are provided, ensuring format is always present
+        log_args = default_log_args + log_args
 
     backend = GitCliBackend()
     raw_log_output = backend.get_raw_log_output(repo_path, log_args)

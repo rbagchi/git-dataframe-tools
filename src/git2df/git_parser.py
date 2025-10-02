@@ -33,6 +33,14 @@ def _parse_git_data_internal(git_data: list[str]) -> dict:
                 current_commit_hash = parts[1]
                 current_author_name = parts[2]
                 current_author_email = parts[3]
+                authors[current_author_email]['name'] = current_author_name # Moved this line
+                
+                # Always add to the set of commits for this author
+                authors[current_author_email]['commits'].add(current_commit_hash)
+                
+                # Add to the list of commit_hashes only if it's a new commit for this author
+                if current_commit_hash not in authors[current_author_email]['commit_hashes']:
+                    authors[current_author_email]['commit_hashes'].append(current_commit_hash)
             # DO NOT continue here, process file stats if any
         else: # This is a file stat line
             # File stat line (format: added\tdeleted\tfilename)
@@ -45,11 +53,9 @@ def _parse_git_data_internal(git_data: list[str]) -> dict:
                     added = 0 if added_str == '-' else int(added_str)
                     deleted = 0 if deleted_str == '-' else int(deleted_str)
                     
-                    authors[current_author_email]['name'] = current_author_name
+                    # authors[current_author_email]['name'] = current_author_name # Removed this line
                     authors[current_author_email]['added'] += added
                     authors[current_author_email]['deleted'] += deleted
                     authors[current_author_email]['total'] += (added + deleted)
-                    authors[current_author_email]['commits'].add(current_commit_hash)
-                    authors[current_author_email]['commit_hashes'].append(current_commit_hash)
     
     return authors

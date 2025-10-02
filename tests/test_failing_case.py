@@ -1,23 +1,31 @@
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch
-import sys
+from unittest.mock import patch, MagicMock
 
 # Assuming scoreboard.py is in the parent directory
 
-from git_scoreboard.scoreboard import GitAnalysisConfig
+from git_scoreboard.config_models import GitAnalysisConfig
 
-SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
+CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.datetime')
-def test_get_date_range_natural_language_start_end(mock_datetime):
-    mock_datetime.now.return_value = datetime(2025, 9, 29, 10, 0, 0) # Add time for parsedatetime context
-    mock_datetime.strptime = datetime.strptime
-    mock_datetime.timedelta = timedelta
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.datetime')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.Calendar')
+def test_get_date_range_natural_language_start_end(mock_calendar_class, mock_datetime_class):
+    # Mock datetime.now() to control the 'today' reference
+    mock_datetime_class.now.return_value = datetime(2025, 9, 29, 10, 0, 0) # Monday, Sep 29, 2025
+    mock_datetime_class.combine = datetime.combine
+
+    # Mock the Calendar instance and its parseDT method
+    mock_cal_instance = MagicMock()
+    mock_calendar_class.return_value = mock_cal_instance
+    # Configure side_effect for parseDT calls
+    # First call for 'yesterday' (relative to 2025-09-29) -> 2025-09-28
+    # Second call for 'last week' (relative to 2025-09-29) -> 2025-09-22
+    mock_cal_instance.parseDT.side_effect = [
+        (datetime(2025, 9, 28, 0, 0, 0), 1),  # for "yesterday"
+        (datetime(2025, 9, 22, 0, 0, 0), 1)   # for "last week"
+    ]
 
     config = GitAnalysisConfig(start_date="last week", end_date="yesterday")
-    start_date_str, end_date_str = config._get_date_range()
-    # Assuming 'last week' from 2025-09-29 is 2025-09-22
-    # Assuming 'yesterday' from 2025-09-29 is 2025-09-28
-    assert start_date_str == "2025-09-22"
-    assert end_date_str == "2025-09-28"
+    assert config.start_date.isoformat() == "2025-09-22"
+    assert config.end_date.isoformat() == "2025-09-28"

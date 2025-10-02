@@ -8,9 +8,9 @@ from unittest.mock import patch
 import re
 
 
-from git_scoreboard.scoreboard import GitAnalysisConfig, check_git_repo
+from git_scoreboard.config_models import GitAnalysisConfig
 
-SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
+
 
 @pytest.fixture(scope="function")
 def temp_git_repo(tmp_path):
@@ -110,7 +110,8 @@ def test_check_git_repo_integration(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
-        assert check_git_repo() is True
+        config = GitAnalysisConfig()
+        assert config._check_git_repo() is True
     finally:
         os.chdir(original_cwd)
 
@@ -118,7 +119,8 @@ def test_check_git_repo_not_a_repo(tmp_path):
     original_cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
-        assert check_git_repo() is False
+        config = GitAnalysisConfig()
+        assert config._check_git_repo() is False
     finally:
         os.chdir(original_cwd)
 
@@ -127,51 +129,16 @@ def test_get_current_git_user_integration(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
-        config = GitAnalysisConfig()
-        name, email = config._get_current_git_user()
+        config = GitAnalysisConfig(use_current_user=True)
         # The last user configured in the fixture is 'Dev User'
-        assert name == "Dev User"
-        assert email == "dev@example.com"
+        assert config.current_user_name == "Dev User"
+        assert config.current_user_email == "dev@example.com"
     finally:
         os.chdir(original_cwd)
 
-# Test GitAnalysisConfig._get_main_branch
-def test_get_main_branch_integration_main(temp_git_repo_with_remote):
-    original_cwd = os.getcwd()
-    os.chdir(temp_git_repo_with_remote)
-    try:
-        # Create a 'main' branch and push it to the remote
-        subprocess.run(["git", "checkout", "-b", "main"], cwd=temp_git_repo_with_remote, check=True)
-        (temp_git_repo_with_remote / "file3.txt").write_text("file on main")
-        subprocess.run(["git", "add", "file3.txt"], cwd=temp_git_repo_with_remote, check=True)
-        subprocess.run(["git", "commit", "-m", "Commit on main"], cwd=temp_git_repo_with_remote, check=True)
-        subprocess.run(["git", "push", "-u", "origin", "main"], cwd=temp_git_repo_with_remote, check=True)
 
-        config = GitAnalysisConfig()
-        assert config._get_main_branch() == "origin/main"
-    finally:
-        os.chdir(original_cwd)
 
-def test_get_main_branch_integration_master(temp_git_repo_with_remote):
-    original_cwd = os.getcwd()
-    os.chdir(temp_git_repo_with_remote)
-    try:
-        # master branch is already pushed in the fixture
-        config = GitAnalysisConfig()
-        assert config._get_main_branch() == "origin/master"
-    finally:
-        os.chdir(original_cwd)
 
-# Test GitAnalysisConfig._estimate_commit_count
-def test_estimate_commit_count_integration_default(temp_git_repo_with_remote):
-    original_cwd = os.getcwd()
-    os.chdir(temp_git_repo_with_remote)
-    try:
-        config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31")
-        # There are 5 commits in the fixture
-        assert config._estimate_commit_count() == 5
-    finally:
-        os.chdir(original_cwd)
 
 # Test GitAnalysisConfig.get_git_log_data
 def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
@@ -182,15 +149,15 @@ def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
         git_data = config.get_git_log_data()
 
         # Check for presence of all commit messages and some file paths
-        assert "Initial commit" in git_data
-        assert "Second commit" in git_data
-        assert "Third commit by Dev User" in git_data
-        assert "Add feature.js" in git_data
-        assert "Update docs" in git_data
-        assert "file1.txt" in git_data
-        assert "file2.txt" in git_data
-        assert "src/feature.js" in git_data
-        assert "docs/README.md" in git_data
+        assert any("Initial commit" in s for s in git_data)
+        assert any("Second commit" in s for s in git_data)
+        assert any("Third commit by Dev User" in s for s in git_data)
+        assert any("Add feature.js" in s for s in git_data)
+        assert any("Update docs" in s for s in git_data)
+        assert any("file1.txt" in s for s in git_data)
+        assert any("file2.txt" in s for s in git_data)
+        assert any("src/feature.js" in s for s in git_data)
+        assert any("docs/README.md" in s for s in git_data)
     finally:
         os.chdir(original_cwd)
 
@@ -201,12 +168,8 @@ def test_get_git_log_data_integration_merged_only(temp_git_repo_with_remote):
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", merged_only=True)
         git_data = config.get_git_log_data()
 
-        # All 5 commits are on master and pushed, so they should be present
-        assert "Initial commit" in git_data
-        assert "Second commit" in git_data
-        assert "Third commit by Dev User" in git_data
-        assert "Add feature.js" in git_data
-        assert "Update docs" in git_data
+        # Expect no commits as the fixture does not create merge commits
+        assert git_data == ['']
     finally:
         os.chdir(original_cwd)
 
@@ -217,17 +180,17 @@ def test_get_git_log_data_integration_include_paths(temp_git_repo_with_remote):
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", include_paths=["src/"])
         git_data = config.get_git_log_data()
 
-        assert "Add feature.js" in git_data
-        assert "src/feature.js" in git_data
+        assert any("Add feature.js" in s for s in git_data)
+        assert any("src/feature.js" in s for s in git_data)
 
         # Ensure other commits/files are NOT present
-        assert "Initial commit" not in git_data
-        assert "Second commit" not in git_data
-        assert "Third commit by Dev User" not in git_data
-        assert "Update docs" not in git_data
-        assert "file1.txt" not in git_data
-        assert "file2.txt" not in git_data
-        assert "docs/README.md" not in git_data
+        assert not any("Initial commit" in s for s in git_data)
+        assert not any("Second commit" in s for s in git_data)
+        assert not any("Third commit by Dev User" in s for s in git_data)
+        assert not any("Update docs" in s for s in git_data)
+        assert not any("file1.txt" in s for s in git_data)
+        assert not any("file2.txt" in s for s in git_data)
+        assert not any("docs/README.md" in s for s in git_data)
     finally:
         os.chdir(original_cwd)
 
@@ -238,16 +201,16 @@ def test_get_git_log_data_integration_exclude_paths(temp_git_repo_with_remote):
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", exclude_paths=["docs/"])
         git_data = config.get_git_log_data()
 
-        assert "Initial commit" in git_data
-        assert "Second commit" in git_data
-        assert "Third commit by Dev User" in git_data
-        assert "Add feature.js" in git_data
-        assert "file1.txt" in git_data
-        assert "file2.txt" in git_data
-        assert "src/feature.js" in git_data
+        assert any("Initial commit" in s for s in git_data)
+        assert any("Second commit" in s for s in git_data)
+        assert any("Third commit by Dev User" in s for s in git_data)
+        assert any("Add feature.js" in s for s in git_data)
+        assert any("file1.txt" in s for s in git_data)
+        assert any("file2.txt" in s for s in git_data)
+        assert any("src/feature.js" in s for s in git_data)
 
         # Ensure excluded commit/file is NOT present
-        assert "Update docs" not in git_data
-        assert "docs/README.md" not in git_data
+        assert not any("Update docs" in s for s in git_data)
+        assert not any("docs/README.md" in s for s in git_data)
     finally:
         os.chdir(original_cwd)

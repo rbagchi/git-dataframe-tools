@@ -1,14 +1,14 @@
 import pandas as pd
 import re
 import math
-from .scoreboard import GitAnalysisConfig
+from .config_models import GitAnalysisConfig
 
 def _calculate_decile_from_rank(rank, n):
     return min(10, math.ceil(rank * 10 / n))
 
-def parse_git_log_to_dataframe(git_data: str) -> pd.DataFrame:
+def _parse_git_log_to_dataframe_internal(git_data: list[str]) -> pd.DataFrame:
     """Parses raw git log --numstat output into a Pandas DataFrame."""
-    lines = git_data.splitlines()
+    lines = git_data
     data = []
     current_commit_info = {}
 
@@ -18,14 +18,15 @@ def parse_git_log_to_dataframe(git_data: str) -> pd.DataFrame:
             continue
 
         # Commit info line: hash|author_name|author_email|subject
-        if '|' in line and len(line.split('|')) >= 4:
-            parts = line.split('|')
-            current_commit_info = {
-                'commit_hash': parts[0],
-                'author_name': parts[1],
-                'author_email': parts[2],
-                'commit_message': parts[3]
-            }
+        if line.startswith('--'):
+            parts = line.split('--')
+            if len(parts) >= 5:
+                current_commit_info = {
+                    'commit_hash': parts[1],
+                    'author_name': parts[2],
+                    'author_email': parts[3],
+                    'commit_message': parts[4]
+                }
         # File stat line: added\tdeleted\tfilepath
         else:
             stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t(.+)$', line)
@@ -49,7 +50,13 @@ def parse_git_log_to_dataframe(git_data: str) -> pd.DataFrame:
     df = pd.DataFrame(data)
     return df
 
-def get_author_stats_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def parse_git_log(git_data: list[str]) -> list[dict]:
+    """Parses raw git log data using pandas and prepares author statistics."""
+    df = _parse_git_log_to_dataframe_internal(git_data)
+    author_stats_df = _get_author_stats_dataframe_internal(df)
+    return author_stats_df.to_dict(orient='records')
+
+def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates author statistics (added, deleted, total, commits, ranks, deciles)
     from a DataFrame of git log data.
@@ -124,24 +131,25 @@ def get_author_stats_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return author_stats
 
-def find_author_stats_pandas(author_stats_df: pd.DataFrame, author_query: str) -> pd.DataFrame:
+def find_author_stats(author_stats: list[dict], author_query: str) -> list[dict]:
     """
-    Finds and returns stats for a specific author from the author statistics DataFrame.
+    Finds and returns stats for a specific author from the author statistics list.
     """
-    if author_stats_df.empty:
-        return pd.DataFrame()
+    if not author_stats:
+        return []
 
     query_lower = author_query.lower()
-    matches_df = author_stats_df[
-        author_stats_df['author_name'].str.lower().str.contains(query_lower) |
-        author_stats_df['author_email'].str.lower().str.contains(query_lower)
-    ]
-    return matches_df
+    matches = []
+    for author in author_stats:
+        if (query_lower in author['author_name'].lower() or 
+            query_lower in author['author_email'].lower()):
+            matches.append(author)
+    return matches
 
-def print_ranking_pandas(author_stats_df: pd.DataFrame) -> pd.DataFrame:
+def get_ranking(author_stats: list[dict]) -> list[dict]:
     """
-    Returns the author statistics DataFrame sorted by total diff for printing.
+    Returns the author statistics list sorted by total diff for printing.
     """
-    if author_stats_df.empty:
-        return pd.DataFrame()
-    return author_stats_df.sort_values(by='total', ascending=False).reset_index(drop=True)
+    if not author_stats:
+        return []
+    return sorted(author_stats, key=lambda x: x['total'], reverse=True)

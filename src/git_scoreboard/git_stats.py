@@ -3,8 +3,9 @@ from collections import defaultdict
 from datetime import timedelta
 import math
 from dateutil.relativedelta import relativedelta
+from git_scoreboard.config_models import _parse_period_string
 
-def parse_git_data(git_data):
+def _parse_git_data_internal(git_data):
     """Parse git log data and calculate stats per author"""
     authors = defaultdict(lambda: {
         'name': '',
@@ -19,7 +20,7 @@ def parse_git_data(git_data):
     current_author_email = None
     current_commit_message = None
     
-    for line in git_data.split('\n'):
+    for line in git_data:
         line = line.strip()
         
         if not line:
@@ -30,14 +31,14 @@ def parse_git_data(git_data):
             current_commit_message = None
             continue
             
-        if '|' in line:
+        if line.startswith('--'):
             # Commit info line
-            parts = line.split('|')
-            if len(parts) >= 4:
-                current_commit = parts[0]
-                current_author_name = parts[1]
-                current_author_email = parts[2]
-                current_commit_message = parts[3]
+            parts = line.split('--')
+            if len(parts) >= 5:
+                current_commit = parts[1]
+                current_author_name = parts[2]
+                current_author_email = parts[3]
+                current_commit_message = parts[4]
             continue
             
         # File stat line (format: added\tdeleted\tfilename)
@@ -57,6 +58,11 @@ def parse_git_data(git_data):
                 authors[current_author_email]['commits'].add(current_commit)
     
     return authors
+
+def parse_git_log(git_data: list[str]) -> list[dict]:
+    """Parses raw git log data and prepares author statistics."""
+    authors_dict = _parse_git_data_internal(git_data)
+    return _prepare_author_data(authors_dict)
 
 def _parse_period_string(period_str: str) -> timedelta:
     """Parses a period string like '3 months' or '1 year' into a timedelta."""
@@ -85,7 +91,7 @@ def _prepare_author_data(authors_dict):
     author_list = []
     for email, stats in authors_dict.items():
         author_list.append({
-            'email': email,
+            'author_email': email,
             'name': stats['name'],
             'added': stats['added'],
             'deleted': stats['deleted'],
@@ -131,32 +137,23 @@ def _prepare_author_data(authors_dict):
 
     return author_list
 
-def find_author_stats(authors_dict, config):
-    """Find and display stats for a specific author"""
-    author_list = _prepare_author_data(authors_dict)
-    
-    if not author_list:
-        analysis_type = "merged commits" if config.merged_only else "commits"
-        # print_warning(f"No {analysis_type} found in the specified time period.") # Removed print_warning
-        return # Return None or raise an exception instead of printing
+def find_author_stats(author_stats: list[dict], author_query: str) -> list[dict]:
+    """Finds and returns stats for a specific author from the author statistics list."""
+    if not author_stats:
+        return []
     
     # Find matching authors
-    query_lower = config.author_query.lower()
+    query_lower = author_query.lower()
     matches = []
-    for author in author_list:
+    for author in author_stats:
         if (query_lower in author['name'].lower() or 
             query_lower in author['email'].lower()):
             matches.append(author)
     
-    if not matches:
-        # print_error(f"No authors found matching '{config.author_query}'") # Removed print_error
-        # print("\nSuggestion: Try a partial match like first name, last name, or email domain.") # Removed print
-        return # Return None or raise an exception instead of printing
-    
-    # The actual printing logic will be handled by the main script
-    return matches # Return the matches for external printing
+    return matches
 
-def print_ranking(authors_dict, config):
-    """Print the author ranking"""
-    # The actual printing logic will be handled by the main script
-    return _prepare_author_data(authors_dict) # Return the prepared data for external printing
+def get_ranking(author_stats: list[dict]) -> list[dict]:
+    """Returns the author statistics list sorted by total diff for printing."""
+    if not author_stats:
+        return []
+    return sorted(author_stats, key=lambda x: x['total'], reverse=True)

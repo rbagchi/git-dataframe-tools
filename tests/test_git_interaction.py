@@ -1,294 +1,146 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 import subprocess
 import sys
 
 # Assuming scoreboard.py is in the parent directory
 
-from git_scoreboard.scoreboard import GitAnalysisConfig, check_git_repo, print_error
+from git_scoreboard.config_models import GitAnalysisConfig, print_error, Colors
 
-SCOREBOARD_MODULE_PATH = "git_scoreboard.scoreboard"
-
-
-# Test cases for check_git_repo
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_check_git_repo_success(mock_run):
-    mock_run.return_value = MagicMock(returncode=0)
-    assert check_git_repo() is True
-    mock_run.assert_called_once_with(
-        ["git", "rev-parse", "--git-dir"], capture_output=True, check=True
-    )
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_check_git_repo_failure(mock_run):
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git rev-parse")
-    assert check_git_repo() is False
-    mock_run.assert_called_once_with(
-        ["git", "rev-parse", "--git-dir"], capture_output=True, check=True
-    )
+CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
 
 
 # Test cases for GitAnalysisConfig._get_current_git_user
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_current_git_user_success(mock_run):
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
+def test_get_current_git_user_success(mock_check_git_repo, mock_run):
+    mock_check_git_repo.return_value = True
     mock_run.side_effect = [
         MagicMock(stdout="Test User\n", returncode=0),  # git config user.name
         MagicMock(stdout="test@example.com\n", returncode=0),  # git config user.email
     ]
-    config = GitAnalysisConfig()
-    name, email = config._get_current_git_user()
-    assert name == "Test User"
-    assert email == "test@example.com"
+    config = GitAnalysisConfig(use_current_user=True)
+    assert config.current_user_name == "Test User"
+    assert config.current_user_email == "test@example.com"
     assert mock_run.call_count == 2
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_current_git_user_no_name(mock_run):
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
+def test_get_current_git_user_no_name(mock_check_git_repo, mock_run):
+    mock_check_git_repo.return_value = True
     mock_run.side_effect = [
         MagicMock(stdout="\n", returncode=0),  # git config user.name (empty)
         MagicMock(stdout="test@example.com\n", returncode=0),  # git config user.email
     ]
-    config = GitAnalysisConfig()
-    name, email = config._get_current_git_user()
-    assert name == ""
-    assert email == "test@example.com"
+    config = GitAnalysisConfig(use_current_user=True)
+    assert config.current_user_name == ""
+    assert config.current_user_email == "test@example.com"
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_current_git_user_no_email(mock_run):
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
+def test_get_current_git_user_no_email(mock_check_git_repo, mock_run):
+    mock_check_git_repo.return_value = True
     mock_run.side_effect = [
         MagicMock(stdout="Test User\n", returncode=0),  # git config user.name
         MagicMock(stdout="\n", returncode=0),  # git config user.email (empty)
     ]
-    config = GitAnalysisConfig()
-    name, email = config._get_current_git_user()
-    assert name == "Test User"
-    assert email == ""
+    config = GitAnalysisConfig(use_current_user=True)
+    assert config.current_user_name == "Test User"
+    assert config.current_user_email == ""
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_current_git_user_failure(mock_run):
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_error')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.sys.exit')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
+def test_get_current_git_user_failure(mock_check_git_repo, mock_exit, mock_print_error, mock_run):
+    mock_check_git_repo.return_value = True
     mock_run.side_effect = subprocess.CalledProcessError(1, "git config user.name")
-    config = GitAnalysisConfig()
-    name, email = config._get_current_git_user()
-    assert name is None
-    assert email is None
-    mock_run.assert_called_once()  # Only the first call should happen before exception
+    config = GitAnalysisConfig(use_current_user=True)
+    mock_print_error.assert_called_once_with("Error: Could not retrieve git user.name or user.email. Please configure git or run without --me.")
+    mock_exit.assert_called_once_with(1)
 
-
-# Test cases for GitAnalysisConfig._get_main_branch
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_main_branch_origin_main(mock_run):
-    mock_run.side_effect = [
-        MagicMock(returncode=0),  # git rev-parse --verify origin/main
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/master
-        subprocess.CalledProcessError(1, "git symbolic-ref"),  # git symbolic-ref
-    ]
-    config = GitAnalysisConfig()
-    assert config._get_main_branch() == "origin/main"
-    assert mock_run.call_count == 1  # Only origin/main check should run
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_main_branch_origin_master(mock_run):
-    mock_run.side_effect = [
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/main
-        MagicMock(returncode=0),  # git rev-parse --verify origin/master
-        subprocess.CalledProcessError(1, "git symbolic-ref"),  # git symbolic-ref
-    ]
-    config = GitAnalysisConfig()
-    assert config._get_main_branch() == "origin/master"
-    assert mock_run.call_count == 2  # origin/main and origin/master checks should run
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_main_branch_symbolic_ref(mock_run):
-    mock_run.side_effect = [
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/main
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/master
-        MagicMock(
-            stdout="refs/remotes/origin/some_branch\n", returncode=0
-        ),  # git symbolic-ref
-    ]
-    config = GitAnalysisConfig()
-    assert config._get_main_branch() == "origin/some_branch"
-    assert mock_run.call_count == 3  # All three checks should run
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-def test_get_main_branch_not_found(mock_run):
-    mock_run.side_effect = [
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/main
-        subprocess.CalledProcessError(
-            1, "git rev-parse"
-        ),  # git rev-parse --verify origin/master
-        subprocess.CalledProcessError(1, "git symbolic-ref"),  # git symbolic-ref
-    ]
-    config = GitAnalysisConfig()
-    assert config._get_main_branch() is None
-    assert mock_run.call_count == 3  # All three checks should run
-
-
-# Test cases for GitAnalysisConfig._estimate_commit_count
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_estimate_commit_count_default(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="123\n", returncode=0)
-    config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config._estimate_commit_count() == 123
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "rev-list",
-            "--count",
-            "HEAD",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_estimate_commit_count_merged_only(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="456\n", returncode=0)
-    config = GitAnalysisConfig(
-        start_date="2025-01-01", end_date="2025-01-31", merged_only=True
-    )
-    assert config._estimate_commit_count() == 456
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "rev-list",
-            "--count",
-            "origin/main",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_estimate_commit_count_merged_only_no_main_branch(
-    mock_get_main_branch, mock_run
-):
-    mock_get_main_branch.return_value = None
-    config = GitAnalysisConfig(
-        start_date="2025-01-01", end_date="2025-01-31", merged_only=True
-    )
-    assert config._estimate_commit_count() is None
-    mock_run.assert_not_called()
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_estimate_commit_count_error(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git rev-list")
-    config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config._estimate_commit_count() is None
-    mock_run.assert_called_once()
 
 
 # Test cases for GitAnalysisConfig.get_git_log_data
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-def test_get_git_log_data_default(
-    mock_estimate_commit_count, mock_get_main_branch, mock_run
-):
-    mock_estimate_commit_count.return_value = None  # Don't trigger progress bar
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="git log output", returncode=0)
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
+def test_get_git_log_data_default(mock_print_warning, mock_run):
+    mock_run.return_value = MagicMock(stdout="--git log output", returncode=0)
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_git_log_data() == "git log output"
+    assert config.get_git_log_data() == ['', 'git log output']
     mock_run.assert_called_once_with(
         [
             "git",
             "log",
             "--since=2025-01-01",
             "--until=2025-01-31",
-            "--pretty=format:%H|%an|%ae|%s",
             "--numstat",
+            "--pretty=format:--%H--%an--%ae--%ad--%s",
+            "--date=iso",
         ],
         capture_output=True,
         text=True,
         check=True,
+        encoding='utf-8',
+        errors='ignore',
     )
+    mock_print_warning.assert_not_called()
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-def test_get_git_log_data_merged_only(
-    mock_estimate_commit_count, mock_get_main_branch, mock_run
-):
-    mock_estimate_commit_count.return_value = None  # Don't trigger progress bar
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="git log output merged", returncode=0)
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
+def test_get_git_log_data_merged_only(mock_print_warning, mock_run):
+    mock_run.side_effect = [
+        MagicMock(returncode=0), # for checking main branch
+        MagicMock(stdout="--git log output merged", returncode=0)
+    ]
     config = GitAnalysisConfig(
         start_date="2025-01-01", end_date="2025-01-31", merged_only=True
     )
-    assert config.get_git_log_data() == "git log output merged"
-    mock_run.assert_called_once_with(
+    assert config.get_git_log_data() == ['', 'git log output merged']
+    mock_run.assert_called_with(
         [
             "git",
             "log",
-            "origin/main",
             "--since=2025-01-01",
             "--until=2025-01-31",
-            "--pretty=format:%H|%an|%ae|%s",
             "--numstat",
+            "--pretty=format:--%H--%an--%ae--%ad--%s",
+            "--date=iso",
+            "--merges",
+            "origin/main",
         ],
         capture_output=True,
         text=True,
         check=True,
+        encoding='utf-8',
+        errors='ignore',
     )
+    mock_print_warning.assert_not_called()
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-def test_get_git_log_data_include_paths(
-    mock_estimate_commit_count, mock_get_main_branch, mock_run
-):
-    mock_estimate_commit_count.return_value = None
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="git log output include", returncode=0)
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
+def test_get_git_log_data_include_paths(mock_print_warning, mock_run):
+    mock_run.return_value = MagicMock(stdout="--git log output include", returncode=0)
     config = GitAnalysisConfig(
         start_date="2025-01-01",
         end_date="2025-01-31",
         include_paths=["src/frontend", "src/backend"],
     )
-    assert config.get_git_log_data() == "git log output include"
+    assert config.get_git_log_data() == ['', 'git log output include']
     mock_run.assert_called_once_with(
         [
             "git",
             "log",
             "--since=2025-01-01",
             "--until=2025-01-31",
-            "--pretty=format:%H|%an|%ae|%s",
             "--numstat",
+            "--pretty=format:--%H--%an--%ae--%ad--%s",
+            "--date=iso",
             "--",
             "src/frontend",
             "src/backend",
@@ -296,132 +148,72 @@ def test_get_git_log_data_include_paths(
         capture_output=True,
         text=True,
         check=True,
+        encoding='utf-8',
+        errors='ignore',
     )
+    mock_print_warning.assert_not_called()
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-def test_get_git_log_data_exclude_paths(
-    mock_estimate_commit_count, mock_get_main_branch, mock_run
-):
-    mock_estimate_commit_count.return_value = None
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="git log output exclude", returncode=0)
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
+def test_get_git_log_data_exclude_paths(mock_print_warning, mock_run):
+    mock_run.return_value = MagicMock(stdout="--git log output exclude", returncode=0)
     config = GitAnalysisConfig(
         start_date="2025-01-01", end_date="2025-01-31", exclude_paths=["docs", "tests"]
     )
-    assert config.get_git_log_data() == "git log output exclude"
+    assert config.get_git_log_data() == ['', 'git log output exclude']
     mock_run.assert_called_once_with(
         [
             "git",
             "log",
             "--since=2025-01-01",
             "--until=2025-01-31",
-            "--pretty=format:%H|%an|%ae|%s",
             "--numstat",
-            "--",
-            ":!docs",
-            ":!tests",
+            "--pretty=format:--%H--%an--%ae--%ad--%s",
+            "--date=iso",
+            ":(exclude)docs",
+            ":(exclude)tests",
         ],
         capture_output=True,
         text=True,
         check=True,
+        encoding='utf-8',
+        errors='ignore',
     )
+    mock_print_warning.assert_not_called()
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-def test_get_git_log_data_error(
-    mock_estimate_commit_count, mock_get_main_branch, mock_run
-):
-    mock_estimate_commit_count.return_value = None
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git log")
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_error')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.sys.exit')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
+def test_get_git_log_data_error(mock_check_git_repo, mock_exit, mock_print_error, mock_run):
+    mock_check_git_repo.return_value = True
+    mock_run.side_effect = subprocess.CalledProcessError(1, "git log", stderr="fatal: bad revision")
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    with pytest.raises(SystemExit) as excinfo:
-        config.get_git_log_data()
-    assert excinfo.type == SystemExit
-    assert excinfo.value.code == 1
+    config.get_git_log_data()
+    assert mock_print_error.call_args_list == [
+        call("Error running git log: Command 'git log' returned non-zero exit status 1."),
+        call("Stderr: fatal: bad revision")
+    ]
+    mock_exit.assert_called_once_with(1)
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._estimate_commit_count')
-@patch(f'{SCOREBOARD_MODULE_PATH}.TQDM_AVAILABLE', False)
-@patch("builtins.print")
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'git_scoreboard.scoreboard.TQDM_AVAILABLE', False)
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_success')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
 def test_get_git_log_data_progress_bar_tqdm_not_available(
-    mock_print, mock_estimate_commit_count, mock_get_main_branch, mock_run
+    mock_check_git_repo, mock_print_success, mock_run
 ):
-    mock_estimate_commit_count.return_value = 200  # Trigger progress bar logic
-    mock_get_main_branch.return_value = "origin/main"
+    mock_check_git_repo.return_value = True
     mock_run.return_value = MagicMock(
-        stdout="git log output with many commits", returncode=0
+        stdout="--git log output with many commits", returncode=0
     )
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_git_log_data() == "git log output with many commits"
-    mock_print.assert_any_call(
-        "\033[0;32mFetching 200 commits (this may take a while...)\033[0m"
-    )
+    assert config.get_git_log_data() == ['', 'git log output with many commits']
     mock_run.assert_called_once()
 
 
-# Test cases for GitAnalysisConfig.get_commit_summary
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_get_commit_summary_default(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(stdout="commit summary output", returncode=0)
-    config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_commit_summary() == "commit summary output"
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "shortlog",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numbered",
-            "--summary",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
 
 
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_get_commit_summary_merged_only(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.return_value = MagicMock(
-        stdout="commit summary output merged", returncode=0
-    )
-    config = GitAnalysisConfig(
-        start_date="2025-01-01", end_date="2025-01-31", merged_only=True
-    )
-    assert config.get_commit_summary() == "commit summary output merged"
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "shortlog",
-            "origin/main",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numbered",
-            "--summary",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-
-@patch(f'{SCOREBOARD_MODULE_PATH}.subprocess.run')
-@patch(f'{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._get_main_branch')
-def test_get_commit_summary_error(mock_get_main_branch, mock_run):
-    mock_get_main_branch.return_value = "origin/main"
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git shortlog")
-    config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_commit_summary() == "Could not generate commit summary"
-    mock_run.assert_called_once()

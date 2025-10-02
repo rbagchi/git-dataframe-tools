@@ -147,3 +147,56 @@ def test_get_commits_df_integration(tmp_path):
 
     # Ensure no extra authors in DataFrame
     assert set(df['author_email'].unique()) == set(expected_author_stats.keys())
+
+def test_get_commits_df_on_cloned_repo(tmp_path):
+    """Integration test for get_commits_df using a cloned public git repository."""
+    clone_url = "https://github.com/octocat/Spoon-Knife.git"
+    repo_name = "Spoon-Knife"
+    cloned_repo_path = tmp_path / repo_name
+
+    # Clone the repository
+    subprocess.run(["git", "clone", clone_url, str(cloned_repo_path)], check=True)
+
+    # Get data from git2df library
+    df = get_commits_df(str(cloned_repo_path))
+
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+
+    # Expected columns
+    expected_columns = [
+        'author_name',
+        'author_email',
+        'added',
+        'deleted',
+        'total_diff',
+        'num_commits',
+        'commit_hashes'
+    ]
+    assert all(col in df.columns for col in expected_columns)
+
+    # Get raw git log output for comparison
+    git_log_cmd = [
+        'git', 'log',
+        '--numstat',
+        '--pretty=format:--%H--%an--%ae--%ad--%s',
+        '--date=iso'
+    ]
+    raw_git_log = subprocess.run(git_log_cmd, cwd=cloned_repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore').stdout.strip()
+    expected_author_stats = _parse_raw_git_log_for_comparison(raw_git_log)
+
+    # Compare DataFrame results with raw git log parsing
+    for email, expected_stats in expected_author_stats.items():
+        df_row = df[df['author_email'] == email]
+        assert not df_row.empty, f"Author {email} not found in DataFrame."
+        assert len(df_row) == 1, f"Duplicate entries for author {email} in DataFrame."
+
+        assert df_row['author_name'].iloc[0] == expected_stats['name']
+        assert df_row['added'].iloc[0] == expected_stats['added']
+        assert df_row['deleted'].iloc[0] == expected_stats['deleted']
+        assert df_row['total_diff'].iloc[0] == expected_stats['total_diff']
+        assert df_row['num_commits'].iloc[0] == expected_stats['num_commits']
+
+    # Ensure no extra authors in DataFrame
+    assert set(df['author_email'].unique()) == set(expected_author_stats.keys())
+

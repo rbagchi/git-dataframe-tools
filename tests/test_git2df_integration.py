@@ -2,6 +2,8 @@ import pytest
 import pandas as pd
 import os
 import subprocess
+from collections import defaultdict
+import re
 from git2df import get_commits_df
 
 # Helper function to create a dummy git repo
@@ -40,10 +42,70 @@ def create_dummy_repo(tmp_path):
 
     return repo_path
 
+def _parse_raw_git_log_for_comparison(raw_log_output: str) -> dict:
+    """
+    Parses raw git log output (with --numstat and --pretty format)
+    to extract author stats for comparison.
+    """
+    authors = defaultdict(lambda: {
+        'name': '',
+        'added': 0,
+        'deleted': 0,
+        'num_commits': 0,
+        'commit_hashes': set() # Use set to count unique commits
+    })
+
+    current_commit_hash = None
+    current_author_name = None
+    current_author_email = None
+
+    for line in raw_log_output.splitlines():
+        line = line.strip()
+
+        if not line:
+            current_commit_hash = None
+            current_author_name = None
+            current_author_email = None
+            continue
+
+        if line.startswith('--'):
+            parts = line.split('--')
+            if len(parts) >= 5:
+                current_commit_hash = parts[1]
+                current_author_name = parts[2]
+                current_author_email = parts[3]
+                
+                if current_author_email not in authors:
+                    authors[current_author_email]['name'] = current_author_name
+                authors[current_author_email]['num_commits'] += 1
+                authors[current_author_email]['commit_hashes'].add(current_commit_hash)
+        else:
+            if current_commit_hash and current_author_email:
+                stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
+                if stat_match:
+                    added_str, deleted_str = stat_match.groups()
+                    
+                    added = 0 if added_str == '-' else int(added_str)
+                    deleted = 0 if deleted_str == '-' else int(deleted_str)
+                    
+                    authors[current_author_email]['added'] += added
+                    authors[current_author_email]['deleted'] += deleted
+    
+    # Convert commit_hashes set to count for num_commits if not already done
+    # (This is a simplified parser, so num_commits is directly counted)
+    # Also calculate total_diff
+    for email, data in authors.items():
+        data['total_diff'] = data['added'] + data['deleted']
+        data['num_commits'] = len(data['commit_hashes'])
+        del data['commit_hashes'] # Not needed for final comparison dict
+
+    return authors
+
 def test_get_commits_df_integration(tmp_path):
     """Integration test for get_commits_df using a dummy git repository."""
     repo_path = create_dummy_repo(tmp_path)
 
+    # Get data from git2df library
     df = get_commits_df(str(repo_path))
 
     assert isinstance(df, pd.DataFrame)
@@ -61,29 +123,27 @@ def test_get_commits_df_integration(tmp_path):
     ]
     assert all(col in df.columns for col in expected_columns)
 
-    # Verify data for Author One
-    author_one_df = df[df['author_email'] == 'author1@example.com']
-    assert len(author_one_df) == 1
-    assert author_one_df['author_name'].iloc[0] == 'Author One'
-    assert author_one_df['added'].iloc[0] == 3 # 2 from file2.txt creation + 1 from file2.txt modification
-    assert author_one_df['deleted'].iloc[0] == 1
-    assert author_one_df['total_diff'].iloc[0] == 4
-    assert author_one_df['num_commits'].iloc[0] == 2 # Two commits by Author One
+    # Get raw git log output for comparison
+    git_log_cmd = [
+        'git', 'log',
+        '--numstat',
+        '--pretty=format:--%H--%an--%ae--%ad--%s',
+        '--date=iso'
+    ]
+    raw_git_log = subprocess.run(git_log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore').stdout.strip()
+    expected_author_stats = _parse_raw_git_log_for_comparison(raw_git_log)
 
-    # Verify data for Author Two
-    author_two_df = df[df['author_email'] == 'author2@example.com']
-    assert len(author_two_df) == 1
-    assert author_two_df['author_name'].iloc[0] == 'Author Two'
-    assert author_two_df['added'].iloc[0] == 2
-    assert author_two_df['deleted'].iloc[0] == 1
-    assert author_two_df['total_diff'].iloc[0] == 3
-    assert author_two_df['num_commits'].iloc[0] == 1 # One commit by Author Two
+    # Compare DataFrame results with raw git log parsing
+    for email, expected_stats in expected_author_stats.items():
+        df_row = df[df['author_email'] == email]
+        assert not df_row.empty, f"Author {email} not found in DataFrame."
+        assert len(df_row) == 1, f"Duplicate entries for author {email} in DataFrame."
 
-    # Verify data for Test User (initial commit)
-    test_user_df = df[df['author_email'] == 'test@example.com']
-    assert len(test_user_df) == 1
-    assert test_user_df['author_name'].iloc[0] == 'Test User'
-    assert test_user_df['added'].iloc[0] == 2
-    assert test_user_df['deleted'].iloc[0] == 0
-    assert test_user_df['total_diff'].iloc[0] == 2
-    assert test_user_df['num_commits'].iloc[0] == 1 # One commit by Test User
+        assert df_row['author_name'].iloc[0] == expected_stats['name']
+        assert df_row['added'].iloc[0] == expected_stats['added']
+        assert df_row['deleted'].iloc[0] == expected_stats['deleted']
+        assert df_row['total_diff'].iloc[0] == expected_stats['total_diff']
+        assert df_row['num_commits'].iloc[0] == expected_stats['num_commits']
+
+    # Ensure no extra authors in DataFrame
+    assert set(df['author_email'].unique()) == set(expected_author_stats.keys())

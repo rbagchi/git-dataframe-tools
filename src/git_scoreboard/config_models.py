@@ -161,7 +161,7 @@ class GitAnalysisConfig:
 
         try:
             process = subprocess.run(git_log_cmd, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore')
-            return process.stdout.strip().split('--')
+            return process.stdout.strip().splitlines()
         except subprocess.CalledProcessError as e:
             print_error(f"Error running git log: {e}")
             print_error(f"Stderr: {e.stderr}")

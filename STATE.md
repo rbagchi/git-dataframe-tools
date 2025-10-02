@@ -6,6 +6,10 @@ I am currently refactoring the `git-scoreboard` project to enable the Pandas-bas
 
 1.  **Attempted Pandas Integration:** Modified `scoreboard.py` to import and use functions from `git_stats_pandas.py`.
 2.  **Circular Import Introduced:** Moving `GitAnalysisConfig` class to `config_models.py` without its associated methods caused `AttributeError`s across many tests, indicating a circular import problem.
+3.  **Runtime Error: Invalid Default Period:** The `git-scoreboard` script was failing at runtime with a `ValueError` because the default period string ('3 months ago') did not match the format expected by the `_parse_period_string` function.
+4.  **Runtime Error: Incorrect Git Log Parsing:** The `git-scoreboard` script was reporting "No commits found" due to incorrect parsing of the `git log` output in `git_stats.py`.
+5.  **Runtime Error: KeyError 'email':** After fixing the parsing, a `KeyError` was raised in `scoreboard.py` because it was trying to access the 'email' key instead of 'author_email'.
+6.  **Runtime Error: KeyError 'name' with --pandas:** When running with the `--pandas` flag, a `KeyError` was raised in `scoreboard.py` because it was trying to access the 'name' key instead of 'author_name'.
 
 **Current State of Tests (as of latest test run):**
 
@@ -33,6 +37,18 @@ All tests are passing.
     *   Renamed `--merged-only` to `--merges`.
     *   Updated `scoreboard.py` to use the new argument names.
 
+4.  **Fixed Runtime Error: Invalid Default Period:**
+    *   Changed the default value for `--default-period` in `scoreboard.py` from `'3 months ago'` to `'3 months'` to match the format expected by `_parse_period_string`.
+    *   Updated the help message for `--default-period` to reflect the correct format.
+
+5.  **Fixed Runtime Error: Incorrect Git Log Parsing & KeyError 'email':**
+    *   Modified `config_models.py` to use `splitlines()` instead of `split('--')` for processing `git log` output, ensuring correct line-by-line parsing.
+    *   Modified `git_stats.py`'s `_parse_git_data_internal` to correctly parse commit metadata and file statistics from the `git log` output.
+    *   Corrected `scoreboard.py` to use the `'author_email'` key instead of `'email'` when displaying author information, resolving a `KeyError`.
+
+6.  **Fixed Runtime Error: KeyError 'name' with --pandas:**
+    *   Corrected `scoreboard.py` to use the `'author_name'` key instead of `'name'` when displaying author information, resolving a `KeyError` when using the `--pandas` flag.
+
 **Next Steps:**
 
-All planned work has been completed. The project is in a stable state.
+All planned work has been completed, and the `git-scoreboard` script now runs without errors and displays the author ranking correctly with both the default and `--pandas` flags. The project is in a stable state.

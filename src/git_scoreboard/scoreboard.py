@@ -58,8 +58,8 @@ def parse_arguments():
     )
     parser.add_argument(
         '--default-period',
-        default='3 months ago',
-        help='Default period if -s or -e are not specified (e.g., "3 months ago", "1 year ago")'
+        default='3 months',
+        help='Default period if --since or --until are not specified (e.g., "3 months", "1 year")'
     )
     parser.add_argument(
         '--pandas',
@@ -126,7 +126,7 @@ def main():
             print()
         
         for author in author_matches:
-            print_success(f"Author: {author['name']} <{author['email']}>")
+            print_success(f"Author: {author['author_name']} <{author['author_email']}>")
             print(f"  Rank:          #{author['rank']} of {len(author_matches)} authors") # Changed len(author_list) to len(author_matches)
             print(f"  Lines Added:   {author['added']:,}")
             print(f"  Lines Deleted: {author['deleted']:,}")
@@ -164,7 +164,7 @@ def main():
     
     # Print results
     for author in author_list:
-        author_display = f"{author['name']} <{author['email']}>"
+        author_display = f"{author['author_name']} <{author['author_email']}>"
         # Truncate author display if too long
         if len(author_display) > 45:
             author_display = author_display[:42] + "..."

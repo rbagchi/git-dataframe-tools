@@ -18,7 +18,6 @@ def _parse_git_data_internal(git_data):
     current_commit = None
     current_author_name = None
     current_author_email = None
-    current_commit_message = None
     
     for line in git_data:
         line = line.strip()
@@ -28,7 +27,6 @@ def _parse_git_data_internal(git_data):
             current_commit = None
             current_author_name = None
             current_author_email = None
-            current_commit_message = None
             continue
             
         if line.startswith('--'):
@@ -38,24 +36,23 @@ def _parse_git_data_internal(git_data):
                 current_commit = parts[1]
                 current_author_name = parts[2]
                 current_author_email = parts[3]
-                current_commit_message = parts[4]
-            continue
-            
-        # File stat line (format: added\tdeleted\tfilename)
-        if current_commit and current_author_name and current_author_email:
-            # Match lines that start with numbers or dashes (for binary files)
-            stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
-            if stat_match:
-                added_str, deleted_str = stat_match.groups()
-                
-                added = 0 if added_str == '-' else int(added_str)
-                deleted = 0 if deleted_str == '-' else int(deleted_str)
-                
-                authors[current_author_email]['name'] = current_author_name
-                authors[current_author_email]['added'] += added
-                authors[current_author_email]['deleted'] += deleted
-                authors[current_author_email]['total'] += (added + deleted)
-                authors[current_author_email]['commits'].add(current_commit)
+            # DO NOT continue here, process file stats if any
+        else: # This is a file stat line
+            # File stat line (format: added\tdeleted\tfilename)
+            if current_commit and current_author_name and current_author_email:
+                # Match lines that start with numbers or dashes (for binary files)
+                stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
+                if stat_match:
+                    added_str, deleted_str = stat_match.groups()
+                    
+                    added = 0 if added_str == '-' else int(added_str)
+                    deleted = 0 if deleted_str == '-' else int(deleted_str)
+                    
+                    authors[current_author_email]['name'] = current_author_name
+                    authors[current_author_email]['added'] += added
+                    authors[current_author_email]['deleted'] += deleted
+                    authors[current_author_email]['total'] += (added + deleted)
+                    authors[current_author_email]['commits'].add(current_commit)
     
     return authors
 
@@ -92,7 +89,7 @@ def _prepare_author_data(authors_dict):
     for email, stats in authors_dict.items():
         author_list.append({
             'author_email': email,
-            'name': stats['name'],
+            'author_name': stats['name'],
             'added': stats['added'],
             'deleted': stats['deleted'],
             'total': stats['total'],
@@ -143,12 +140,14 @@ def find_author_stats(author_stats: list[dict], author_query: str) -> list[dict]
         return []
     
     # Find matching authors
-    query_lower = author_query.lower()
+    query_parts = [p.strip().lower() for p in author_query.split('|')]
     matches = []
     for author in author_stats:
-        if (query_lower in author['name'].lower() or 
-            query_lower in author['email'].lower()):
-            matches.append(author)
+        for part in query_parts:
+            if (part in author['author_name'].lower() or 
+                part in author['author_email'].lower()):
+                matches.append(author)
+                break # Match found for this author, move to next author
     
     return matches
 

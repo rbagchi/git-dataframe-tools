@@ -138,12 +138,14 @@ def find_author_stats(author_stats: list[dict], author_query: str) -> list[dict]
     if not author_stats:
         return []
 
-    query_lower = author_query.lower()
+    query_parts = [p.strip().lower() for p in author_query.split('|')]
     matches = []
     for author in author_stats:
-        if (query_lower in author['author_name'].lower() or 
-            query_lower in author['author_email'].lower()):
-            matches.append(author)
+        for part in query_parts:
+            if (part in author['author_name'].lower() or 
+                part in author['author_email'].lower()):
+                matches.append(author)
+                break # Match found for this author, move to next author
     return matches
 
 def get_ranking(author_stats: list[dict]) -> list[dict]:

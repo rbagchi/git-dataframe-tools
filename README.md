@@ -82,27 +82,27 @@ Here are common scenarios and how to execute them:
 
 -   **Scenario: Analyze contributions from a specific start date (e.g., June 1st, 2025) to today.**
     ```bash
-    git-scoreboard --start 2025-06-01
+    git-scoreboard --since 2025-06-01
     ```
 
 -   **Scenario: Analyze contributions from "last week" to "yesterday".**
     ```bash
-    git-scoreboard --start "last week" --end "yesterday"
+    git-scoreboard --since "last week" --until "yesterday"
     ```
 
 -   **Scenario: Analyze contributions from "3 months ago" to "now".**
     ```bash
-    git-scoreboard --start "3 months ago" --end "now"
+    git-scoreboard --since "3 months ago" --until "now"
     ```
 
 -   **Scenario: Review team output for a period ending on a specific date (e.g., last 3 months before August 31st, 2025).**
     ```bash
-    git-scoreboard --end 2025-08-31
+    git-scoreboard --until 2025-08-31
     ```
 
 -   **Scenario: Get the full picture for a specific project phase or quarter (e.g., between June 1st and August 31st, 2025).**
     ```bash
-    git-scoreboard --start 2025-06-01 --end 2025-08-31
+    git-scoreboard --since 2025-06-01 --until 2025-08-31
     ```
 
 -   **Scenario: Deep dive into a specific contributor's output (e.g., "john.doe" by partial name or email match).**
@@ -117,17 +117,17 @@ Here are common scenarios and how to execute them:
 
 -   **Scenario: See your contributions for a specific date range.**
     ```bash
-    git-scoreboard --me --start 2025-06-01
+    git-scoreboard --me --since 2025-06-01
     ```
 
 -   **Scenario: Focus only on production-ready code – analyze commits that have been merged to the main branch.**
     ```bash
-    git-scoreboard --merged-only
+    git-scoreboard --merges
     ```
 
 -   **Scenario: See *your* merged contributions only – prove your impact on the main codebase.**
     ```bash
-    git-scoreboard --me --merged-only
+    git-scoreboard --me --merges
     ```
 
 -   **Scenario: Analyze contributions only within the `src/frontend` directory.**
@@ -143,6 +143,11 @@ Here are common scenarios and how to execute them:
 -   **Scenario: Analyze all contributions except those in `docs` or `tests` directories.**
     ```bash
     git-scoreboard --exclude-path docs tests
+    ```
+
+-   **Scenario: Use the experimental Pandas-based statistics engine.**
+    ```bash
+    git-scoreboard --pandas
     ```
 
 ### Example: Analyzing the Flask Project
@@ -164,7 +169,7 @@ Let's see `git-scoreboard` in action on a popular open-source project like [Flas
 
 3.  **Deep dive into a specific core contributor (e.g., "davidism") for their merged contributions**:
     ```bash
-    git-scoreboard --author "davidism" --merged-only --default-period "6 months"
+    git-scoreboard --author "davidism" --merges --default-period "6 months"
     ```
     *This will provide detailed statistics for "davidism" on code that has been merged into Flask's main branch in the last six months, showcasing their direct impact.*
 
@@ -176,14 +181,15 @@ Let's see `git-scoreboard` in action on a popular open-source project like [Flas
 
 ### Arguments
 
--   `--start`, `-s` (type: `str`): Start date for analysis (YYYY-MM-DD or natural language like "last week", "3 months ago"). Default: 3 months ago.
--   `--end`, `-e` (type: `str`): End date for analysis (YYYY-MM-DD or natural language like "yesterday", "now"). Default: today.
+-   `--since`, `-S` (type: `str`): Start date for analysis (YYYY-MM-DD or natural language like "last week", "3 months ago"). Default: 3 months.
+-   `--until`, `-U` (type: `str`): End date for analysis (YYYY-MM-DD or natural language like "yesterday", "now"). Default: today.
 -   `--author`, `-a` (type: `str`): Show detailed stats for a specific author (partial name/email match).
--   `--me`, `-m` (action: `store_true`): Show detailed stats for the current git user (equivalent to `--author` with your git config).
--   `--merged-only` (action: `store_true`): Only analyze commits that have been merged to the main branch (`origin/master` or `origin/main`).
+-   `--me`, `-m` (action: `store_true`): Show detailed stats for the current git user (uses git config user.name and user.email).
+-   `--merges` (action: `store_true`): Only analyze commits that have been merged to the main branch (`origin/master` or `origin/main`).
 -   `--path` (type: `str`, `nargs='*'`) : Include only changes to files within these paths (e.g., "src/frontend" "src/backend"). Can be specified multiple times.
 -   `--exclude-path` (type: `str`, `nargs='*'`) : Exclude changes to files within these paths (e.g., "docs" "tests"). Can be specified multiple times.
--   `--default-period` (type: `str`): Default period to look back if --start is not specified (e.g., "3 months", "1 year"). Default: "3 months".
+-   `--default-period` (type: `str`): Default period to look back if `--since` or `--until` are not specified (e.g., "3 months", "1 year"). Default: "3 months".
+-   `--pandas` (action: `store_true`): Use the pandas-based statistics engine (experimental).
 
 ## Development
 

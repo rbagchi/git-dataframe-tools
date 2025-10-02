@@ -1,54 +1,35 @@
-## Current Work: Refactoring for Pandas Integration and Circular Import Resolution
+## Current Work: Refactoring `git-scoreboard` into a Library and CLIs
 
-I am currently refactoring the `git-scoreboard` project to enable the Pandas-based statistics module (`git_stats_pandas.py`) and resolve circular import dependencies.
+I am currently refactoring the `git-scoreboard` project into a modular `git2df` library and two command-line applications, following the plan outlined in `REFACTORING_PLAN.md`.
 
-**Recent Changes & Issues:**
+**Current Progress (Phase 1: Establish `git2df` Library - CLI-based):**
 
-1.  **Attempted Pandas Integration:** Modified `scoreboard.py` to import and use functions from `git_stats_pandas.py`.
-2.  **Circular Import Introduced:** Moving `GitAnalysisConfig` class to `config_models.py` without its associated methods caused `AttributeError`s across many tests, indicating a circular import problem.
-3.  **Runtime Error: Invalid Default Period:** The `git-scoreboard` script was failing at runtime with a `ValueError` because the default period string ('3 months ago') did not match the format expected by the `_parse_period_string` function.
-4.  **Runtime Error: Incorrect Git Log Parsing:** The `git-scoreboard` script was reporting "No commits found" due to incorrect parsing of the `git log` output in `git_stats.py`.
-5.  **Runtime Error: KeyError 'email':** After fixing the parsing, a `KeyError` was raised in `scoreboard.py` because it was trying to access the 'email' key instead of 'author_email'.
-6.  **Runtime Error: KeyError 'name' with --pandas:** When running with the `--pandas` flag, a `KeyError` was raised in `scoreboard.py` because it was trying to access the 'name' key instead of 'author_name'.
-
-**Current State of Tests (as of latest test run):**
-
-All tests are passing.
+We are working on the `refactor/git2df-library` branch.
 
 **Completed Steps:**
 
-1.  **Resolved Circular Import & `AttributeError`s:**
-    *   Moved all methods belonging to `GitAnalysisConfig` (e.g., `_get_date_range`, `get_git_log_data`, `_get_current_git_user`, etc.) from `scoreboard.py` to `config_models.py`.
-    *   Moved utility functions like `Colors` and `print_*` functions from `scoreboard.py` to `config_models.py`.
-    *   Updated all necessary imports in `config_models.py`, `scoreboard.py`, `git_stats_pandas.py`, and `git_stats.py` to support these moved methods and functions.
-    *   Cleaned up `scoreboard.py` by removing the moved methods and redundant imports.
-    *   Updated `git_stats_pandas.py` and `git_stats.py` to import `GitAnalysisConfig` and `_parse_period_string` from `config_models.py`.
-    *   Fixed all related test failures in `test_failing_case.py`, `test_git_integration.py`, `test_git_interaction.py`, and `test_scoreboard.py`.
-
-2.  **Implemented Module Switching:**
-    *   Standardized function names and signatures in `git_stats.py` and `git_stats_pandas.py`.
-    *   Added a `--pandas` command-line option to `scoreboard.py`.
-    *   Updated `scoreboard.py` to dynamically select the statistics module based on the `--pandas` argument.
-    *   Updated test files (`tests/test_compatibility.py` and `tests/test_git_stats_pandas.py`) to reflect the new standardized function names and interfaces.
-
-3.  **Surveyed Command-Line Options:**
-    *   Renamed `--start` to `--since` and `-s` to `-S`.
-    *   Renamed `--end` to `--until` and `-e` to `-U`.
-    *   Renamed `--merged-only` to `--merges`.
-    *   Updated `scoreboard.py` to use the new argument names.
-
-4.  **Fixed Runtime Error: Invalid Default Period:**
-    *   Changed the default value for `--default-period` in `scoreboard.py` from `'3 months ago'` to `'3 months'` to match the format expected by `_parse_period_string`.
-    *   Updated the help message for `--default-period` to reflect the correct format.
-
-5.  **Fixed Runtime Error: Incorrect Git Log Parsing & KeyError 'email':**
-    *   Modified `config_models.py` to use `splitlines()` instead of `split('--')` for processing `git log` output, ensuring correct line-by-line parsing.
-    *   Modified `git_stats.py`'s `_parse_git_data_internal` to correctly parse commit metadata and file statistics from the `git log` output.
-    *   Corrected `scoreboard.py` to use the `'author_email'` key instead of `'email'` when displaying author information, resolving a `KeyError`.
-
-6.  **Fixed Runtime Error: KeyError 'name' with --pandas:**
-    *   Corrected `scoreboard.py` to use the `'author_name'` key instead of `'name'` when displaying author information, resolving a `KeyError` when using the `--pandas` flag.
+*   **Step 1: Create the `git2df` Package Structure**
+    *   Created `src/git2df/` and `src/git2df/__init__.py`.
+*   **Step 2: Extract `_run_git_command` Utility**
+    *   Moved core `git` command execution logic to `src/git2df/git_cli_utils.py`.
+    *   Implemented and passed unit tests for `_run_git_command`.
+*   **Step 3: Copy Raw `git log` Output Parsing Logic**
+    *   Copied `_parse_git_data_internal` to `src/git2df/git_parser.py`.
+    *   Implemented and passed unit tests for `_parse_git_data_internal`.
+*   **Step 4: Implement Basic `GitCliBackend` Class**
+    *   Created `src/git2df/backends.py` with `GitCliBackend` and its `get_raw_log_output` method.
+    *   Implemented and passed unit tests for `GitCliBackend`.
+*   **Step 5: Convert Parsed Data to Basic Pandas DataFrame**
+    *   Created `src/git2df/dataframe_builder.py` with `build_commits_df`.
+    *   Implemented and passed unit tests for `build_commits_df`.
+*   **Step 6: Create Public `get_commits_df` Function (No Filters)**
+    *   Defined `get_commits_df` in `src/git2df/__init__.py` as the main entry point.
+    *   Implemented and passed unit tests for `get_commits_df`.
+*   **Integration Tests for `get_commits_df`**
+    *   Implemented and passed integration tests using a dummy Git repository.
+    *   Enhanced integration tests to correlate `git2df` output with direct `git log` output.
+    *   Added an integration test using a cloned public repository (`https://github.com/octocat/Spoon-Knife.git`) which also passed.
 
 **Next Steps:**
 
-All planned work has been completed, and the `git-scoreboard` script now runs without errors and displays the author ranking correctly with both the default and `--pandas` flags. The project is in a stable state.
+We are about to proceed with **Step 7: Add Basic Filtering to `GitCliBackend`** as outlined in `REFACTORING_PLAN.md`.

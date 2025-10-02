@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 def build_commits_df(parsed_data: Dict[str, Dict[str, Any]]) -> pd.DataFrame:
     """

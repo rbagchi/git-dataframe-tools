@@ -6,6 +6,9 @@ from typing import Optional
 from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
+import pandas as pd
+
+from git2df import get_commits_df
 
 class Colors:
     RED = '\033[0;31m'
@@ -116,59 +119,14 @@ class GitAnalysisConfig:
             print_error("Error: Could not retrieve git user.name or user.email. Please configure git or run without --me.")
             sys.exit(1)
 
-    def _check_git_repo(self):
+    def _check_git_repo(self, repo_path: str = "."):
         """Check if we're in a git repository"""
         try:
             subprocess.run(['git', 'rev-parse', '--git-dir'], 
-                          capture_output=True, check=True)
+                          capture_output=True, check=True, cwd=repo_path)
             return True
         except subprocess.CalledProcessError:
             return False
-
-    def get_git_log_data(self) -> list[str]:
-        """Fetches git log data based on the configuration."""
-        git_log_cmd = [
-            'git', 'log',
-            f'--since={self.start_date.isoformat()}',
-            f'--until={self.end_date.isoformat()}',
-            '--numstat',
-            '--pretty=format:--%H--%an--%ae--%ad--%s',
-            '--date=iso'
-        ]
-
-        if self.merged_only:
-            # Find the default branch (master or main)
-            try:
-                # Check for 'main' branch
-                subprocess.run(['git', 'show-ref', '--verify', 'refs/heads/main'], check=True, capture_output=True)
-                default_branch = 'main'
-            except subprocess.CalledProcessError:
-                try:
-                    # Fallback to 'master' branch
-                    subprocess.run(['git', 'show-ref', '--verify', 'refs/heads/master'], check=True, capture_output=True)
-                    default_branch = 'master'
-                except subprocess.CalledProcessError:
-                    print_warning("Neither 'main' nor 'master' branch found. '--merged-only' might not work as expected.")
-                    default_branch = 'main' # Default to main even if not found, git will handle the error if it doesn't exist
-
-            git_log_cmd.extend([f'--merges', f'origin/{default_branch}'])
-
-        if self.include_paths:
-            git_log_cmd.extend(['--'] + self.include_paths)
-        if self.exclude_paths:
-            for p in self.exclude_paths:
-                git_log_cmd.extend([f':(exclude){p}'])
-
-        try:
-            process = subprocess.run(git_log_cmd, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore')
-            return process.stdout.strip().splitlines()
-        except subprocess.CalledProcessError as e:
-            print_error(f"Error running git log: {e}")
-            print_error(f"Stderr: {e.stderr}")
-            sys.exit(1)
-        except FileNotFoundError:
-            print_error("Error: 'git' command not found. Please ensure Git is installed and in your PATH.")
-            sys.exit(1)
 
     def is_author_specific(self) -> bool:
         """Checks if the analysis is focused on a specific author."""

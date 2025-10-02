@@ -2,12 +2,13 @@ import pytest
 from unittest.mock import patch, MagicMock, call
 import subprocess
 import sys
-
-# Assuming scoreboard.py is in the parent directory
+import pandas as pd
 
 from git_scoreboard.config_models import GitAnalysisConfig, print_error, Colors
+from git_scoreboard.git_utils import get_git_data_from_config
 
 CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
+GIT_UTILS_MODULE_PATH = "git_scoreboard.git_utils"
 
 
 # Test cases for GitAnalysisConfig._get_current_git_user
@@ -64,155 +65,149 @@ def test_get_current_git_user_failure(mock_check_git_repo, mock_exit, mock_print
 
 
 
-# Test cases for GitAnalysisConfig.get_git_log_data
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
-def test_get_git_log_data_default(mock_print_warning, mock_run):
-    mock_run.return_value = MagicMock(stdout="--git log output", returncode=0)
+# Test cases for get_git_data_from_config
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_default(mock_check_git_repo, mock_get_commits_df):
+    mock_df = pd.DataFrame({
+        'hash': ['a1b2c3d4'],
+        'author_name': ['Test User'],
+        'commit_date': [pd.Timestamp('2025-01-15')],
+        'message': ['Initial commit']
+    })
+    mock_get_commits_df.return_value = mock_df
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_git_log_data() == ['', 'git log output']
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "log",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numstat",
-            "--pretty=format:--%H--%an--%ae--%ad--%s",
-            "--date=iso",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-        encoding='utf-8',
-        errors='ignore',
+    result_df = get_git_data_from_config(config, repo_path=".")
+    pd.testing.assert_frame_equal(result_df, mock_df)
+    mock_get_commits_df.assert_called_once_with(
+        repo_path=".",
+        since="2025-01-01",
+        until="2025-01-31",
+        author=None,
+        merged_only=False,
+        include_paths=None,
+        exclude_paths=None
     )
-    mock_print_warning.assert_not_called()
 
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
-def test_get_git_log_data_merged_only(mock_print_warning, mock_run):
-    mock_run.side_effect = [
-        MagicMock(returncode=0), # for checking main branch
-        MagicMock(stdout="--git log output merged", returncode=0)
-    ]
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_merged_only(mock_check_git_repo, mock_get_commits_df):
+    mock_df = pd.DataFrame({
+        'hash': ['e5f6g7h8'],
+        'author_name': ['Merge User'],
+        'commit_date': [pd.Timestamp('2025-01-20')],
+        'message': ['Merge branch feature/x']
+    })
+    mock_get_commits_df.return_value = mock_df
     config = GitAnalysisConfig(
         start_date="2025-01-01", end_date="2025-01-31", merged_only=True
     )
-    assert config.get_git_log_data() == ['', 'git log output merged']
-    mock_run.assert_called_with(
-        [
-            "git",
-            "log",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numstat",
-            "--pretty=format:--%H--%an--%ae--%ad--%s",
-            "--date=iso",
-            "--merges",
-            "origin/main",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-        encoding='utf-8',
-        errors='ignore',
+    result_df = get_git_data_from_config(config, repo_path=".")
+    pd.testing.assert_frame_equal(result_df, mock_df)
+    mock_get_commits_df.assert_called_once_with(
+        repo_path=".",
+        since="2025-01-01",
+        until="2025-01-31",
+        author=None,
+        merged_only=True,
+        include_paths=None,
+        exclude_paths=None
     )
-    mock_print_warning.assert_not_called()
 
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
-def test_get_git_log_data_include_paths(mock_print_warning, mock_run):
-    mock_run.return_value = MagicMock(stdout="--git log output include", returncode=0)
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_include_paths(mock_check_git_repo, mock_get_commits_df):
+    mock_df = pd.DataFrame({
+        'hash': ['f9g0h1i2'],
+        'author_name': ['Path User'],
+        'commit_date': [pd.Timestamp('2025-01-25')],
+        'message': ['Add frontend feature']
+    })
+    mock_get_commits_df.return_value = mock_df
     config = GitAnalysisConfig(
         start_date="2025-01-01",
         end_date="2025-01-31",
         include_paths=["src/frontend", "src/backend"],
     )
-    assert config.get_git_log_data() == ['', 'git log output include']
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "log",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numstat",
-            "--pretty=format:--%H--%an--%ae--%ad--%s",
-            "--date=iso",
-            "--",
-            "src/frontend",
-            "src/backend",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-        encoding='utf-8',
-        errors='ignore',
+    result_df = get_git_data_from_config(config, repo_path=".")
+    pd.testing.assert_frame_equal(result_df, mock_df)
+    mock_get_commits_df.assert_called_once_with(
+        repo_path=".",
+        since="2025-01-01",
+        until="2025-01-31",
+        author=None,
+        merged_only=False,
+        include_paths=["src/frontend", "src/backend"],
+        exclude_paths=None
     )
-    mock_print_warning.assert_not_called()
 
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_warning')
-def test_get_git_log_data_exclude_paths(mock_print_warning, mock_run):
-    mock_run.return_value = MagicMock(stdout="--git log output exclude", returncode=0)
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_exclude_paths(mock_check_git_repo, mock_get_commits_df):
+    mock_df = pd.DataFrame({
+        'hash': ['j3k4l5m6'],
+        'author_name': ['Doc Writer'],
+        'commit_date': [pd.Timestamp('2025-01-28')],
+        'message': ['Update documentation']
+    })
+    mock_get_commits_df.return_value = mock_df
     config = GitAnalysisConfig(
         start_date="2025-01-01", end_date="2025-01-31", exclude_paths=["docs", "tests"]
     )
-    assert config.get_git_log_data() == ['', 'git log output exclude']
-    mock_run.assert_called_once_with(
-        [
-            "git",
-            "log",
-            "--since=2025-01-01",
-            "--until=2025-01-31",
-            "--numstat",
-            "--pretty=format:--%H--%an--%ae--%ad--%s",
-            "--date=iso",
-            ":(exclude)docs",
-            ":(exclude)tests",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-        encoding='utf-8',
-        errors='ignore',
+    result_df = get_git_data_from_config(config, repo_path=".")
+    pd.testing.assert_frame_equal(result_df, mock_df)
+    mock_get_commits_df.assert_called_once_with(
+        repo_path=".",
+        since="2025-01-01",
+        until="2025-01-31",
+        author=None,
+        merged_only=False,
+        include_paths=None,
+        exclude_paths=["docs", "tests"]
     )
-    mock_print_warning.assert_not_called()
 
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.print_error')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.sys.exit')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
-def test_get_git_log_data_error(mock_check_git_repo, mock_exit, mock_print_error, mock_run):
-    mock_check_git_repo.return_value = True
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git log", stderr="fatal: bad revision")
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
+@patch(f'{GIT_UTILS_MODULE_PATH}.print_error')
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_error(mock_check_git_repo, mock_print_error, mock_get_commits_df):
+    mock_get_commits_df.side_effect = Exception("Git command failed")
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    config.get_git_log_data()
-    assert mock_print_error.call_args_list == [
-        call("Error running git log: Command 'git log' returned non-zero exit status 1."),
-        call("Stderr: fatal: bad revision")
-    ]
-    mock_exit.assert_called_once_with(1)
+    with pytest.raises(SystemExit) as excinfo:
+        get_git_data_from_config(config, repo_path=".")
+    assert excinfo.value.code == 1
+    mock_print_error.assert_called_once_with("Error fetching git log data: Git command failed")
 
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.subprocess.run')
+@patch(f'{GIT_UTILS_MODULE_PATH}.get_commits_df')
 @patch(f'git_scoreboard.scoreboard.TQDM_AVAILABLE', False)
 @patch(f'{CONFIG_MODELS_MODULE_PATH}.print_success')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo')
-def test_get_git_log_data_progress_bar_tqdm_not_available(
-    mock_check_git_repo, mock_print_success, mock_run
+@patch(f'{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo', return_value=True)
+def test_get_git_data_from_config_progress_bar_tqdm_not_available(
+    mock_check_git_repo, mock_print_success, mock_get_commits_df
 ):
-    mock_check_git_repo.return_value = True
-    mock_run.return_value = MagicMock(
-        stdout="--git log output with many commits", returncode=0
-    )
+    mock_df = pd.DataFrame({
+        'hash': ['n7o8p9q0'],
+        'author_name': ['Many Commits User'],
+        'commit_date': [pd.Timestamp('2025-01-10')],
+        'message': ['Many commits']
+    })
+    mock_get_commits_df.return_value = mock_df
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-01-31")
-    assert config.get_git_log_data() == ['', 'git log output with many commits']
-    mock_run.assert_called_once()
+    result_df = get_git_data_from_config(config, repo_path=".")
+    pd.testing.assert_frame_equal(result_df, mock_df)
+    mock_get_commits_df.assert_called_once_with(
+        repo_path=".",
+        since="2025-01-01",
+        until="2025-01-31",
+        author=None,
+        merged_only=False,
+        include_paths=None,
+        exclude_paths=None
+    )
 
 
 

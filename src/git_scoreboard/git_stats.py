@@ -1,12 +1,10 @@
 import re
 from collections import defaultdict
-from datetime import timedelta
 import math
-from dateutil.relativedelta import relativedelta
-from git_scoreboard.config_models import _parse_period_string
+import pandas as pd
 
-def _parse_git_data_internal(git_data):
-    """Parse git log data and calculate stats per author"""
+def _parse_git_data_internal(git_data_df: pd.DataFrame):
+    """Parse git log data from DataFrame and calculate stats per author"""
     authors = defaultdict(lambda: {
         'name': '',
         'added': 0,
@@ -15,73 +13,28 @@ def _parse_git_data_internal(git_data):
         'commits': set()
     })
     
-    current_commit = None
-    current_author_name = None
-    current_author_email = None
-    
-    for line in git_data:
-        line = line.strip()
-        
-        if not line:
-            # Empty line - reset current commit info
-            current_commit = None
-            current_author_name = None
-            current_author_email = None
-            continue
-            
-        if line.startswith('--'):
-            # Commit info line
-            parts = line.split('--')
-            if len(parts) >= 5:
-                current_commit = parts[1]
-                current_author_name = parts[2]
-                current_author_email = parts[3]
-            # DO NOT continue here, process file stats if any
-        else: # This is a file stat line
-            # File stat line (format: added\tdeleted\tfilename)
-            if current_commit and current_author_name and current_author_email:
-                # Match lines that start with numbers or dashes (for binary files)
-                stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
-                if stat_match:
-                    added_str, deleted_str = stat_match.groups()
-                    
-                    added = 0 if added_str == '-' else int(added_str)
-                    deleted = 0 if deleted_str == '-' else int(deleted_str)
-                    
-                    authors[current_author_email]['name'] = current_author_name
-                    authors[current_author_email]['added'] += added
-                    authors[current_author_email]['deleted'] += deleted
-                    authors[current_author_email]['total'] += (added + deleted)
-                    authors[current_author_email]['commits'].add(current_commit)
+    if git_data_df.empty:
+        return authors
+
+    for _, row in git_data_df.iterrows():
+        author_email = row['author_email']
+        author_name = row['author_name']
+        commit_hash = row['hash']
+        added = row['added']
+        deleted = row['deleted']
+
+        authors[author_email]['name'] = author_name
+        authors[author_email]['added'] += added
+        authors[author_email]['deleted'] += deleted
+        authors[author_email]['total'] += (added + deleted)
+        authors[author_email]['commits'].add(commit_hash)
     
     return authors
 
-def parse_git_log(git_data: list[str]) -> list[dict]:
-    """Parses raw git log data and prepares author statistics."""
-    authors_dict = _parse_git_data_internal(git_data)
+def parse_git_log(git_data_df: pd.DataFrame) -> list[dict]:
+    """Parses git data from DataFrame and prepares author statistics."""
+    authors_dict = _parse_git_data_internal(git_data_df)
     return _prepare_author_data(authors_dict)
-
-def _parse_period_string(period_str: str) -> timedelta:
-    """Parses a period string like '3 months' or '1 year' into a timedelta."""
-    period_str = period_str.lower().strip()
-    match = re.match(r'^(\d+)\s*(day|week|month|year)s?$', period_str)
-    if not match:
-        raise ValueError(f"Invalid period format: {period_str}. Use format like '3 months' or '1 year'.")
-
-    value = int(match.group(1))
-    unit = match.group(2)
-
-    if unit == 'day':
-        return timedelta(days=value)
-    elif unit == 'week':
-        return timedelta(weeks=value)
-    elif unit == 'month':
-        return relativedelta(months=value)
-    elif unit == 'year':
-        return relativedelta(years=value)
-    else:
-        # Should not happen due to regex, but for safety
-        raise ValueError(f"Unknown unit: {unit}")
 
 def _prepare_author_data(authors_dict):
     """Prepares author data with ranks and deciles."""

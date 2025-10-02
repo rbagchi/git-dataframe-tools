@@ -50,10 +50,9 @@ def _parse_git_log_to_dataframe_internal(git_data: list[str]) -> pd.DataFrame:
     df = pd.DataFrame(data)
     return df
 
-def parse_git_log(git_data: list[str]) -> list[dict]:
+def parse_git_log(git_data: pd.DataFrame) -> list[dict]:
     """Parses raw git log data using pandas and prepares author statistics."""
-    df = _parse_git_log_to_dataframe_internal(git_data)
-    author_stats_df = _get_author_stats_dataframe_internal(df)
+    author_stats_df = _get_author_stats_dataframe_internal(git_data)
     return author_stats_df.to_dict(orient='records')
 
 def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
@@ -68,7 +67,7 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     author_stats = df.groupby(['author_email', 'author_name']).agg(
         added=('added', 'sum'),
         deleted=('deleted', 'sum'),
-        commits=('commit_hash', 'nunique')
+        commits=('hash', 'nunique')
     ).reset_index()
 
     if author_stats.empty:

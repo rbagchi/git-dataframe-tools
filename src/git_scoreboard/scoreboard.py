@@ -8,7 +8,8 @@ __version__ = "0.1.0"
 
 import argparse
 
-from git_scoreboard.config_models import GitAnalysisConfig, _parse_period_string, print_success, print_error, print_warning, print_header
+from git_scoreboard.config_models import GitAnalysisConfig, print_success, print_error, print_warning, print_header
+from git_scoreboard.git_utils import get_git_data_from_config
 import git_scoreboard.git_stats as git_stats_module
 import git_scoreboard.git_stats_pandas as git_stats_pandas_module
 
@@ -23,6 +24,12 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Git Author Ranking by Diff Size (Last 3 Months)',
         formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        'repo_path',
+        nargs='?',
+        default='.',
+        help='Path to the Git repository (default: current directory).'
     )
     parser.add_argument(
         '-S', '--since',
@@ -97,7 +104,10 @@ def main():
         stats_module = git_stats_module
 
     print_success("Gathering commit data...")
-    git_log_data = config.get_git_log_data()
+    try:
+        git_log_data = get_git_data_from_config(config, repo_path=args.repo_path)
+    except SystemExit:
+        return
     
     print_success("Processing commits...")
     author_stats = stats_module.parse_git_log(git_log_data)
@@ -118,7 +128,7 @@ def main():
         print()
         analysis_type = "merged commits" if config.merged_only else "commits"
         print_header(f"Author Stats for '{config.author_query}' ({analysis_type})")
-        print_header(f"Analysis period: {config.start_date} to {config.end_date}")
+        print_header(f"Analysis period: {config.start_date.isoformat()} to {config.end_date.isoformat()}")
         print()
         
         if len(author_matches) > 1:
@@ -155,7 +165,7 @@ def main():
     print()
     
     if not author_list:
-        print_warning("No commits found in the last 3 months.")
+        print_warning(f"No commits found in the specified time period: {config.start_date.isoformat()} to {config.end_date.isoformat()}.")
         return
     
     # Print table header
@@ -203,7 +213,7 @@ def main():
     print(f"- Ranking based on total lines changed (additions + deletions)")
     print(f"- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
     print(f"- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
-    print(f"- Analysis period: from {config.start_date} to {config.end_date}")
+    print(f"- Analysis period: from {config.start_date.isoformat()} to {config.end_date.isoformat()}")
     print(f"- Total unique authors: {len(author_list)}")
 
 if __name__ == "__main__":

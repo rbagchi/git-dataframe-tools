@@ -200,6 +200,72 @@ git clone https://github.com/yourusername/git-scoreboard.git
 cd git-scoreboard
 pip install -e .n```
 
+## Using the `git2df` Library
+
+The `git2df` library provides a programmatic way to extract Git commit data and transform it into a Pandas DataFrame, making it easy to integrate Git analysis into other Python applications.
+
+### Installation
+
+`git2df` is part of the `git-scoreboard` project. If you have `git-scoreboard` installed, `git2df` is already available. If you only need the library, you can install it by installing `git-scoreboard`:
+
+```bash
+pip install git-scoreboard
+```
+
+### Basic Usage
+
+To get a DataFrame of all commits in a repository:
+
+```python
+import pandas as pd
+from git2df import get_commits_df
+
+# Specify the path to your Git repository
+repo_path = "/path/to/your/git/repo"
+
+# Get all commits as a Pandas DataFrame
+commits_df = get_commits_df(repo_path)
+
+print(commits_df.head())
+print(f"Total commits: {len(commits_df)}")
+```
+
+### Filtering Commits
+
+You can filter commits by date range, author, or commit message using the `since`, `until`, `author`, and `grep` parameters:
+
+```python
+import pandas as pd
+from git2df import get_commits_df
+
+repo_path = "/path/to/your/git/repo"
+
+# Get commits from the last month by a specific author, with a message containing "feature"
+filtered_commits_df = get_commits_df(
+    repo_path,
+    since="1 month ago",
+    until="now",
+    author="John Doe",
+    grep="feature"
+)
+
+print(filtered_commits_df.head())
+print(f"Filtered commits: {len(filtered_commits_df)}")
+```
+
+### DataFrame Structure
+
+The returned DataFrame includes columns such as:
+
+-   `hash`: The full commit hash.
+-   `author_name`: The name of the commit author.
+-   `author_email`: The email of the commit author.
+-   `commit_date`: The date and time of the commit.
+-   `message`: The commit message.
+-   `added`: Number of lines added in the commit.
+-   `deleted`: Number of lines deleted in the commit.
+-   `total_diff`: Total lines changed (added + deleted).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -1,19 +1,63 @@
 import pytest
 import pandas as pd
+import re
 
 from git_scoreboard.git_stats_pandas import parse_git_log, find_author_stats, get_ranking
 
+def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
+    """Helper to convert mock git log string to a DataFrame similar to git2df output."""
+    lines = mock_git_data_str
+    data = []
+    current_commit_info = {}
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        if line.startswith('--'):
+            parts = line.split('--')
+            if len(parts) >= 5:
+                current_commit_info = {
+                    'hash': parts[1],
+                    'author_name': parts[2],
+                    'author_email': parts[3],
+                    'message': parts[4]
+                }
+        else:
+            stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t(.+)$', line)
+            if stat_match and current_commit_info:
+                added_str, deleted_str, filepath = stat_match.groups()
+                
+                added = 0 if added_str == '-' else int(added_str)
+                deleted = 0 if deleted_str == '-' else int(deleted_str)
+                
+                row = current_commit_info.copy()
+                row.update({
+                    'added': added,
+                    'deleted': deleted,
+                    'filepath': filepath
+                })
+                data.append(row)
+    
+    if not data:
+        return pd.DataFrame(columns=['hash', 'author_name', 'author_email', 'message', 'added', 'deleted', 'filepath'])
+
+    df = pd.DataFrame(data)
+    return df
+
 def test_parse_git_log_empty_input():
-    git_data = []
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df([])
+    author_stats = parse_git_log(git_data_df)
     assert author_stats == []
 
 def test_parse_git_log_single_commit_single_file():
-    git_data = [
+    git_data_str = [
         "--commit_hash1--Author Name--author@example.com--Commit message 1",
         "10\t5\tfile1.txt"
     ]
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df(git_data_str)
+    author_stats = parse_git_log(git_data_df)
     assert len(author_stats) == 1
     assert author_stats[0]['author_email'] == 'author@example.com'
     assert author_stats[0]['author_name'] == 'Author Name'
@@ -23,7 +67,7 @@ def test_parse_git_log_single_commit_single_file():
     assert author_stats[0]['commits'] == 1
 
 def test_parse_git_log_multiple_commits_multiple_files():
-    git_data = [
+    git_data_str = [
         "--commit_hash1--Author One--one@example.com--Commit message A",
         "10\t5\tfileA.txt",
         "2\t1\tfileB.txt",
@@ -31,7 +75,8 @@ def test_parse_git_log_multiple_commits_multiple_files():
         "--commit_hash2--Author Two--two@example.com--Commit message B",
         "1\t1\tfileC.txt"
     ]
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df(git_data_str)
+    author_stats = parse_git_log(git_data_df)
     assert len(author_stats) == 2
 
     author_one = next(a for a in author_stats if a['author_email'] == 'one@example.com')
@@ -49,23 +94,24 @@ def test_parse_git_log_multiple_commits_multiple_files():
     assert author_two['commits'] == 1
 
 def test_parse_git_log_binary_files():
-    git_data = [
+    git_data_str = [
         "--commit_hash1--Author Name--author@example.com--Commit message 1",
         "-\t-\timage.png",
         "10\t5\tfile1.txt"
     ]
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df(git_data_str)
+    author_stats = parse_git_log(git_data_df)
     assert len(author_stats) == 1
     assert author_stats[0]['added'] == 10
     assert author_stats[0]['deleted'] == 5
 
 def test_get_author_stats_empty_input():
-    git_data = []
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df([])
+    author_stats = parse_git_log(git_data_df)
     assert author_stats == []
 
 def test_get_author_stats_basic():
-    git_data = [
+    git_data_str = [
         "--commit1--Author A--a@example.com--msg1",
         "10\t5\tfile1.txt",
         "",
@@ -75,7 +121,8 @@ def test_get_author_stats_basic():
         "--commit3--Author A--a@example.com--msg3",
         "5\t2\tfile3.txt"
     ]
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df(git_data_str)
+    author_stats = parse_git_log(git_data_df)
 
     assert len(author_stats) == 2
     
@@ -94,7 +141,7 @@ def test_get_author_stats_basic():
     assert author_b['commits'] == 1
 
 def test_get_author_stats_ranks_deciles():
-    git_data = [
+    git_data_str = [
         "--commit1--A--a@example.com--msg",
         "100\t0\tf1.txt",
         "",
@@ -107,7 +154,8 @@ def test_get_author_stats_ranks_deciles():
         "--commit4--D--d@example.com--msg",
         "10\t0\tf4.txt"
     ]
-    author_stats = parse_git_log(git_data)
+    git_data_df = _mock_git_data_to_df(git_data_str)
+    author_stats = parse_git_log(git_data_df)
 
     # Sort by total for easier assertion
     author_stats.sort(key=lambda x: x['total'], reverse=True)

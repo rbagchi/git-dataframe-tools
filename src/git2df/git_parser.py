@@ -1,6 +1,12 @@
 import re
 from collections import defaultdict
 
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+
 def _parse_git_data_internal(git_data: list[str]) -> dict:
     """Parse git log data and extract raw commit and file stats per author."""
     authors = defaultdict(lambda: {
@@ -16,7 +22,10 @@ def _parse_git_data_internal(git_data: list[str]) -> dict:
     current_author_name = None
     current_author_email = None
     
-    for line in git_data:
+    # Wrap iteration with tqdm if available
+    iterable_git_data = tqdm(git_data, desc="Parsing git log") if TQDM_AVAILABLE else git_data
+
+    for line in iterable_git_data:
         line = line.strip()
         
         if not line:

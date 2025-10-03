@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 class GitCliBackend:
     """A backend for git2df that interacts with the Git CLI."""
 
+    def __init__(self):
+        logger.info("Using GitPython backend for git operations.")
+
     def _get_default_branch(self, repo_path: str) -> str:
         """Determines the default branch (main or master) for a given repository."""
         logger.debug(f"Checking for default branch in {repo_path}")

@@ -9,18 +9,18 @@ __version__ = "0.1.0"
 import argparse
 import os
 import pyarrow.parquet as pq
+import logging
 
 from git_scoreboard.config_models import (
     GitAnalysisConfig,
-    print_success,
-    print_error,
-    print_warning,
     print_header,
 )
-
 import git_scoreboard.git_stats_pandas as stats_module
+from git_scoreboard.logger import setup_logging
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
+
+logger = logging.getLogger(__name__)
 
 
 def parse_arguments():
@@ -85,6 +85,15 @@ def parse_arguments():
         action="store_true",
         help="Proceed with analysis even if the DataFrame version does not match the expected version.",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (INFO level)",
+    )
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debug output (DEBUG level)"
+    )
 
     return parser.parse_args()
 
@@ -92,15 +101,17 @@ def parse_arguments():
 def main():
     """Main function"""
     args = parse_arguments()
+    setup_logging(debug=args.debug, verbose=args.verbose)
+    logger.debug(f"CLI arguments: {args}")
 
     # Validate mutually exclusive arguments
     if args.author and args.me:
-        print_error("Error: Cannot use both --author and --me options together")
+        logger.error("Error: Cannot use both --author and --me options together")
         return
     if (
         args.df_path and args.repo_path != "."
     ):  # If df_path is provided, repo_path should be default
-        print_error(
+        logger.error(
             "Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis."
         )
         return
@@ -120,9 +131,9 @@ def main():
     git_log_data = None
     if args.df_path:
         if not os.path.exists(args.df_path):
-            print_error(f"Error: DataFrame file not found at '{args.df_path}'")
+            logger.error(f"DataFrame file not found at '{args.df_path}'")
             return
-        print_success(f"Loading commit data from '{args.df_path}'...")
+        logger.info(f"Loading commit data from '{args.df_path}'...")
         try:
             # Load the table to read metadata
             table = pq.read_table(args.df_path)
@@ -133,27 +144,25 @@ def main():
                 loaded_data_version = metadata[b"data_version"].decode()
 
             if loaded_data_version and loaded_data_version != EXPECTED_DATA_VERSION:
-                message = f"Warning: DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
+                message = f"DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
                 if not args.force_version_mismatch:
-                    print_error(
+                    logger.error(
                         f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
                     )
                     return
                 else:
-                    print_warning(
+                    logger.warning(
                         f"{message} Proceeding due to --force-version-mismatch."
                     )
             elif not loaded_data_version:
-                message = (
-                    "Warning: No 'data_version' metadata found in the DataFrame file."
-                )
+                message = "No 'data_version' metadata found in the DataFrame file."
                 if not args.force_version_mismatch:
-                    print_error(
+                    logger.error(
                         f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
                     )
                     return
                 else:
-                    print_warning(
+                    logger.warning(
                         f"{message} Proceeding due to --force-version-mismatch."
                     )
 
@@ -161,15 +170,15 @@ def main():
                 table.to_pandas()
             )  # Convert to pandas DataFrame after version check
         except Exception as e:
-            print_error(f"Error loading DataFrame from '{args.df_path}': {e}")
+            logger.error(f"Error loading DataFrame from '{args.df_path}': {e}")
             return
     else:
         from git2df import get_commits_df
 
-        print_success("Gathering commit data...")
+        logger.info("Gathering commit data directly from Git...")
         try:
             if not config._check_git_repo(args.repo_path):
-                print_error("Error: Not in a git repository")
+                logger.error("Not in a git repository")
                 return
 
             git_log_data = get_commits_df(
@@ -182,16 +191,16 @@ def main():
                 exclude_paths=config.exclude_paths,
             )
         except Exception as e:
-            print_error(f"Error fetching git log data: {e}")
+            logger.error(f"Error fetching git log data: {e}")
             return
 
-    print_success("Processing commits...")
+    logger.info("Processing commits...")
     author_stats = stats_module.parse_git_log(git_log_data)
 
     # If author-specific analysis requested, show only their stats
     if config.is_author_specific():
         if config.use_current_user:
-            print_success(
+            logger.info(
                 f"Looking up stats for current user: {config.current_user_name} <{config.current_user_email}>"
             )
 
@@ -200,8 +209,8 @@ def main():
         )
         if not author_matches:
             analysis_type = "merged commits" if config.merged_only else "commits"
-            print_warning(f"No {analysis_type} found in the specified time period.")
-            print_error(f"No authors found matching '{config.author_query}'")
+            logger.warning(f"No {analysis_type} found in the specified time period.")
+            logger.error(f"No authors found matching '{config.author_query}'")
             print(
                 "Suggestion: Try a partial match like first name, last name, or email domain."
             )
@@ -216,11 +225,11 @@ def main():
         print()
 
         if len(author_matches) > 1:
-            print_warning(f"Found {len(author_matches)} matching authors:")
+            logger.warning(f"Found {len(author_matches)} matching authors:")
             print()
 
         for author in author_matches:
-            print_success(f"Author: {author['author_name']} <{author['author_email']}>")
+            logger.info(f"Author: {author['author_name']} <{author['author_email']}>")
             print(
                 f"  Rank:          #{author['rank']} of {len(author_matches)} authors"
             )  # Changed len(author_list) to len(author_matches)
@@ -257,7 +266,7 @@ def main():
     print()
 
     if not author_list:
-        print_warning(
+        logger.warning(
             f"No commits found in the specified time period: {config.start_date.isoformat()} to {config.end_date.isoformat()}."
         )
         return

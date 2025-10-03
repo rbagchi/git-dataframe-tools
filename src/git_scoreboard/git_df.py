@@ -9,23 +9,14 @@ import os
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import logging
 
 from git2df import get_commits_df
+from git_scoreboard.logger import setup_logging
 
 DATA_VERSION = "1.0"  # Major version of the data format
 
-
-# Helper functions for colored output
-def print_success(message):
-    print(f"\033[92m\033[1mSUCCESS:\033[0m {message}")
-
-
-def print_error(message):
-    print(f"\033[91m\033[1mERROR:\033[0m {message}", file=sys.stderr)
-
-
-def print_warning(message):
-    print(f"\033[93m\033[1mWARNING:\033[0m {message}")
+logger = logging.getLogger(__name__)
 
 
 def parse_arguments():
@@ -78,21 +69,32 @@ def parse_arguments():
         required=True,
         help='Output Parquet file path (e.g., "commits.parquet")',
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (INFO level)",
+    )
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debug output (DEBUG level)"
+    )
 
     return parser.parse_args()
 
 
 def main():
     args = parse_arguments()
+    setup_logging(debug=args.debug, verbose=args.verbose)
+    logger.debug(f"CLI arguments: {args}")
 
     # Ensure the repository path exists
     if not os.path.isdir(args.repo_path):
-        print_error(
-            f"Error: Repository path '{args.repo_path}' does not exist or is not a directory."
+        logger.error(
+            f"Repository path '{args.repo_path}' does not exist or is not a directory."
         )
         sys.exit(1)
 
-    print_success(f"Extracting commit data from '{args.repo_path}'...")
+    logger.info(f"Extracting commit data from '{args.repo_path}'...")
     try:
         commits_df = get_commits_df(
             repo_path=args.repo_path,
@@ -105,11 +107,11 @@ def main():
             exclude_paths=args.exclude_path,
         )
     except Exception as e:
-        print_error(f"Error fetching git log data: {e}")
+        logger.error(f"Error fetching git log data: {e}")
         sys.exit(1)
 
     if commits_df.empty:
-        print_warning(
+        logger.warning(
             f"No commits found for the specified criteria in '{args.repo_path}'."
         )
         # If no commits are found, we should still create an empty parquet file
@@ -135,15 +137,15 @@ def main():
             # Convert pandas DataFrame to PyArrow Table with the new schema
             table = pa.Table.from_pandas(empty_df, schema=new_schema)
             pq.write_table(table, args.output)
-            print_success(
+            logger.info(
                 f"Created empty Parquet file at '{args.output}' as no commits were found."
             )
         except Exception as e:
-            print_error(f"Error creating empty Parquet file: {e}")
+            logger.error(f"Error creating empty Parquet file: {e}")
             sys.exit(1)
         return
 
-    print_success(f"Saving {len(commits_df)} commits to '{args.output}'...")
+    logger.info(f"Saving {len(commits_df)} commits to '{args.output}'...")
     try:
         # Convert pandas DataFrame to PyArrow Table
         table = pa.Table.from_pandas(commits_df)
@@ -168,9 +170,9 @@ def main():
 
         # Write the PyArrow Table to a Parquet file
         pq.write_table(table, args.output)
-        print_success(f"Successfully saved commit data to '{args.output}'.")
+        logger.info(f"Successfully saved commit data to '{args.output}'.")
     except Exception as e:
-        print_error(f"Error saving data to Parquet: {e}")
+        logger.error(f"Error saving data to Parquet: {e}")
         sys.exit(1)
 
 

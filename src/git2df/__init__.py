@@ -1,9 +1,12 @@
+import logging
 import pandas as pd
 from typing import Optional, List
 
 from git2df.backends import GitCliBackend
 from git2df.git_parser import _parse_git_data_internal
 from git2df.dataframe_builder import build_commits_df
+
+logger = logging.getLogger(__name__)
 
 
 def get_commits_df(
@@ -35,6 +38,10 @@ def get_commits_df(
     Returns:
         A Pandas DataFrame containing commit information.
     """
+    logger.debug(
+        f"get_commits_df called with: repo_path={repo_path}, since={since}, until={until}, author={author}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}"
+    )
+
     default_log_args = [
         "--numstat",
         "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
@@ -62,8 +69,12 @@ def get_commits_df(
 
     # Split raw output into lines for the parser
     log_lines = raw_log_output.splitlines()
+    logger.debug(f"Received {len(log_lines)} raw log lines from Git.")
 
     parsed_data = _parse_git_data_internal(log_lines)
+    logger.debug(f"Parsed {len(parsed_data)} commit entries.")
+
     df = build_commits_df(parsed_data)
+    logger.info(f"Built DataFrame with {len(df)} rows.")
 
     return df

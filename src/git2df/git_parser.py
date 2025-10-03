@@ -1,5 +1,8 @@
+import logging
 import re
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 try:
     from tqdm import tqdm
@@ -11,6 +14,7 @@ except ImportError:
 
 def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
     """Parse git log data and extract commit details and file stats per commit."""
+    logger.debug(f"Starting git log parsing for {len(git_data)} lines.")
     commits_data = []
     current_commit = None
     current_files = []
@@ -68,6 +72,7 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
                     "commit_date": datetime.fromisoformat(commit_date_str),
                     "commit_message": commit_message,
                 }
+                logger.debug(f"Parsed commit: {commit_hash} by {author_name}")
         else:
             # File stat line (format: added\\tdeleted\\tfilepath)
             if current_commit:
@@ -94,6 +99,9 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
                             "deletions": deletions,
                         }
                     )
+                    logger.debug(
+                        f"  File change: {file_path} ({change_type}, +{additions}, -{deletions})"
+                    )
 
     # Add the last commit's data if any
     if current_commit and current_files:
@@ -102,4 +110,7 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
             commit_record.update(file_info)
             commits_data.append(commit_record)
 
+    logger.debug(
+        f"Finished git log parsing. Total {len(commits_data)} file changes extracted."
+    )
     return commits_data

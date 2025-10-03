@@ -19,6 +19,10 @@ from git_dataframe_tools.config_models import (
 import git_dataframe_tools.git_stats_pandas as stats_module
 from git_dataframe_tools.logger import setup_logging
 
+from git_dataframe_tools.cli._validation import _validate_arguments
+from git_dataframe_tools.cli._data_loader import _load_dataframe, _gather_git_data
+from git_dataframe_tools.cli._display_utils import _display_author_specific_stats, _display_full_ranking
+
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
 logger = logging.getLogger(__name__)
@@ -98,24 +102,15 @@ def parse_arguments():
 
     return parser.parse_args()
 
-
 def main():
     """Main function"""
     args = parse_arguments()
     setup_logging(debug=args.debug, verbose=args.verbose)
     logger.debug(f"CLI arguments: {args}")
 
-    # Validate mutually exclusive arguments
-    if args.author and args.me:
-        logger.error("Error: Cannot use both --author and --me options together")
-        return 1
-    if (
-        args.df_path and args.repo_path != "."
-    ):  # If df_path is provided, repo_path should be default
-        logger.error(
-            "Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis."
-        )
-        return 1
+    validation_result = _validate_arguments(args)
+    if validation_result != 0:
+        return validation_result
 
     # Create configuration object
     config = GitAnalysisConfig(
@@ -129,213 +124,26 @@ def main():
         default_period=args.default_period,
     )
 
-    git_log_data = None
-    if args.df_path:
-        if not os.path.exists(args.df_path):
-            logger.error(f"DataFrame file not found at '{args.df_path}'")
-            return 1
-        logger.info(f"Loading commit data from '{args.df_path}'...")
-        try:
-            # Load the table to read metadata
-            table = pq.read_table(args.df_path)
-            metadata = table.schema.metadata
+    git_log_data, status_code = _load_dataframe(args, config)
+    if status_code != 0:
+        return status_code
+    
+    if git_log_data is None:
+        git_log_data, status_code = _gather_git_data(args, config)
+        if status_code != 0:
+            return status_code
 
-            loaded_data_version = None
-            if b"data_version" in metadata:
-                loaded_data_version = metadata[b"data_version"].decode()
-
-            if loaded_data_version and loaded_data_version != EXPECTED_DATA_VERSION:
-                message = f"DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
-                if not args.force_version_mismatch:
-                    logger.error(
-                        f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
-                    )
-                    return 1
-                else:
-                    logger.warning(
-                        f"{message} Proceeding due to --force-version-mismatch."
-                    )
-            elif not loaded_data_version:
-                message = "No 'data_version' metadata found in the DataFrame file."
-                if not args.force_version_mismatch:
-                    logger.error(
-                        f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
-                    )
-                    return 1
-                else:
-                    logger.warning(
-                        f"{message} Proceeding due to --force-version-mismatch."
-                    )
-
-            git_log_data = (
-                table.to_pandas()
-            )  # Convert to pandas DataFrame after version check
-        except Exception as e:
-            logger.error(f"Error loading DataFrame from '{args.df_path}': {e}")
-            return 1
-    else:
-        from git2df import get_commits_df
-
-        logger.info("Gathering commit data directly from Git...")
-        try:
-            if not config._check_git_repo(args.repo_path):
-                logger.error("Not in a git repository")
-                return 1
-
-            git_log_data = get_commits_df(
-                repo_path=args.repo_path,
-                since=config.start_date.isoformat(),
-                until=config.end_date.isoformat(),
-                author=config.author_query,
-                merged_only=config.merged_only,
-                include_paths=config.include_paths,
-                exclude_paths=config.exclude_paths,
-            )
-        except Exception as e:
-            logger.error(f"Error fetching git log data: {e}")
-            return 1
 
     logger.info("Processing commits...")
     author_stats = stats_module.parse_git_log(git_log_data)
 
     # If author-specific analysis requested, show only their stats
     if config.is_author_specific():
-        if config.use_current_user:
-            logger.info(
-                f"Looking up stats for current user: {config.current_user_name} <{config.current_user_email}>"
-            )
-
-        author_matches = stats_module.find_author_stats(
-            author_stats, config.author_query
-        )
-        if not author_matches:
-            analysis_type = "merged commits" if config.merged_only else "commits"
-            logger.warning(f"No {analysis_type} found in the specified time period.")
-            logger.error(f"No authors found matching '{config.author_query}'")
-            print(
-                "Suggestion: Try a partial match like first name, last name, or email domain."
-            )
-            return 1
-
-        print()
-        analysis_type = "merged commits" if config.merged_only else "commits"
-        print_header(f"Author Stats for '{config.author_query}' ({analysis_type})")
-        print_header(
-            f"Analysis period: {config.start_date.isoformat()} to {config.end_date.isoformat()}"
-        )
-        print()
-
-        if len(author_matches) > 1:
-            logger.warning(f"Found {len(author_matches)} matching authors:")
-            print()
-
-        for author in author_matches:
-            logger.info(f"Author: {author['author_name']} <{author['author_email']}>")
-            print(
-                f"  Rank:          #{author['rank']} of {len(author_matches)} authors"
-            )  # Changed len(author_list) to len(author_matches)
-            print(f"  Lines Added:   {author['added']:,}")
-            print(f"  Lines Deleted: {author['deleted']:,}")
-            print(f"  Total Diff:    {author['total']:,}")
-            print(f"  Commits:       {author['commits']}")
-            print(
-                f"  Diff Decile:   {author['diff_decile']} (1=top 10%, 10=bottom 10%)"
-            )
-            print(
-                f"  Commit Decile: {author['commit_decile']} (1=top 10%, 10=bottom 10%)"
-            )
-
-            # Calculate percentile more precisely
-            percentile = (
-                (author["rank"] - 1) / len(author_matches) * 100
-            )  # Changed len(author_list) to len(author_matches)
-            print(f"  Percentile:    Top {percentile:.1f}%")
-
-            if author["commits"] > 0:
-                avg_diff_per_commit = author["total"] / author["commits"]
-                print(f"  Avg Diff/Commit: {avg_diff_per_commit:.0f} lines")
-
-            print()
-        return 0
-
-    # Otherwise show full ranking
-    author_list = stats_module.get_ranking(author_stats)
-
-    print()
-    print_header("Git Author Ranking by Diff Size")
-    print_header(config.get_analysis_description())
-    print()
-
-    if not author_list:
-        logger.warning(
-            f"No commits found in the specified time period: {config.start_date.isoformat()} to {config.end_date.isoformat()}."
-        )
-        return 1
-
-    # Print table header
-    print(
-        f"{'Rank':>4} {'Author':<45} {'Lines Added':>11} {'Lines Deleted':>12} {'Total Diff':>11} {'Commits':>7} {'Diff D':>6} {'Comm D':>6}"
-    )
-    print(
-        f"{'-'*4:>4} {'-'*45:<45} {'-'*11:>11} {'-'*12:>12} {'-'*11:>11} {'-'*7:>7} {'-'*6:>6} {'-'*6:>6}"
-    )
-
-    # Print results
-    for author in author_list:
-        author_display = f"{author['author_name']} <{author['author_email']}>"
-        # Truncate author display if too long
-        if len(author_display) > 45:
-            author_display = author_display[:42] + "..."
-
-        added_str = str(author["added"]) if author["added"] > 0 else "-"
-        deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
-
-        print(
-            f"{author['rank']:>4} {author_display:<45} {added_str:>11} {deleted_str:>12} {author['total']:>11} {author['commits']:>7} {author['diff_decile']:>6} {author['commit_decile']:>6}"
-        )
-
-    # Print decile distribution summary
-    print("\nDiff Size Decile Distribution:")
-    print(f"{'Decile':>6} {'Diff Size Range':>25} {'Authors':>8}")
-    print(f"{'-'*6:>6} {'-'*25:>25} {'-'*8:>8}")
-
-    for decile in range(1, 11):
-        diff_authors = [a for a in author_list if a["diff_decile"] == decile]
-        if diff_authors:
-            min_diff = min(a["total"] for a in diff_authors)
-            max_diff = max(a["total"] for a in diff_authors)
-            diff_range = (
-                f"{min_diff:,}-{max_diff:,}"
-                if min_diff != max_diff
-                else f"{min_diff:,}"
-            )
-            print(f"{decile:>6} {diff_range:>25} {len(diff_authors):>8}")
-
-    print("\nCommit Count Decile Distribution:")
-    print(f"{'Decile':>6} {'Commit Range':>15} {'Authors':>8}")
-    print(f"{'-'*6:>6} {'-'*15:>15} {'-'*8:>8}")
-
-    for decile in range(1, 11):
-        commit_authors = [a for a in author_list if a["commit_decile"] == decile]
-        if commit_authors:
-            min_commits = min(a["commits"] for a in commit_authors)
-            max_commits = max(a["commits"] for a in commit_authors)
-            commit_range = (
-                f"{min_commits}-{max_commits}"
-                if min_commits != max_commits
-                else f"{min_commits}"
-            )
-            print(f"{decile:>6} {commit_range:>15} {len(commit_authors):>8}")
-
-    print("\nSummary:")
-    print("- Ranking based on total lines changed (additions + deletions)")
-    print("- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
-    print("- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
-    print(
-        f"- Analysis period: from {config.start_date.isoformat()} to {config.end_date.isoformat()}"
-    )
-    print(f"- Total unique authors: {len(author_list)}")
-    return 0
+        return _display_author_specific_stats(config, author_stats)
+    else:
+        # Otherwise show full ranking
+        author_list = stats_module.get_ranking(author_stats)
+        return _display_full_ranking(config, author_list)
 
 def cli():
     sys.exit(main())

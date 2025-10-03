@@ -93,8 +93,8 @@ def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
                     commit_record = current_commit.copy()
                     commit_record.update(file_info)
                     commits_data.append(commit_record)
-            
-            current_files = [] # Reset current_files for the new commit
+
+            current_files = []  # Reset current_files for the new commit
 
             parts = line.split("--")
             # Expected format: --%H--%P--%an--%ae--%ad--%s

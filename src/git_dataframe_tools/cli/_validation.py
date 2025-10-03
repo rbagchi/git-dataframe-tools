@@ -1,7 +1,7 @@
 import logging
-import os
 
 logger = logging.getLogger(__name__)
+
 
 def _validate_arguments(args):
     if args.author and args.me:

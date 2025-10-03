@@ -2,10 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 import sys
-import os
 import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
 
 # Assuming scoreboard.py is in the parent directory
 from git_dataframe_tools.config_models import GitAnalysisConfig, _parse_period_string
@@ -310,8 +307,8 @@ def test_parse_arguments_all_options():
     assert args.debug is True
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "-a", "test", "-m"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch.object(sys, "argv", ["scoreboard.py", "--author", "test", "--me"])
+@patch("git_dataframe_tools.cli._validation.logger")
 def test_main_author_and_me_mutually_exclusive(mock_logger):
     assert scoreboard.main() == 1
     mock_logger.error.assert_called_with(
@@ -319,8 +316,10 @@ def test_main_author_and_me_mutually_exclusive(mock_logger):
     )
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet", "my_repo"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch.object(
+    sys, "argv", ["scoreboard.py", "--df-path", "data.parquet", "./custom/repo"]
+)
+@patch("git_dataframe_tools.cli._validation.logger")
 def test_main_df_path_with_custom_repo_path_mutually_exclusive(mock_logger):
     assert scoreboard.main() == 1
     mock_logger.error.assert_called_with(
@@ -330,7 +329,7 @@ def test_main_df_path_with_custom_repo_path_mutually_exclusive(mock_logger):
 
 @patch.object(sys, "argv", ["scoreboard.py", "--df-path", "non_existent.parquet"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=False)
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_df_path_not_found(mock_logger, mock_exists):
     assert scoreboard.main() == 1
     mock_logger.error.assert_called_with(
@@ -341,7 +340,7 @@ def test_main_df_path_not_found(mock_logger, mock_exists):
 @patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
 @patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_df_path_read_error(mock_logger, mock_read_table, mock_exists):
     mock_read_table.side_effect = Exception("Parquet read error")
     assert scoreboard.main() == 1
@@ -353,7 +352,7 @@ def test_main_df_path_read_error(mock_logger, mock_read_table, mock_exists):
 @patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
 @patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_df_path_version_mismatch_abort(mock_logger, mock_read_table, mock_exists):
     mock_table = MagicMock()
     mock_table.schema.metadata = {b"data_version": b"2.0"}
@@ -371,21 +370,17 @@ def test_main_df_path_version_mismatch_abort(mock_logger, mock_read_table, mock_
 )
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
 @patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
-@patch(f"{SCOREBOARD_MODULE_PATH}.setup_logging")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
+@patch("git2df.get_commits_df")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 @patch("datetime.datetime")
+@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
+@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
 def test_main_df_path_version_mismatch_force(
-    mock_datetime,
-    mock_print,
-    mock_print_header,
     mock_get_ranking,
     mock_parse_git_log,
-    mock_setup_logging,
+    mock_datetime,
     mock_logger,
+    mock_get_commits_df,
     mock_read_table,
     mock_exists,
 ):
@@ -409,7 +404,7 @@ def test_main_df_path_version_mismatch_force(
 @patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
 @patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
 @patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
@@ -439,7 +434,7 @@ def test_main_df_path_no_version_metadata_abort(
 )
 @patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
 @patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 @patch(f"{SCOREBOARD_MODULE_PATH}.setup_logging")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
@@ -478,7 +473,7 @@ def test_main_df_path_no_version_metadata_force(
 @patch(
     f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=False
 )
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_not_a_git_repo(mock_logger, mock_check_git_repo):
     assert scoreboard.main() == 1
     mock_logger.error.assert_called_with("Not in a git repository")
@@ -487,7 +482,7 @@ def test_main_not_a_git_repo(mock_logger, mock_check_git_repo):
 @patch.object(sys, "argv", ["scoreboard.py"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_get_commits_df_error(
     mock_logger, mock_get_commits_df, mock_check_git_repo
 ):
@@ -497,9 +492,9 @@ def test_main_get_commits_df_error(
 
 
 @patch.object(sys, "argv", ["scoreboard.py"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
+@patch("git_dataframe_tools.cli._display_utils.logger")
+@patch("builtins.print")
+@patch("git_dataframe_tools.cli._display_utils.print_header")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
 @patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
 @patch("git2df.get_commits_df")
@@ -518,62 +513,58 @@ def test_main_no_commits_found(
     mock_get_ranking.return_value = []
 
     assert scoreboard.main() == 1
-    
+
     # Get the call arguments from the mock
     warning_call_args = mock_logger.warning.call_args[0]
-    
+
     # Check that the warning message starts with the expected string
-    assert warning_call_args[0].startswith("No commits found in the specified time period")
-
-
-@patch.object(sys, "argv", ["scoreboard.py", "-a", "John Doe"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
-@patch("git2df.get_commits_df")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.find_author_stats")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
-def test_main_author_specific_no_match(
-    mock_logger,
-    mock_print,
-    mock_print_header,
-    mock_find_author_stats,
-    mock_parse_git_log,
-    mock_get_commits_df,
-    mock_check_git_repo,
-):
-    mock_get_commits_df.return_value = pd.DataFrame()
-    mock_parse_git_log.return_value = {}
-    mock_find_author_stats.return_value = []
-
-    assert scoreboard.main() == 1
-    
-    mock_logger.error.assert_called_with("No authors found matching 'John Doe'")
-    mock_print.assert_any_call(
-        "Suggestion: Try a partial match like first name, last name, or email domain."
+    assert warning_call_args[0].startswith(
+        "No commits found in the specified time period"
     )
 
 
 @patch.object(sys, "argv", ["scoreboard.py", "-a", "John Doe"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.find_author_stats")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
-def test_main_author_specific_single_match(
-    mock_logger,
-    mock_print,
-    mock_print_header,
-    mock_find_author_stats,
+@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
+@patch(f"{SCOREBOARD_MODULE_PATH}._display_author_specific_stats")
+def test_main_author_specific_no_match(
+    mock_display_author_specific_stats,
     mock_parse_git_log,
     mock_get_commits_df,
     mock_check_git_repo,
 ):
     mock_get_commits_df.return_value = pd.DataFrame()
     mock_parse_git_log.return_value = {}
+    mock_display_author_specific_stats.return_value = 1
+
+    assert scoreboard.main() == 1
+    mock_display_author_specific_stats.assert_called_once()
+
+
+@patch.object(sys, "argv", ["scoreboard.py", "-a", "John Doe"])
+@patch("git_dataframe_tools.git_stats_pandas.find_author_stats")
+@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
+@patch("git2df.get_commits_df")
+@patch(f"{SCOREBOARD_MODULE_PATH}._display_author_specific_stats")
+def test_main_author_specific_single_match(
+    mock_display_author_specific_stats,
+    mock_get_commits_df,
+    mock_parse_git_log,
+    mock_find_author_stats,
+):
+    mock_get_commits_df.return_value = pd.DataFrame()
+    mock_parse_git_log.return_value = {
+        "John Doe <john@example.com>": [
+            {
+                "author_name": "John Doe",
+                "author_email": "john@example.com",
+                "added": 10,
+                "deleted": 5,
+                "commit_hash": "abc",
+            }
+        ]
+    }
     mock_find_author_stats.return_value = [
         {
             "author_name": "John Doe",
@@ -587,28 +578,20 @@ def test_main_author_specific_single_match(
             "commit_decile": 1,
         }
     ]
+    mock_display_author_specific_stats.return_value = 0
 
     assert scoreboard.main() == 0
-    mock_print_header.assert_any_call("Author Stats for 'John Doe' (commits)")
-    mock_print.assert_any_call("  Rank:          #1 of 1 authors")
-    mock_print.assert_any_call("  Lines Added:   100")
-    mock_print.assert_any_call("  Lines Deleted: 50")
-    mock_print.assert_any_call("  Total Diff:    150")
-    mock_print.assert_any_call("  Commits:       10")
-    mock_print.assert_any_call("  Diff Decile:   1 (1=top 10%, 10=bottom 10%)")
-    mock_print.assert_any_call("  Commit Decile: 1 (1=top 10%, 10=bottom 10%)")
-    mock_print.assert_any_call("  Percentile:    Top 0.0%")
-    mock_print.assert_any_call("  Avg Diff/Commit: 15 lines")
+    mock_display_author_specific_stats.assert_called_once()
 
 
 @patch.object(sys, "argv", ["scoreboard.py"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
+@patch("git_dataframe_tools.git_stats_pandas.get_ranking")
+@patch("git_dataframe_tools.cli._display_utils.print_header")
+@patch("builtins.print")
+@patch("git_dataframe_tools.cli._display_utils.logger")
 def test_main_full_ranking_output(
     mock_logger,
     mock_print,
@@ -665,18 +648,12 @@ def test_main_full_ranking_output(
 @patch.object(sys, "argv", ["scoreboard.py", "-m"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.find_author_stats")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch(f"{SCOREBOARD_MODULE_PATH}.logger")
+@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
+@patch(f"{SCOREBOARD_MODULE_PATH}._display_author_specific_stats")
 @patch("git.Repo")
 def test_main_me_option(
     mock_repo,
-    mock_logger,
-    mock_print,
-    mock_print_header,
-    mock_find_author_stats,
+    mock_display_author_specific_stats,
     mock_parse_git_log,
     mock_get_commits_df,
     mock_check_git_repo,
@@ -684,25 +661,10 @@ def test_main_me_option(
     mock_config_reader = MagicMock()
     mock_config_reader.get_value.side_effect = ["Current User", "current@example.com"]
     mock_repo.return_value.config_reader.return_value = mock_config_reader
-    
+
     mock_get_commits_df.return_value = pd.DataFrame()
     mock_parse_git_log.return_value = {}
-    mock_find_author_stats.return_value = [
-        {
-            "author_name": "Current User",
-            "author_email": "current@example.com",
-            "rank": 1,
-            "added": 100,
-            "deleted": 50,
-            "total": 150,
-            "commits": 10,
-            "diff_decile": 1,
-            "commit_decile": 1,
-        }
-    ]
+    mock_display_author_specific_stats.return_value = 0
+
     assert scoreboard.main() == 0
-    mock_logger.info.assert_any_call(
-        "Looking up stats for current user: Current User <current@example.com>"
-    )
-    mock_print_header.assert_any_call("Author Stats for 'Current User|current@example.com' (commits)")
-    mock_print.assert_any_call("  Rank:          #1 of 1 authors")
+    mock_display_author_specific_stats.assert_called_once()

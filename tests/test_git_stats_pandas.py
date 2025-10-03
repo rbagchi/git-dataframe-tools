@@ -36,26 +36,45 @@ def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
                 added = 0 if added_str == "-" else int(added_str)
                 deleted = 0 if deleted_str == "-" else int(deleted_str)
 
-                row = current_commit_info.copy()
-                row.update(
-                    {"additions": str(added), "deletions": str(deleted), "file_paths": filepath}
+                data.append(
+                    {
+                        "commit_hash": current_commit_info["commit_hash"],
+                        "author_name": current_commit_info["author_name"],
+                        "author_email": current_commit_info["author_email"],
+                        "commit_message": current_commit_info["commit_message"],
+                        "additions": added,
+                        "deletions": deleted,
+                        "file_paths": filepath,
+                    }
                 )
-                data.append(row)
 
     if not data:
         return pd.DataFrame(
             columns=[
                 "commit_hash",
+                "parent_hash",
                 "author_name",
                 "author_email",
                 "commit_message",
                 "additions",
                 "deletions",
                 "file_paths",
-            ]
+            ],
+            dtype={
+                "additions": int,
+                "deletions": int,
+                "commit_hash": str,
+                "parent_hash": str,
+                "author_name": str,
+                "author_email": str,
+                "commit_message": str,
+                "file_paths": str,
+            },
         )
 
     df = pd.DataFrame(data)
+    df["additions"] = df["additions"].astype(int)
+    df["deletions"] = df["deletions"].astype(int)
     return df
 
 

@@ -152,12 +152,16 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     return author_stats
 
 
-def find_author_stats(author_stats: list[dict], author_query: str) -> list[dict]:
+def find_author_stats(author_stats: list[dict], author_query: str | None) -> list[dict]:
     """
     Finds and returns stats for a specific author from the author statistics list.
+    If author_query is None, returns all author_stats.
     """
     if not author_stats:
         return []
+
+    if author_query is None:
+        return author_stats
 
     query_parts = [p.strip().lower() for p in author_query.split("|")]
     matches = []

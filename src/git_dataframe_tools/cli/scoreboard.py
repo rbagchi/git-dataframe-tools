@@ -7,21 +7,21 @@ This script analyzes git history and ranks authors by total lines changed
 __version__ = "0.1.0"
 
 import argparse
-import os
-import pyarrow.parquet as pq
 import logging
 import sys
 
 from git_dataframe_tools.config_models import (
     GitAnalysisConfig,
-    print_header,
 )
 import git_dataframe_tools.git_stats_pandas as stats_module
 from git_dataframe_tools.logger import setup_logging
 
 from git_dataframe_tools.cli._validation import _validate_arguments
 from git_dataframe_tools.cli._data_loader import _load_dataframe, _gather_git_data
-from git_dataframe_tools.cli._display_utils import _display_author_specific_stats, _display_full_ranking
+from git_dataframe_tools.cli._display_utils import (
+    _display_author_specific_stats,
+    _display_full_ranking,
+)
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
@@ -102,6 +102,7 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
 def main():
     """Main function"""
     args = parse_arguments()
@@ -127,26 +128,34 @@ def main():
     git_log_data, status_code = _load_dataframe(args, config)
     if status_code != 0:
         return status_code
-    
+
     if git_log_data is None:
         git_log_data, status_code = _gather_git_data(args, config)
         if status_code != 0:
             return status_code
 
-
     logger.info("Processing commits...")
-    author_stats = stats_module.parse_git_log(git_log_data)
+    parsed_git_log_data = stats_module.parse_git_log(git_log_data)
 
     # If author-specific analysis requested, show only their stats
     if config.is_author_specific():
-        return _display_author_specific_stats(config, author_stats)
+        author_stats_list = stats_module.find_author_stats(
+            parsed_git_log_data, config.author_query
+        )
+        return _display_author_specific_stats(config, author_stats_list)
     else:
         # Otherwise show full ranking
-        author_list = stats_module.get_ranking(author_stats)
+        # When not author-specific, find_author_stats should return all authors
+        all_author_stats_list = stats_module.find_author_stats(
+            parsed_git_log_data, None
+        )
+        author_list = stats_module.get_ranking(all_author_stats_list)
         return _display_full_ranking(config, author_list)
+
 
 def cli():
     sys.exit(main())
+
 
 if __name__ == "__main__":
     cli()

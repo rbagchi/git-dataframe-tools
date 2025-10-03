@@ -1,13 +1,13 @@
 import os
 import pyarrow.parquet as pq
 import logging
-from datetime import datetime
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
 
 logger = logging.getLogger(__name__)
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
+
 
 def _load_dataframe(args, config: GitAnalysisConfig):
     git_log_data = None
@@ -53,6 +53,7 @@ def _load_dataframe(args, config: GitAnalysisConfig):
             return None, 1
     return git_log_data, 0
 
+
 def _gather_git_data(args, config: GitAnalysisConfig):
     from git2df import get_commits_df
 
@@ -64,8 +65,8 @@ def _gather_git_data(args, config: GitAnalysisConfig):
 
         git_log_data = get_commits_df(
             repo_path=args.repo_path,
-            since=config.start_date.isoformat(),
-            until=config.end_date.isoformat(),
+            since=config.start_date.isoformat() if config.start_date else None,
+            until=config.end_date.isoformat() if config.end_date else None,
             author=config.author_query,
             merged_only=config.merged_only,
             include_paths=config.include_paths,

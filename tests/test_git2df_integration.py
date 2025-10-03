@@ -1,6 +1,7 @@
 import subprocess
 from datetime import datetime
 import re
+from typing import Union
 
 
 # Helper function to create a dummy git repo
@@ -70,8 +71,8 @@ def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
     to extract commit details and file stats per commit for comparison.
     """
     commits_data = []
-    current_commit = None
-    current_files = []
+    current_commit: dict[str, Union[str, datetime, None, int]] = {}
+    current_files: list[dict[str, Union[str, int]]] = []
 
     for line in raw_log_output.splitlines():
         line = line.strip()
@@ -82,7 +83,7 @@ def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
                     commit_record = current_commit.copy()
                     commit_record.update(file_info)
                     commits_data.append(commit_record)
-            current_commit = None
+            current_commit = {}
             current_files = []
             continue
 
@@ -92,9 +93,8 @@ def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
                     commit_record = current_commit.copy()
                     commit_record.update(file_info)
                     commits_data.append(commit_record)
-
-            current_commit = {}
-            current_files = []
+            
+            current_files = [] # Reset current_files for the new commit
 
             parts = line.split("--")
             # Expected format: --%H--%P--%an--%ae--%ad--%s

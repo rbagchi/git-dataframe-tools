@@ -38,7 +38,7 @@ def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
 
                 row = current_commit_info.copy()
                 row.update(
-                    {"additions": added, "deletions": deleted, "file_paths": filepath}
+                    {"additions": str(added), "deletions": str(deleted), "file_paths": filepath}
                 )
                 data.append(row)
 

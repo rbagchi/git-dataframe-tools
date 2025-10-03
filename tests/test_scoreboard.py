@@ -10,8 +10,6 @@ from dateutil.relativedelta import relativedelta
 CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
 
 
-
-
 # Test cases for _parse_period_string
 def test_parse_period_string_valid_days():
     assert _parse_period_string("1 day") == timedelta(days=1)
@@ -50,12 +48,14 @@ def test_get_date_range_default(mock_calendar_class, mock_datetime_class):
     mock_datetime_class.now.return_value = datetime(2025, 9, 29)
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 9, 29, 0, 0, 0), 1) # for end_date if it's not provided
+        (datetime(2025, 9, 29, 0, 0, 0), 1)  # for end_date if it's not provided
     ]
 
     config = GitAnalysisConfig()
@@ -73,13 +73,15 @@ def test_get_date_range_custom_start_end(mock_calendar_class, mock_datetime_clas
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 3, 31, 0, 0, 0), 1), # for end_date
-        (datetime(2025, 1, 1, 0, 0, 0), 1)  # for start_date
+        (datetime(2025, 3, 31, 0, 0, 0), 1),  # for end_date
+        (datetime(2025, 1, 1, 0, 0, 0), 1),  # for start_date
     ]
 
     config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-03-31")
@@ -89,19 +91,25 @@ def test_get_date_range_custom_start_end(mock_calendar_class, mock_datetime_clas
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_natural_language_start_end(mock_calendar_class, mock_datetime_class):
-    mock_datetime_class.now.return_value = datetime(2025, 9, 29, 10, 0, 0)  # Add time for parsedatetime context
+def test_get_date_range_natural_language_start_end(
+    mock_calendar_class, mock_datetime_class
+):
+    mock_datetime_class.now.return_value = datetime(
+        2025, 9, 29, 10, 0, 0
+    )  # Add time for parsedatetime context
     mock_datetime_class.strptime = datetime.strptime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
         (datetime(2025, 9, 28, 0, 0, 0), 1),  # for "yesterday"
-        (datetime(2025, 9, 22, 0, 0, 0), 1)  # for "last week"
+        (datetime(2025, 9, 22, 0, 0, 0), 1),  # for "last week"
     ]
 
     config = GitAnalysisConfig(start_date="last week", end_date="yesterday")
@@ -117,12 +125,14 @@ def test_get_date_range_custom_default_period(mock_calendar_class, mock_datetime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 9, 29, 0, 0, 0), 1) # for end_date if it's not provided
+        (datetime(2025, 9, 29, 0, 0, 0), 1)  # for end_date if it's not provided
     ]
 
     config = GitAnalysisConfig(default_period="6 months")
@@ -134,17 +144,21 @@ def test_get_date_range_custom_default_period(mock_calendar_class, mock_datetime
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_invalid_start_date_format(mock_calendar_class, mock_datetime_class):
+def test_get_date_range_invalid_start_date_format(
+    mock_calendar_class, mock_datetime_class
+):
     mock_datetime_class.now.return_value = datetime(2025, 9, 29)
     mock_datetime_class.strptime = datetime.strptime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
-    mock_cal_instance.parseDT.return_value = (None, 0) # for invalid start_date
+    mock_cal_instance.parseDT.return_value = (None, 0)  # for invalid start_date
 
     with pytest.raises(ValueError, match="Could not parse start date: invalid-date"):
         GitAnalysisConfig(start_date="invalid-date")
@@ -152,17 +166,21 @@ def test_get_date_range_invalid_start_date_format(mock_calendar_class, mock_date
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_invalid_end_date_format(mock_calendar_class, mock_datetime_class):
+def test_get_date_range_invalid_end_date_format(
+    mock_calendar_class, mock_datetime_class
+):
     mock_datetime_class.now.return_value = datetime(2025, 9, 29)
     mock_datetime_class.strptime = datetime.strptime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
-    mock_cal_instance.parseDT.return_value = (None, 0) # for invalid end_date
+    mock_cal_instance.parseDT.return_value = (None, 0)  # for invalid end_date
 
     with pytest.raises(ValueError, match="Could not parse end date: invalid-date"):
         GitAnalysisConfig(end_date="invalid-date")
@@ -176,13 +194,15 @@ def test_get_date_range_start_after_end(mock_calendar_class, mock_datetime_class
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 9, 28, 0, 0, 0), 1), # for end_date
-        (datetime(2025, 9, 29, 0, 0, 0), 1)  # for start_date
+        (datetime(2025, 9, 28, 0, 0, 0), 1),  # for end_date
+        (datetime(2025, 9, 29, 0, 0, 0), 1),  # for start_date
     ]
 
     with pytest.raises(ValueError, match="Start date cannot be after end date."):
@@ -192,18 +212,22 @@ def test_get_date_range_start_after_end(mock_calendar_class, mock_datetime_class
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}._parse_period_string")
-def test_get_date_range_invalid_default_period(mock_parse_period_string, mock_calendar_class, mock_datetime_class):
+def test_get_date_range_invalid_default_period(
+    mock_parse_period_string, mock_calendar_class, mock_datetime_class
+):
     mock_datetime_class.now.return_value = datetime(2025, 9, 29)
     mock_datetime_class.strptime = datetime.strptime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
+    mock_datetime_class.min = MagicMock(
+        time=MagicMock(return_value=datetime.min.time())
+    )
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
     mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 9, 29, 0, 0, 0), 1) # for end_date if it's not provided
+        (datetime(2025, 9, 29, 0, 0, 0), 1)  # for end_date if it's not provided
     ]
 
     mock_parse_period_string.side_effect = ValueError("Error parsing default period")

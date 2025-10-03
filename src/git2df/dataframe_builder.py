@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import List, Dict, Any
 
+
 def build_commits_df(parsed_data: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     Converts parsed git data (list of commit dictionaries) into a Pandas DataFrame.
@@ -13,11 +14,20 @@ def build_commits_df(parsed_data: List[Dict[str, Any]]) -> pd.DataFrame:
         A Pandas DataFrame with commit-related information, with one row per file change per commit.
     """
     if not parsed_data:
-        return pd.DataFrame(columns=[
-            'commit_hash', 'parent_hash', 'author_name', 'author_email',
-            'commit_date', 'commit_message', 'file_paths', 'change_type',
-            'additions', 'deletions'
-        ])
+        return pd.DataFrame(
+            columns=[
+                "commit_hash",
+                "parent_hash",
+                "author_name",
+                "author_email",
+                "commit_date",
+                "commit_message",
+                "file_paths",
+                "change_type",
+                "additions",
+                "deletions",
+            ]
+        )
 
     df = pd.DataFrame(parsed_data)
     return df

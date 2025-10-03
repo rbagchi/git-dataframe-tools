@@ -8,7 +8,6 @@ from git_scoreboard.config_models import GitAnalysisConfig
 from git2df import get_commits_df
 
 
-
 @pytest.fixture(scope="function")
 def temp_git_repo(tmp_path):
     """Fixture to create a temporary git repository for integration tests."""
@@ -19,8 +18,12 @@ def temp_git_repo(tmp_path):
     subprocess.run(["git", "init"], cwd=repo_path, check=True)
 
     # Set up a dummy user for commits
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
+    )
 
     # Create some commits
     (repo_path / "file1.txt").write_text("hello world")
@@ -32,16 +35,23 @@ def temp_git_repo(tmp_path):
     subprocess.run(["git", "commit", "-m", "Second commit"], cwd=repo_path, check=True)
 
     # Simulate a different author
-    subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True
+    )
 
     (repo_path / "file1.txt").write_text("hello world again")
     subprocess.run(["git", "add", "file1.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True
+    )
 
     yield repo_path
 
     # Teardown: shutil.rmtree(repo_path) is handled by tmp_path fixture
+
 
 @pytest.fixture(scope="function")
 def temp_git_repo_with_remote(tmp_path):
@@ -61,12 +71,18 @@ def temp_git_repo_with_remote(tmp_path):
     print("DEBUG: Local repo initialized.")
 
     # Set up a dummy user for commits
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
+    )
     print("DEBUG: Test User configured.")
 
     # Add remote
-    subprocess.run(["git", "remote", "add", "origin", str(remote_path)], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)], cwd=repo_path, check=True
+    )
     print("DEBUG: Remote added.")
 
     # Create some commits on master and push to remote
@@ -83,13 +99,19 @@ def temp_git_repo_with_remote(tmp_path):
     print("DEBUG: Second commit pushed.")
 
     # Simulate a different author
-    subprocess.run(["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True)
-    subprocess.run(["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True
+    )
     print("DEBUG: Dev User configured.")
 
     (repo_path / "file1.txt").write_text("hello world again")
     subprocess.run(["git", "add", "file1.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True
+    )
     subprocess.run(["git", "push", "origin", "master"], cwd=repo_path, check=True)
     print("DEBUG: Third commit pushed.")
 
@@ -113,6 +135,7 @@ def temp_git_repo_with_remote(tmp_path):
     # Teardown: shutil.rmtree(tmp_path) handles cleanup
     yield repo_path
 
+
 # Test check_git_repo
 def test_check_git_repo_integration(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
@@ -123,6 +146,7 @@ def test_check_git_repo_integration(temp_git_repo_with_remote):
     finally:
         os.chdir(original_cwd)
 
+
 def test_check_git_repo_not_a_repo(tmp_path):
     original_cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -131,6 +155,7 @@ def test_check_git_repo_not_a_repo(tmp_path):
         assert config._check_git_repo() is False
     finally:
         os.chdir(original_cwd)
+
 
 # Test GitAnalysisConfig._get_current_git_user
 def test_get_current_git_user_integration(temp_git_repo_with_remote):
@@ -145,9 +170,6 @@ def test_get_current_git_user_integration(temp_git_repo_with_remote):
         os.chdir(original_cwd)
 
 
-
-
-
 def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
@@ -160,12 +182,12 @@ def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
             author=config.author_query,
             merged_only=config.merged_only,
             include_paths=config.include_paths,
-            exclude_paths=config.exclude_paths
+            exclude_paths=config.exclude_paths,
         )
 
         # Check for presence of expected authors and total number of commits
         assert not git_data_df.empty
-        assert len(git_data_df) == 5 # 5 total file changes in the fixture
+        assert len(git_data_df) == 5  # 5 total file changes in the fixture
         assert "commit_hash" in git_data_df.columns
         assert "parent_hash" in git_data_df.columns
         assert "author_name" in git_data_df.columns
@@ -176,17 +198,20 @@ def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
         assert "additions" in git_data_df.columns
         assert "deletions" in git_data_df.columns
         assert "commit_message" in git_data_df.columns
-        assert git_data_df['author_name'].nunique() == 2 # Test User and Dev User
-        assert git_data_df['commit_hash'].nunique() == 5 # 5 unique commits
+        assert git_data_df["author_name"].nunique() == 2  # Test User and Dev User
+        assert git_data_df["commit_hash"].nunique() == 5  # 5 unique commits
 
     finally:
         os.chdir(original_cwd)
+
 
 def test_get_git_log_data_integration_merged_only(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
-        config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", merged_only=True)
+        config = GitAnalysisConfig(
+            start_date="2025-01-01", end_date="2025-12-31", merged_only=True
+        )
         git_data_df = get_commits_df(
             repo_path=temp_git_repo_with_remote,
             since=config.start_date.isoformat(),
@@ -194,7 +219,7 @@ def test_get_git_log_data_integration_merged_only(temp_git_repo_with_remote):
             author=config.author_query,
             merged_only=config.merged_only,
             include_paths=config.include_paths,
-            exclude_paths=config.exclude_paths
+            exclude_paths=config.exclude_paths,
         )
 
         # Expect no commits as the fixture does not create merge commits
@@ -202,11 +227,14 @@ def test_get_git_log_data_integration_merged_only(temp_git_repo_with_remote):
     finally:
         os.chdir(original_cwd)
 
+
 def test_get_git_log_data_integration_include_paths(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
-        config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", include_paths=["src/"])
+        config = GitAnalysisConfig(
+            start_date="2025-01-01", end_date="2025-12-31", include_paths=["src/"]
+        )
         git_data_df = get_commits_df(
             repo_path=temp_git_repo_with_remote,
             since=config.start_date.isoformat(),
@@ -214,24 +242,27 @@ def test_get_git_log_data_integration_include_paths(temp_git_repo_with_remote):
             author=config.author_query,
             merged_only=config.merged_only,
             include_paths=config.include_paths,
-            exclude_paths=config.exclude_paths
+            exclude_paths=config.exclude_paths,
         )
 
         assert not git_data_df.empty
-        assert len(git_data_df) == 1 # 1 file change in src/
-        assert (git_data_df['file_paths'] == "src/feature.js").all()
-        assert (git_data_df['author_name'] == "Dev User").all()
-        assert git_data_df['additions'].sum() == 1
-        assert git_data_df['deletions'].sum() == 0
+        assert len(git_data_df) == 1  # 1 file change in src/
+        assert (git_data_df["file_paths"] == "src/feature.js").all()
+        assert (git_data_df["author_name"] == "Dev User").all()
+        assert git_data_df["additions"].sum() == 1
+        assert git_data_df["deletions"].sum() == 0
 
     finally:
         os.chdir(original_cwd)
+
 
 def test_get_git_log_data_integration_exclude_paths(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
-        config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", exclude_paths=["docs/"])
+        config = GitAnalysisConfig(
+            start_date="2025-01-01", end_date="2025-12-31", exclude_paths=["docs/"]
+        )
         git_data_df = get_commits_df(
             repo_path=temp_git_repo_with_remote,
             since=config.start_date.isoformat(),
@@ -239,42 +270,64 @@ def test_get_git_log_data_integration_exclude_paths(temp_git_repo_with_remote):
             author=config.author_query,
             merged_only=config.merged_only,
             include_paths=config.include_paths,
-            exclude_paths=config.exclude_paths
+            exclude_paths=config.exclude_paths,
         )
 
         assert not git_data_df.empty
-        assert len(git_data_df) == 4 # 4 file changes after excluding docs/
-        assert "docs/README.md" not in git_data_df['file_paths'].values
-        assert git_data_df['author_name'].nunique() == 2 # Both Test User and Dev User still have commits
-        assert git_data_df[git_data_df['author_name'] == "Test User"].shape[0] == 2 # 2 file changes by Test User after exclusion
-        assert git_data_df[git_data_df['author_name'] == "Dev User"].shape[0] == 2 # 2 file changes by Dev User after exclusion
-        assert git_data_df['additions'].sum() == 4 # 1+1+1+1
+        assert len(git_data_df) == 4  # 4 file changes after excluding docs/
+        assert "docs/README.md" not in git_data_df["file_paths"].values
+        assert (
+            git_data_df["author_name"].nunique() == 2
+        )  # Both Test User and Dev User still have commits
+        assert (
+            git_data_df[git_data_df["author_name"] == "Test User"].shape[0] == 2
+        )  # 2 file changes by Test User after exclusion
+        assert (
+            git_data_df[git_data_df["author_name"] == "Dev User"].shape[0] == 2
+        )  # 2 file changes by Dev User after exclusion
+        assert git_data_df["additions"].sum() == 4  # 1+1+1+1
     finally:
         os.chdir(original_cwd)
+
 
 def test_scoreboard_with_df_path(temp_git_repo_with_remote, tmp_path):
     """Integration test: scoreboard operates on a parquet file dumped by git-df."""
     # 1. Run git-df to create a parquet file
     df_output_file = tmp_path / "commits.parquet"
     git_df_command = [
-        sys.executable, "-m", "src.git_scoreboard.git_df",
-        "--repo-path", str(temp_git_repo_with_remote),
-        "--output", str(df_output_file),
-        "--since", "2025-01-01",
-        "--until", "2025-12-31"
+        sys.executable,
+        "-m",
+        "src.git_scoreboard.git_df",
+        "--repo-path",
+        str(temp_git_repo_with_remote),
+        "--output",
+        str(df_output_file),
+        "--since",
+        "2025-01-01",
+        "--until",
+        "2025-12-31",
     ]
-    git_df_result = subprocess.run(git_df_command, capture_output=True, text=True, check=True)
+    git_df_result = subprocess.run(
+        git_df_command, capture_output=True, text=True, check=True
+    )
     assert git_df_result.returncode == 0
     assert df_output_file.exists()
 
     # 2. Run git-scoreboard with the generated parquet file
     scoreboard_command = [
-        sys.executable, "-m", "src.git_scoreboard.scoreboard",
-        "--df-path", str(df_output_file),
-        "--since", "2025-01-01",
-        "--until", "2025-12-31"
+        sys.executable,
+        "-m",
+        "src.git_scoreboard.scoreboard",
+        "--df-path",
+        str(df_output_file),
+        "--since",
+        "2025-01-01",
+        "--until",
+        "2025-12-31",
     ]
-    scoreboard_result = subprocess.run(scoreboard_command, capture_output=True, text=True, check=True)
+    scoreboard_result = subprocess.run(
+        scoreboard_command, capture_output=True, text=True, check=True
+    )
     assert scoreboard_result.returncode == 0
 
     # 3. Assert on scoreboard output

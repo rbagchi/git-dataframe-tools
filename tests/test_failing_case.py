@@ -7,11 +7,16 @@ from git_scoreboard.config_models import GitAnalysisConfig
 
 CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
 
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.datetime')
-@patch(f'{CONFIG_MODELS_MODULE_PATH}.Calendar')
-def test_get_date_range_natural_language_start_end(mock_calendar_class, mock_datetime_class):
+
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
+def test_get_date_range_natural_language_start_end(
+    mock_calendar_class, mock_datetime_class
+):
     # Mock datetime.now() to control the 'today' reference
-    mock_datetime_class.now.return_value = datetime(2025, 9, 29, 10, 0, 0) # Monday, Sep 29, 2025
+    mock_datetime_class.now.return_value = datetime(
+        2025, 9, 29, 10, 0, 0
+    )  # Monday, Sep 29, 2025
     mock_datetime_class.combine = datetime.combine
 
     # Mock the Calendar instance and its parseDT method
@@ -22,7 +27,7 @@ def test_get_date_range_natural_language_start_end(mock_calendar_class, mock_dat
     # Second call for 'last week' (relative to 2025-09-29) -> 2025-09-22
     mock_cal_instance.parseDT.side_effect = [
         (datetime(2025, 9, 28, 0, 0, 0), 1),  # for "yesterday"
-        (datetime(2025, 9, 22, 0, 0, 0), 1)   # for "last week"
+        (datetime(2025, 9, 22, 0, 0, 0), 1),  # for "last week"
     ]
 
     config = GitAnalysisConfig(start_date="last week", end_date="yesterday")

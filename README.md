@@ -255,16 +255,18 @@ print(f"Filtered commits: {len(filtered_commits_df)}")
 
 ### DataFrame Structure
 
-The returned DataFrame includes columns such as:
+The returned DataFrame includes the following columns, with one row per file change per commit:
 
--   `hash`: The full commit hash.
--   `author_name`: The name of the commit author.
--   `author_email`: The email of the commit author.
--   `commit_date`: The date and time of the commit.
--   `message`: The commit message.
--   `added`: Number of lines added in the commit.
--   `deleted`: Number of lines deleted in the commit.
--   `total_diff`: Total lines changed (added + deleted).
+-   `commit_hash`: SHA of the commit.
+-   `parent_hash`: Optional; parent SHA.
+-   `author_name`: Name of the commit author.
+-   `author_email`: Email of the commit author.
+-   `commit_date`: Timestamp of the commit (author date or committer date).
+-   `file_paths`: Path of the file touched in this change.
+-   `change_type`: Type of change (e.g., "A" for added, "M" for modified, "D" for deleted).
+-   `additions`: Number of lines added in this specific file change.
+-   `deletions`: Number of lines removed in this specific file change.
+-   `commit_message`: Full commit message.
 
 ## License
 

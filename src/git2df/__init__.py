@@ -30,7 +30,7 @@ def get_commits_df(repo_path: str, log_args: Optional[List[str]] = None,
     """
     default_log_args = [
         '--numstat',
-        '--pretty=format:--%H--%an--%ae--%ad--%s',
+        '--pretty=format:--%H--%P--%an--%ae--%ad--%s',
         '--date=iso'
     ]
 

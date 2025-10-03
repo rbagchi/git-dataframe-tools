@@ -6,52 +6,8 @@ from .config_models import GitAnalysisConfig
 def _calculate_decile_from_rank(rank, n):
     return min(10, math.ceil(rank * 10 / n))
 
-def _parse_git_log_to_dataframe_internal(git_data: list[str]) -> pd.DataFrame:
-    """Parses raw git log --numstat output into a Pandas DataFrame."""
-    lines = git_data
-    data = []
-    current_commit_info = {}
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        # Commit info line: hash|author_name|author_email|subject
-        if line.startswith('--'):
-            parts = line.split('--')
-            if len(parts) >= 5:
-                current_commit_info = {
-                    'commit_hash': parts[1],
-                    'author_name': parts[2],
-                    'author_email': parts[3],
-                    'commit_message': parts[4]
-                }
-        # File stat line: added\tdeleted\tfilepath
-        else:
-            stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t(.+)$', line)
-            if stat_match and current_commit_info:
-                added_str, deleted_str, filepath = stat_match.groups()
-                
-                added = 0 if added_str == '-' else int(added_str)
-                deleted = 0 if deleted_str == '-' else int(deleted_str)
-                
-                row = current_commit_info.copy()
-                row.update({
-                    'added': added,
-                    'deleted': deleted,
-                    'filepath': filepath
-                })
-                data.append(row)
-    
-    if not data:
-        return pd.DataFrame(columns=['commit_hash', 'author_name', 'author_email', 'commit_message', 'added', 'deleted', 'filepath'])
-
-    df = pd.DataFrame(data)
-    return df
-
 def parse_git_log(git_data: pd.DataFrame) -> list[dict]:
-    """Parses raw git log data using pandas and prepares author statistics."""
+    """Parses git log data (provided as a DataFrame from git2df) and prepares author statistics."""
     author_stats_df = _get_author_stats_dataframe_internal(git_data)
     return author_stats_df.to_dict(orient='records')
 

@@ -9,16 +9,10 @@ __version__ = "0.1.0"
 import argparse
 
 from git_scoreboard.config_models import GitAnalysisConfig, print_success, print_error, print_warning, print_header
-from git_scoreboard.git_utils import get_git_data_from_config
-import git_scoreboard.git_stats as git_stats_module
-import git_scoreboard.git_stats_pandas as git_stats_pandas_module
 
-try:
-    from tqdm import tqdm
-    TQDM_AVAILABLE = True
-except ImportError:
-    TQDM_AVAILABLE = False
-    print("Note: Install 'tqdm' for progress bars: pip install tqdm")
+import git_scoreboard.git_stats_pandas as stats_module
+
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -68,11 +62,7 @@ def parse_arguments():
         default='3 months',
         help='Default period if --since or --until are not specified (e.g., "3 months", "1 year")'
     )
-    parser.add_argument(
-        '--pandas',
-        action='store_true',
-        help='Use the pandas-based statistics engine (experimental)'
-    )
+
     
     return parser.parse_args()
 
@@ -97,16 +87,27 @@ def main():
         default_period=args.default_period
     )
     
-    # Select the statistics module based on arguments
-    if args.pandas:
-        stats_module = git_stats_pandas_module
-    else:
-        stats_module = git_stats_module
+
+
+    from git2df import get_commits_df
 
     print_success("Gathering commit data...")
     try:
-        git_log_data = get_git_data_from_config(config, repo_path=args.repo_path)
-    except SystemExit:
+        if not config._check_git_repo(args.repo_path):
+            print_error("Error: Not in a git repository")
+            return
+
+        git_log_data = get_commits_df(
+            repo_path=args.repo_path,
+            since=config.start_date.isoformat(),
+            until=config.end_date.isoformat(),
+            author=config.author_query,
+            merged_only=config.merged_only,
+            include_paths=config.include_paths,
+            exclude_paths=config.exclude_paths
+        )
+    except Exception as e:
+        print_error(f"Error fetching git log data: {e}")
         return
     
     print_success("Processing commits...")

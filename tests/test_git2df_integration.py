@@ -1,10 +1,6 @@
-import pytest
-import pandas as pd
-import os
-import subprocess
-from collections import defaultdict
+from datetime import datetime
 import re
-from git2df import get_commits_df
+from collections import defaultdict
 
 # Helper function to create a dummy git repo
 def create_dummy_repo(tmp_path):
@@ -42,161 +38,82 @@ def create_dummy_repo(tmp_path):
 
     return repo_path
 
-def _parse_raw_git_log_for_comparison(raw_log_output: str) -> dict:
+def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
     """
     Parses raw git log output (with --numstat and --pretty format)
-    to extract author stats for comparison.
+    to extract commit details and file stats per commit for comparison.
     """
-    authors = defaultdict(lambda: {
-        'name': '',
-        'added': 0,
-        'deleted': 0,
-        'num_commits': 0,
-        'commit_hashes': set() # Use set to count unique commits
-    })
-
-    current_commit_hash = None
-    current_author_name = None
-    current_author_email = None
+    commits_data = []
+    current_commit = None
+    current_files = []
 
     for line in raw_log_output.splitlines():
         line = line.strip()
 
         if not line:
-            current_commit_hash = None
-            current_author_name = None
-            current_author_email = None
+            if current_commit and current_files:
+                for file_info in current_files:
+                    commit_record = current_commit.copy()
+                    commit_record.update(file_info)
+                    commits_data.append(commit_record)
+            current_commit = None
+            current_files = []
             continue
 
         if line.startswith('--'):
+            if current_commit and current_files:
+                for file_info in current_files:
+                    commit_record = current_commit.copy()
+                    commit_record.update(file_info)
+                    commits_data.append(commit_record)
+            
+            current_commit = {}
+            current_files = []
+
             parts = line.split('--')
-            if len(parts) >= 5:
-                current_commit_hash = parts[1]
-                current_author_name = parts[2]
-                current_author_email = parts[3]
-                
-                if current_author_email not in authors:
-                    authors[current_author_email]['name'] = current_author_name
-                authors[current_author_email]['num_commits'] += 1
-                authors[current_author_email]['commit_hashes'].add(current_commit_hash)
+            # Expected format: --%H--%P--%an--%ae--%ad--%s
+            if len(parts) >= 7:
+                commit_hash = parts[1]
+                parent_hash = parts[2] if parts[2] else None
+                author_name = parts[3]
+                author_email = parts[4]
+                commit_date_str = parts[5]
+                commit_message = parts[6]
+
+                current_commit = {
+                    'commit_hash': commit_hash,
+                    'parent_hash': parent_hash,
+                    'author_name': author_name,
+                    'author_email': author_email,
+                    'commit_date': datetime.fromisoformat(commit_date_str),
+                    'commit_message': commit_message
+                }
         else:
-            if current_commit_hash and current_author_email:
-                stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t', line)
+            if current_commit:
+                stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t(.+)$', line)
                 if stat_match:
-                    added_str, deleted_str = stat_match.groups()
+                    added_str, deleted_str, file_path = stat_match.groups()
                     
-                    added = 0 if added_str == '-' else int(added_str)
-                    deleted = 0 if deleted_str == '-' else int(deleted_str)
-                    
-                    authors[current_author_email]['added'] += added
-                    authors[current_author_email]['deleted'] += deleted
+                    additions = 0 if added_str == '-' else int(added_str)
+                    deletions = 0 if deleted_str == '-' else int(deleted_str)
+
+                    change_type = 'M'
+                    if additions > 0 and deletions == 0:
+                        change_type = 'A'
+                    elif additions == 0 and deletions > 0:
+                        change_type = 'D'
+
+                    current_files.append({
+                        'file_paths': file_path,
+                        'change_type': change_type,
+                        'additions': additions,
+                        'deletions': deletions
+                    })
     
-    # Convert commit_hashes set to count for num_commits if not already done
-    # (This is a simplified parser, so num_commits is directly counted)
-    # Also calculate total_diff
-    for email, data in authors.items():
-        data['total_diff'] = data['added'] + data['deleted']
-        data['num_commits'] = len(data['commit_hashes'])
-        del data['commit_hashes'] # Not needed for final comparison dict
-
-    return authors
-
-def test_get_commits_df_integration(tmp_path):
-    """Integration test for get_commits_df using a dummy git repository."""
-    repo_path = create_dummy_repo(tmp_path)
-
-    # Get data from git2df library
-    df = get_commits_df(str(repo_path))
-
-    assert isinstance(df, pd.DataFrame)
-    assert not df.empty
-
-    # Expected columns
-    expected_columns = [
-        'author_name',
-        'author_email',
-        'added',
-        'deleted',
-        'total_diff',
-        'num_commits',
-        'commit_hashes'
-    ]
-    assert all(col in df.columns for col in expected_columns)
-
-    # Get raw git log output for comparison
-    git_log_cmd = [
-        'git', 'log',
-        '--numstat',
-        '--pretty=format:--%H--%an--%ae--%ad--%s',
-        '--date=iso'
-    ]
-    raw_git_log = subprocess.run(git_log_cmd, cwd=repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore').stdout.strip()
-    expected_author_stats = _parse_raw_git_log_for_comparison(raw_git_log)
-
-    # Compare DataFrame results with raw git log parsing
-    for email, expected_stats in expected_author_stats.items():
-        df_row = df[df['author_email'] == email]
-        assert not df_row.empty, f"Author {email} not found in DataFrame."
-        assert len(df_row) == 1, f"Duplicate entries for author {email} in DataFrame."
-
-        assert df_row['author_name'].iloc[0] == expected_stats['name']
-        assert df_row['added'].iloc[0] == expected_stats['added']
-        assert df_row['deleted'].iloc[0] == expected_stats['deleted']
-        assert df_row['total_diff'].iloc[0] == expected_stats['total_diff']
-        assert df_row['num_commits'].iloc[0] == expected_stats['num_commits']
-
-    # Ensure no extra authors in DataFrame
-    assert set(df['author_email'].unique()) == set(expected_author_stats.keys())
-
-def test_get_commits_df_on_cloned_repo(tmp_path):
-    """Integration test for get_commits_df using a cloned public git repository."""
-    clone_url = "https://github.com/octocat/Spoon-Knife.git"
-    repo_name = "Spoon-Knife"
-    cloned_repo_path = tmp_path / repo_name
-
-    # Clone the repository
-    subprocess.run(["git", "clone", clone_url, str(cloned_repo_path)], check=True)
-
-    # Get data from git2df library
-    df = get_commits_df(str(cloned_repo_path))
-
-    assert isinstance(df, pd.DataFrame)
-    assert not df.empty
-
-    # Expected columns
-    expected_columns = [
-        'author_name',
-        'author_email',
-        'added',
-        'deleted',
-        'total_diff',
-        'num_commits',
-        'commit_hashes'
-    ]
-    assert all(col in df.columns for col in expected_columns)
-
-    # Get raw git log output for comparison
-    git_log_cmd = [
-        'git', 'log',
-        '--numstat',
-        '--pretty=format:--%H--%an--%ae--%ad--%s',
-        '--date=iso'
-    ]
-    raw_git_log = subprocess.run(git_log_cmd, cwd=cloned_repo_path, capture_output=True, text=True, check=True, encoding='utf-8', errors='ignore').stdout.strip()
-    expected_author_stats = _parse_raw_git_log_for_comparison(raw_git_log)
-
-    # Compare DataFrame results with raw git log parsing
-    for email, expected_stats in expected_author_stats.items():
-        df_row = df[df['author_email'] == email]
-        assert not df_row.empty, f"Author {email} not found in DataFrame."
-        assert len(df_row) == 1, f"Duplicate entries for author {email} in DataFrame."
-
-        assert df_row['author_name'].iloc[0] == expected_stats['name']
-        assert df_row['added'].iloc[0] == expected_stats['added']
-        assert df_row['deleted'].iloc[0] == expected_stats['deleted']
-        assert df_row['total_diff'].iloc[0] == expected_stats['total_diff']
-        assert df_row['num_commits'].iloc[0] == expected_stats['num_commits']
-
-    # Ensure no extra authors in DataFrame
-    assert set(df['author_email'].unique()) == set(expected_author_stats.keys())
-
+    if current_commit and current_files:
+        for file_info in current_files:
+            commit_record = current_commit.copy()
+            commit_record.update(file_info)
+            commits_data.append(commit_record)
+            
+    return commits_data

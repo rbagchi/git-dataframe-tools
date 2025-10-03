@@ -9,7 +9,7 @@ import re
 
 
 from git_scoreboard.config_models import GitAnalysisConfig
-from git_scoreboard.git_utils import get_git_data_from_config
+from git2df import get_commits_df
 
 
 
@@ -152,19 +152,36 @@ def test_get_current_git_user_integration(temp_git_repo_with_remote):
 
 
 
-# Test GitAnalysisConfig.get_git_log_data
 def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
     original_cwd = os.getcwd()
     os.chdir(temp_git_repo_with_remote)
     try:
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31")
-        git_data_df = get_git_data_from_config(config, repo_path=temp_git_repo_with_remote)
+        git_data_df = get_commits_df(
+            repo_path=temp_git_repo_with_remote,
+            since=config.start_date.isoformat(),
+            until=config.end_date.isoformat(),
+            author=config.author_query,
+            merged_only=config.merged_only,
+            include_paths=config.include_paths,
+            exclude_paths=config.exclude_paths
+        )
 
         # Check for presence of expected authors and total number of commits
         assert not git_data_df.empty
-        assert "Test User" in git_data_df['author_name'].values
-        assert "Dev User" in git_data_df['author_name'].values
-        assert git_data_df['num_commits'].sum() == 5 # 5 commits in the fixture
+        assert len(git_data_df) == 5 # 5 total file changes in the fixture
+        assert "commit_hash" in git_data_df.columns
+        assert "parent_hash" in git_data_df.columns
+        assert "author_name" in git_data_df.columns
+        assert "author_email" in git_data_df.columns
+        assert "commit_date" in git_data_df.columns
+        assert "file_paths" in git_data_df.columns
+        assert "change_type" in git_data_df.columns
+        assert "additions" in git_data_df.columns
+        assert "deletions" in git_data_df.columns
+        assert "commit_message" in git_data_df.columns
+        assert git_data_df['author_name'].nunique() == 2 # Test User and Dev User
+        assert git_data_df['commit_hash'].nunique() == 5 # 5 unique commits
 
     finally:
         os.chdir(original_cwd)
@@ -174,7 +191,15 @@ def test_get_git_log_data_integration_merged_only(temp_git_repo_with_remote):
     os.chdir(temp_git_repo_with_remote)
     try:
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", merged_only=True)
-        git_data_df = get_git_data_from_config(config, repo_path=temp_git_repo_with_remote)
+        git_data_df = get_commits_df(
+            repo_path=temp_git_repo_with_remote,
+            since=config.start_date.isoformat(),
+            until=config.end_date.isoformat(),
+            author=config.author_query,
+            merged_only=config.merged_only,
+            include_paths=config.include_paths,
+            exclude_paths=config.exclude_paths
+        )
 
         # Expect no commits as the fixture does not create merge commits
         assert git_data_df.empty
@@ -186,12 +211,22 @@ def test_get_git_log_data_integration_include_paths(temp_git_repo_with_remote):
     os.chdir(temp_git_repo_with_remote)
     try:
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", include_paths=["src/"])
-        git_data_df = get_git_data_from_config(config, repo_path=temp_git_repo_with_remote)
+        git_data_df = get_commits_df(
+            repo_path=temp_git_repo_with_remote,
+            since=config.start_date.isoformat(),
+            until=config.end_date.isoformat(),
+            author=config.author_query,
+            merged_only=config.merged_only,
+            include_paths=config.include_paths,
+            exclude_paths=config.exclude_paths
+        )
 
         assert not git_data_df.empty
-        assert "Dev User" in git_data_df['author_name'].values # 'Add feature.js' commit is by Dev User
-        assert "Test User" not in git_data_df['author_name'].values # Test User has no commits in src/ after Dev User config
-        assert git_data_df['num_commits'].sum() == 1 # Only 'Add feature.js' commit
+        assert len(git_data_df) == 1 # 1 file change in src/
+        assert (git_data_df['file_paths'] == "src/feature.js").all()
+        assert (git_data_df['author_name'] == "Dev User").all()
+        assert git_data_df['additions'].sum() == 1
+        assert git_data_df['deletions'].sum() == 0
 
     finally:
         os.chdir(original_cwd)
@@ -201,18 +236,24 @@ def test_get_git_log_data_integration_exclude_paths(temp_git_repo_with_remote):
     os.chdir(temp_git_repo_with_remote)
     try:
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31", exclude_paths=["docs/"])
-        git_data_df = get_git_data_from_config(config, repo_path=temp_git_repo_with_remote)
+        git_data_df = get_commits_df(
+            repo_path=temp_git_repo_with_remote,
+            since=config.start_date.isoformat(),
+            until=config.end_date.isoformat(),
+            author=config.author_query,
+            merged_only=config.merged_only,
+            include_paths=config.include_paths,
+            exclude_paths=config.exclude_paths
+        )
 
         assert not git_data_df.empty
-        assert "Test User" in git_data_df['author_name'].values
-        assert "Dev User" in git_data_df['author_name'].values
-        assert git_data_df['num_commits'].sum() == 4 # 5 total commits, 1 in docs excluded
-
-        # Ensure excluded commit's author is still present if they have other commits
-        # The 'Update docs' commit is by 'Test User', who also has other commits.
-        # So 'Test User' should still be present, but with fewer commits.
-        test_user_commits = git_data_df[git_data_df['author_name'] == "Test User"]['num_commits'].sum()
-        assert test_user_commits == 2 # Initial, Second (Add feature.js is by Dev User, Update docs excluded)
+        assert len(git_data_df) == 4 # 4 file changes after excluding docs/
+        assert "docs/README.md" not in git_data_df['file_paths'].values
+        assert git_data_df['author_name'].nunique() == 2 # Both Test User and Dev User still have commits
+        assert git_data_df[git_data_df['author_name'] == "Test User"].shape[0] == 2 # 2 file changes by Test User after exclusion
+        assert git_data_df[git_data_df['author_name'] == "Dev User"].shape[0] == 2 # 2 file changes by Dev User after exclusion
+        assert git_data_df['additions'].sum() == 4 # 1+1+1+1
+        assert git_data_df['deletions'].sum() == 1 # 0+0+1+0
 
     finally:
         os.chdir(original_cwd)

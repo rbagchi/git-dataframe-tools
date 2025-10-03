@@ -30,3 +30,6 @@ Thumbs.db
 
 # Test documentation
 tests/RUNBOOK.md
+
+# Temporary files
+temp_repos/

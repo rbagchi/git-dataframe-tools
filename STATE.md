@@ -34,7 +34,11 @@ I am currently refactoring the `git-scoreboard` project into a modular `git2df` 
         *   Modified `src/git2df/backends.py` to add `merged_only`, `include_paths`, and `exclude_paths` parameters to `GitCliBackend.get_raw_log_output` and incorporated them into the `git log` command.
         *   Modified `src/git2df/__init__.py` to add `merged_only`, `include_paths`, and `exclude_paths` parameters to `get_commits_df` and passed them to `GitCliBackend.get_raw_log_output`.
         *   Updated `tests/test_git2df_backends.py` and `tests/test_git2df_public_api.py` with new test cases to cover the new filtering parameters. All `git2df` tests are passing.
-
+    *   **Refactored `git2df` to output commit-centric DataFrame:**
+        *   Modified `src/git2df/git_parser.py` to parse individual commit details and file changes.
+        *   Modified `src/git2df/dataframe_builder.py` to construct a DataFrame with one row per file change per commit, including `commit_hash`, `parent_hash`, `author_name`, `author_email`, `commit_date`, `file_paths`, `change_type`, `additions`, `deletions`, and `commit_message`.
+        *   Updated `src/git2df/__init__.py` to use the new parsing and DataFrame building logic.
+        *   Updated `tests/test_git2df_parser.py`, `tests/test_git2df_dataframe_builder.py`, `tests/test_git2df_public_api.py`, `tests/test_git_extract_commits.py`, `tests/test_git_integration.py`, and `tests/test_git_interaction.py` to assert against the new commit-centric DataFrame structure. All these tests are now passing.
 *   **Phase 3: Refactor `git-scoreboard` CLI**
     *   Modified `src/git_scoreboard/config_models.py` to replace the `get_git_log_data` method. It now imports `get_commits_df` from `git2df`, returns a `pd.DataFrame`, and calls `get_commits_df` with appropriate arguments. All direct `subprocess.run` calls for `git log` have been removed from this method.
     *   Updated `tests/test_git_interaction.py` to mock `git2df.get_commits_df` instead of `subprocess.run`, and adjusted assertions to expect a Pandas DataFrame. All `test_git_interaction.py` tests are passing.

@@ -1,114 +1,113 @@
-from collections import defaultdict
+from datetime import datetime, timezone
 from git2df.git_parser import _parse_git_data_internal
 
-def test_parse_git_data_internal_basic():
-    """Test _parse_git_data_internal with basic git log output."""
+def test_parse_git_data_internal_commit_centric():
+    """Test _parse_git_data_internal with commit-centric git log output."""
     git_log_output = [
-        "--commit1hash--Author One--author1@example.com--2023-01-01 10:00:00 +0000--Subject 1",
+        "--commit1hash--parent1hash--Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1",
         "10\t5\tfile1.txt",
-        "--commit2hash--Author Two--author2@example.com--2023-01-02 11:00:00 +0000--Subject 2",
-        "20\t0\tfile2.py",
-        "--commit3hash--Author One--author1@example.com--2023-01-03 12:00:00 +0000--Subject 3",
-        "0\t15\tfile3.md",
-        "-	-	binary_file.bin",
+        "2\t1\tfile2.py",
         "", # Empty line separator
-        "--commit4hash--Author Three--author3@example.com--2023-01-04 13:00:00 +0000--Subject 4",
-        "5\t5\tfile4.js"
+        "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2", # No parent hash
+        "20\t0\tfile3.md",
+        "-\t-\tbinary_file.bin", # Binary file, no changes
+        "",
+        "--commit3hash--parent3hash--Author One--author1@example.com--2023-01-03T12:00:00+00:00--Subject 3",
+        "0\t15\tfile4.js", # Deletion
+        "5\t0\tfile5.txt", # Addition
     ]
 
-    expected_authors = defaultdict(lambda: {
-        'name': '',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': set(),
-        'commit_hashes': []
-    })
-
-    expected_authors['author1@example.com'] = {
-        'name': 'Author One',
-        'added': 10,
-        'deleted': 20, # 5 from file1.txt + 15 from file3.md
-        'total': 30,
-        'commits': {'commit1hash', 'commit3hash'},
-        'commit_hashes': ['commit1hash', 'commit3hash']
-    }
-    expected_authors['author2@example.com'] = {
-        'name': 'Author Two',
-        'added': 20,
-        'deleted': 0,
-        'total': 20,
-        'commits': {'commit2hash'},
-        'commit_hashes': ['commit2hash']
-    }
-    expected_authors['author3@example.com'] = {
-        'name': 'Author Three',
-        'added': 5,
-        'deleted': 5,
-        'total': 10,
-        'commits': {'commit4hash'},
-        'commit_hashes': ['commit4hash']
-    }
+    expected_output = [
+        {
+            'commit_hash': 'commit1hash',
+            'parent_hash': 'parent1hash',
+            'author_name': 'Author One',
+            'author_email': 'author1@example.com',
+            'commit_date': datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 1',
+            'file_paths': 'file1.txt',
+            'change_type': 'M',
+            'additions': 10,
+            'deletions': 5
+        },
+        {
+            'commit_hash': 'commit1hash',
+            'parent_hash': 'parent1hash',
+            'author_name': 'Author One',
+            'author_email': 'author1@example.com',
+            'commit_date': datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 1',
+            'file_paths': 'file2.py',
+            'change_type': 'M',
+            'additions': 2,
+            'deletions': 1
+        },
+        {
+            'commit_hash': 'commit2hash',
+            'parent_hash': None,
+            'author_name': 'Author Two',
+            'author_email': 'author2@example.com',
+            'commit_date': datetime(2023, 1, 2, 11, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 2',
+            'file_paths': 'file3.md',
+            'change_type': 'A',
+            'additions': 20,
+            'deletions': 0
+        },
+        {
+            'commit_hash': 'commit2hash',
+            'parent_hash': None,
+            'author_name': 'Author Two',
+            'author_email': 'author2@example.com',
+            'commit_date': datetime(2023, 1, 2, 11, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 2',
+            'file_paths': 'binary_file.bin',
+            'change_type': 'M',
+            'additions': 0,
+            'deletions': 0
+        },
+        {
+            'commit_hash': 'commit3hash',
+            'parent_hash': 'parent3hash',
+            'author_name': 'Author One',
+            'author_email': 'author1@example.com',
+            'commit_date': datetime(2023, 1, 3, 12, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 3',
+            'file_paths': 'file4.js',
+            'change_type': 'D',
+            'additions': 0,
+            'deletions': 15
+        },
+        {
+            'commit_hash': 'commit3hash',
+            'parent_hash': 'parent3hash',
+            'author_name': 'Author One',
+            'author_email': 'author1@example.com',
+            'commit_date': datetime(2023, 1, 3, 12, 0, 0, tzinfo=timezone.utc),
+            'commit_message': 'Subject 3',
+            'file_paths': 'file5.txt',
+            'change_type': 'A',
+            'additions': 5,
+            'deletions': 0
+        },
+    ]
 
     result = _parse_git_data_internal(git_log_output)
-
-    # Convert sets to sorted lists for consistent comparison
-    for email, data in result.items():
-        data['commits'] = sorted(list(data['commits']))
-    for email, data in expected_authors.items():
-        data['commits'] = sorted(list(data['commits']))
-
-    assert result == expected_authors
+    assert result == expected_output
 
 def test_parse_git_data_internal_empty_input():
     """Test _parse_git_data_internal with empty input."""
     git_log_output = []
     result = _parse_git_data_internal(git_log_output)
-    assert result == defaultdict(lambda: {
-        'name': '',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': set(),
-        'commit_hashes': []
-    })
+    assert result == []
 
 def test_parse_git_data_internal_no_file_stats():
     """Test _parse_git_data_internal with commits but no file stats."""
     git_log_output = [
-        "--commit1hash--Author One--author1@example.com--2023-01-01 10:00:00 +0000--Subject 1",
-        "--commit2hash--Author Two--author2@example.com--2023-01-02 11:00:00 +0000--Subject 2",
+        "--commit1hash--parent1hash--Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1",
+        "",
+        "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2",
     ]
+    expected_output = [] # No file stats means no entries in the commit-centric output
     result = _parse_git_data_internal(git_log_output)
-    expected_authors = defaultdict(lambda: {
-        'name': '',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': set(),
-        'commit_hashes': []
-    })
-    expected_authors['author1@example.com'] = {
-        'name': 'Author One',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': {'commit1hash'},
-        'commit_hashes': ['commit1hash']
-    }
-    expected_authors['author2@example.com'] = {
-        'name': 'Author Two',
-        'added': 0,
-        'deleted': 0,
-        'total': 0,
-        'commits': {'commit2hash'},
-        'commit_hashes': ['commit2hash']
-    }
-
-    # Convert sets to sorted lists for consistent comparison
-    for email, data in result.items():
-        data['commits'] = sorted(list(data['commits']))
-    for email, data in expected_authors.items():
-        data['commits'] = sorted(list(data['commits']))
-
-    assert result == expected_authors
+    assert result == []

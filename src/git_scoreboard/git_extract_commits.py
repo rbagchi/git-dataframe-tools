@@ -6,9 +6,19 @@ Git Commit Extractor: Extracts filtered commit data and saves it to a Parquet fi
 import argparse
 import sys
 import os
+import pandas as pd
 
-from git_scoreboard.config_models import GitAnalysisConfig, print_success, print_error, print_warning
-from git_scoreboard.git_utils import get_git_data_from_config
+from git2df import get_commits_df
+
+# Helper functions for colored output
+def print_success(message):
+    print(f"\033[92m\033[1mSUCCESS:\033[0m {message}")
+
+def print_error(message):
+    print(f"\033[91m\033[1mERROR:\033[0m {message}", file=sys.stderr)
+
+def print_warning(message):
+    print(f"\033[93m\033[1mWARNING:\033[0m {message}")
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -16,8 +26,7 @@ def parse_arguments():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
-        'repo_path',
-        nargs='?',
+        '--repo-path',
         default='.',
         help='Path to the Git repository (default: current directory).'
     )
@@ -57,11 +66,6 @@ def parse_arguments():
         required=True,
         help='Output Parquet file path (e.g., "commits.parquet")'
     )
-    parser.add_argument(
-        '--default-period',
-        default='3 months',
-        help='Default period if --since or --until are not specified (e.g., "3 months", "1 year")'
-    )
     
     return parser.parse_args()
 
@@ -73,25 +77,33 @@ def main():
         print_error(f"Error: Repository path '{args.repo_path}' does not exist or is not a directory.")
         sys.exit(1)
     
-    # Create configuration object
-    config = GitAnalysisConfig(
-        start_date=args.since,
-        end_date=args.until,
-        author_query=args.author,
-        merged_only=args.merges,
-        include_paths=args.path,
-        exclude_paths=args.exclude_path,
-        default_period=args.default_period
-    )
-
     print_success(f"Extracting commit data from '{args.repo_path}'...")
     try:
-        commits_df = get_git_data_from_config(config, repo_path=args.repo_path)
-    except SystemExit: # get_git_data_from_config can call sys.exit
-        return
+        commits_df = get_commits_df(
+            repo_path=args.repo_path,
+            since=args.since,
+            until=args.until,
+            author=args.author,
+            grep=args.grep,
+            merged_only=args.merges,
+            include_paths=args.path,
+            exclude_paths=args.exclude_path
+        )
+    except Exception as e:
+        print_error(f"Error fetching git log data: {e}")
+        sys.exit(1)
 
     if commits_df.empty:
         print_warning(f"No commits found for the specified criteria in '{args.repo_path}'.")
+        # If no commits are found, we should still create an empty parquet file
+        # to indicate that the operation was successful but yielded no data.
+        # This prevents downstream processes from failing due to missing files.
+        try:
+            pd.DataFrame().to_parquet(args.output, index=False)
+            print_success(f"Created empty Parquet file at '{args.output}' as no commits were found.")
+        except Exception as e:
+            print_error(f"Error creating empty Parquet file: {e}")
+            sys.exit(1)
         return
 
     print_success(f"Saving {len(commits_df)} commits to '{args.output}'...")
@@ -103,4 +115,8 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
+    main()
+else:
+    # This allows the script to be run via `uv run python -m src.git_scoreboard.git_extract_commits`
+    # or similar module-based execution, which `uv run python <script.py>` does.
     main()

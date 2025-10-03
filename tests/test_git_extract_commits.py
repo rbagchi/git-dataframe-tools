@@ -2,6 +2,7 @@ import pytest
 import subprocess
 import os
 import pandas as pd
+import sys
 
 @pytest.fixture(scope="function")
 def temp_git_repo_with_remote(tmp_path):
@@ -65,8 +66,8 @@ def temp_git_repo_with_remote(tmp_path):
 def test_git_extract_commits_basic(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "commits.parquet"
     command = [
-        "git-extract-commits",
-        str(temp_git_repo_with_remote),
+        sys.executable, "-m", "src.git_scoreboard.git_extract_commits",
+        "--repo-path", str(temp_git_repo_with_remote),
         "--output", str(output_file),
         "--since", "2025-01-01",
         "--until", "2025-12-31"
@@ -77,19 +78,29 @@ def test_git_extract_commits_basic(temp_git_repo_with_remote, tmp_path):
 
     df = pd.read_parquet(output_file)
     assert not df.empty
-    assert len(df) == 2 # 2 unique authors in the fixture
-    assert df['num_commits'].sum() == 5 # 5 total commits in the fixture
-    assert "commit_hashes" in df.columns
+    assert len(df) == 5 # 5 total file changes in the fixture
+    assert "commit_hash" in df.columns
+    assert "parent_hash" in df.columns
     assert "author_name" in df.columns
     assert "author_email" in df.columns
-    assert "added" in df.columns
-    assert "deleted" in df.columns
+    assert "commit_date" in df.columns
+    assert "file_paths" in df.columns
+    assert "change_type" in df.columns
+    assert "additions" in df.columns
+    assert "deletions" in df.columns
+    assert "commit_message" in df.columns
+
+    # Verify some data
+    assert df['author_name'].nunique() == 2 # Test User and Dev User
+    assert df['commit_hash'].nunique() == 5 # 5 unique commits
+    assert df['additions'].sum() == 5 # Sum of additions from fixture
+    assert df['deletions'].sum() == 1 # Sum of deletions from fixture
 
 def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "author_commits.parquet"
     command = [
-        "git-extract-commits",
-        str(temp_git_repo_with_remote),
+        sys.executable, "-m", "src.git_scoreboard.git_extract_commits",
+        "--repo-path", str(temp_git_repo_with_remote),
         "--output", str(output_file),
         "--author", "Test User"
     ]
@@ -99,15 +110,16 @@ def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_p
 
     df = pd.read_parquet(output_file)
     assert not df.empty
-    assert len(df) == 1 # Only one author (Test User)
-    assert df['author_name'].iloc[0] == "Test User"
-    assert df['num_commits'].iloc[0] == 2 # 2 commits by Test User
+    assert len(df) == 2 # 2 file changes by Test User
+    assert (df['author_name'] == "Test User").all()
+    assert df['additions'].sum() == 2 # 1 from Initial commit, 1 from Second commit
+    assert df['deletions'].sum() == 0
 
 def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "path_commits.parquet"
     command = [
-        "git-extract-commits",
-        str(temp_git_repo_with_remote),
+        sys.executable, "-m", "src.git_scoreboard.git_extract_commits",
+        "--repo-path", str(temp_git_repo_with_remote),
         "--output", str(output_file),
         "--path", "src/"
     ]
@@ -117,16 +129,17 @@ def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_pat
 
     df = pd.read_parquet(output_file)
     assert not df.empty
-    # Only 'Add feature.js' commit is in src/ and it's by Dev User
-    assert len(df) == 1
-    assert df['author_name'].iloc[0] == "Dev User"
-    assert df['num_commits'].iloc[0] == 1
+    assert len(df) == 1 # 1 file change in src/
+    assert (df['file_paths'] == "src/feature.js").all()
+    assert (df['author_name'] == "Dev User").all()
+    assert df['additions'].sum() == 1
+    assert df['deletions'].sum() == 0
 
 def test_git_extract_commits_with_exclude_path_filter(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "exclude_path_commits.parquet"
     command = [
-        "git-extract-commits",
-        str(temp_git_repo_with_remote),
+        sys.executable, "-m", "src.git_scoreboard.git_extract_commits",
+        "--repo-path", str(temp_git_repo_with_remote),
         "--output", str(output_file),
         "--exclude-path", "docs/"
     ]
@@ -136,19 +149,23 @@ def test_git_extract_commits_with_exclude_path_filter(temp_git_repo_with_remote,
 
     df = pd.read_parquet(output_file)
     assert not df.empty
-    assert len(df) == 2 # 2 unique authors
-    assert df['num_commits'].sum() == 4 # 5 total commits, 1 in docs excluded.
+    assert len(df) == 4 # 4 file changes after excluding docs/
+    assert "docs/README.md" not in df['file_paths'].values
+    assert df['additions'].sum() == 4 # 1+1+1+1
+    assert df['deletions'].sum() == 1 # 0+0+1+0
 
 def test_git_extract_commits_no_commits_found(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "no_commits.parquet"
     command = [
-        "git-extract-commits",
-        str(temp_git_repo_with_remote),
+        sys.executable, "-m", "src.git_scoreboard.git_extract_commits",
+        "--repo-path", str(temp_git_repo_with_remote),
         "--output", str(output_file),
         "--since", "1999-01-01",
         "--until", "1999-12-31"
     ]
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0 # Should exit cleanly even if no commits
-    assert not output_file.exists() # No file should be created if no commits
+    assert output_file.exists() # An empty file should be created if no commits
+    df = pd.read_parquet(output_file)
+    assert df.empty # The created DataFrame should be empty
     assert "No commits found" in result.stdout # Check for warning message

@@ -1,6 +1,6 @@
 import git
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ class GitCliBackend:
         except git.InvalidGitRepositoryError:
             logger.error(f"{repo_path} is not a valid git repository.")
             return "main"  # fallback for now
+        return "main"
 
     def get_raw_log_output(
         self,
@@ -61,7 +62,7 @@ class GitCliBackend:
             The raw stdout from the 'git log' command.
         """
         repo = git.Repo(repo_path)
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if since:
             kwargs["since"] = since
         if until:
@@ -94,14 +95,14 @@ class GitCliBackend:
             # Manual exclusion of paths
             if exclude_paths:
                 if any(
-                    f.startswith(tuple(exclude_paths))
+                    str(f).startswith(tuple(exclude_paths))
                     for f in commit.stats.files.keys()
                 ):
                     continue
 
             parents = " ".join([p.hexsha for p in commit.parents])
             output.append(
-                f"--{commit.hexsha}--{parents}--{commit.author.name}--{commit.author.email}--{commit.authored_datetime.isoformat()}--{commit.summary}"
+                f"--{commit.hexsha}--{parents}--{commit.author.name}--{commit.author.email}--{commit.authored_datetime.isoformat()}--{commit.summary}" # type: ignore
             )
 
             for file_path, stats in commit.stats.files.items():

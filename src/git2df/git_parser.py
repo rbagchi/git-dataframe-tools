@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,8 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
     """Parse git log data and extract commit details and file stats per commit."""
     logger.debug(f"Starting git log parsing for {len(git_data)} lines.")
     commits_data = []
-    current_commit = None
-    current_files = []
+    current_commit: Optional[dict[str, Any]] = None
+    current_files: list[dict[str, Any]] = []
 
     # Wrap iteration with tqdm if available
     iterable_git_data = (

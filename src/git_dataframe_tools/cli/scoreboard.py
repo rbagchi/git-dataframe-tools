@@ -10,6 +10,7 @@ import argparse
 import os
 import pyarrow.parquet as pq
 import logging
+import sys
 
 from git_dataframe_tools.config_models import (
     GitAnalysisConfig,
@@ -107,14 +108,14 @@ def main():
     # Validate mutually exclusive arguments
     if args.author and args.me:
         logger.error("Error: Cannot use both --author and --me options together")
-        return
+        return 1
     if (
         args.df_path and args.repo_path != "."
     ):  # If df_path is provided, repo_path should be default
         logger.error(
             "Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis."
         )
-        return
+        return 1
 
     # Create configuration object
     config = GitAnalysisConfig(
@@ -132,7 +133,7 @@ def main():
     if args.df_path:
         if not os.path.exists(args.df_path):
             logger.error(f"DataFrame file not found at '{args.df_path}'")
-            return
+            return 1
         logger.info(f"Loading commit data from '{args.df_path}'...")
         try:
             # Load the table to read metadata
@@ -149,7 +150,7 @@ def main():
                     logger.error(
                         f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
                     )
-                    return
+                    return 1
                 else:
                     logger.warning(
                         f"{message} Proceeding due to --force-version-mismatch."
@@ -160,7 +161,7 @@ def main():
                     logger.error(
                         f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
                     )
-                    return
+                    return 1
                 else:
                     logger.warning(
                         f"{message} Proceeding due to --force-version-mismatch."
@@ -171,7 +172,7 @@ def main():
             )  # Convert to pandas DataFrame after version check
         except Exception as e:
             logger.error(f"Error loading DataFrame from '{args.df_path}': {e}")
-            return
+            return 1
     else:
         from git2df import get_commits_df
 
@@ -179,7 +180,7 @@ def main():
         try:
             if not config._check_git_repo(args.repo_path):
                 logger.error("Not in a git repository")
-                return
+                return 1
 
             git_log_data = get_commits_df(
                 repo_path=args.repo_path,
@@ -192,7 +193,7 @@ def main():
             )
         except Exception as e:
             logger.error(f"Error fetching git log data: {e}")
-            return
+            return 1
 
     logger.info("Processing commits...")
     author_stats = stats_module.parse_git_log(git_log_data)
@@ -214,7 +215,7 @@ def main():
             print(
                 "Suggestion: Try a partial match like first name, last name, or email domain."
             )
-            return
+            return 1
 
         print()
         analysis_type = "merged commits" if config.merged_only else "commits"
@@ -255,7 +256,7 @@ def main():
                 print(f"  Avg Diff/Commit: {avg_diff_per_commit:.0f} lines")
 
             print()
-        return
+        return 0
 
     # Otherwise show full ranking
     author_list = stats_module.get_ranking(author_stats)
@@ -269,7 +270,7 @@ def main():
         logger.warning(
             f"No commits found in the specified time period: {config.start_date.isoformat()} to {config.end_date.isoformat()}."
         )
-        return
+        return 1
 
     # Print table header
     print(
@@ -334,7 +335,10 @@ def main():
         f"- Analysis period: from {config.start_date.isoformat()} to {config.end_date.isoformat()}"
     )
     print(f"- Total unique authors: {len(author_list)}")
+    return 0
 
+def cli():
+    sys.exit(main())
 
 if __name__ == "__main__":
-    main()
+    cli()

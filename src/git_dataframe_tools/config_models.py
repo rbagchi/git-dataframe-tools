@@ -1,8 +1,8 @@
 import git
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, date
+from typing import Optional, Union
 from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
@@ -38,7 +38,7 @@ def print_error(text):
     print_colored(text, Colors.RED)
 
 
-def _parse_period_string(period_str: str) -> timedelta:
+def _parse_period_string(period_str: str) -> Union[timedelta, relativedelta]:
     """Parses a period string like '3 months' or '1 year' into a timedelta."""
     period_str = period_str.lower().strip()
     match = re.match(r"^(\d+)\s*(day|week|month|year)s?$", period_str)
@@ -67,8 +67,8 @@ def _parse_period_string(period_str: str) -> timedelta:
 class GitAnalysisConfig:
     """Configuration object for git analysis parameters"""
 
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: Optional[Union[str, date]] = None
+    end_date: Optional[Union[str, date]] = None
     author_query: Optional[str] = None
     use_current_user: bool = False
     merged_only: bool = False
@@ -147,7 +147,10 @@ class GitAnalysisConfig:
 
     def get_analysis_description(self) -> str:
         """Returns a description of the current analysis configuration."""
-        desc = f"Analysis period: {self.start_date.isoformat()} to {self.end_date.isoformat()}"
+        # Ensure start_date and end_date are date objects before calling isoformat
+        start_date_str = self.start_date.isoformat() if isinstance(self.start_date, date) else str(self.start_date)
+        end_date_str = self.end_date.isoformat() if isinstance(self.end_date, date) else str(self.end_date)
+        desc = f"Analysis period: {start_date_str} to {end_date_str}"
         if self.merged_only:
             desc += ", merged commits only"
         if self.include_paths:

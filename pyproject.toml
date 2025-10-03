@@ -36,5 +36,14 @@ include = ["git_dataframe_tools*", "git2df*"]
 git-scoreboard = "git_dataframe_tools.cli.scoreboard:main"
 git-df = "git_dataframe_tools.cli.git_df:main"
 
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "pytest-cov",
+    "radon",
+    "ruff",
+    "black",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]

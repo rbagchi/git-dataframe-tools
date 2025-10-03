@@ -82,8 +82,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def main():
-    args = parse_arguments()
+def run_git_df_cli(args):
     setup_logging(debug=args.debug, verbose=args.verbose)
     logger.debug(f"CLI arguments: {args}")
 
@@ -176,9 +175,10 @@ def main():
         sys.exit(1)
 
 
+def main():
+    args = parse_arguments()
+    run_git_df_cli(args)
+
+
 if __name__ == "__main__":
-    main()
-else:
-    # This allows the script to be run via `python -m src.git_dataframe_tools.cli.git_df`
-    # or similar module-based execution.
     main()

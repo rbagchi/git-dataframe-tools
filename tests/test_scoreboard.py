@@ -4,10 +4,10 @@ from unittest.mock import patch, MagicMock
 
 # Assuming scoreboard.py is in the parent directory
 
-from git_scoreboard.config_models import GitAnalysisConfig, _parse_period_string
+from git_dataframe_tools.config_models import GitAnalysisConfig, _parse_period_string
 from dateutil.relativedelta import relativedelta
 
-CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
+CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 
 
 # Test cases for _parse_period_string

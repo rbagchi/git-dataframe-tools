@@ -12,7 +12,7 @@ import pyarrow.parquet as pq
 import logging
 
 from git2df import get_commits_df
-from git_scoreboard.logger import setup_logging
+from git_dataframe_tools.logger import setup_logging
 
 DATA_VERSION = "1.0"  # Major version of the data format
 
@@ -179,6 +179,6 @@ def main():
 if __name__ == "__main__":
     main()
 else:
-    # This allows the script to be run via `uv run python -m src.git_scoreboard.git_extract_commits`
-    # or similar module-based execution, which `uv run python <script.py>` does.
+    # This allows the script to be run via `python -m src.git_dataframe_tools.cli.git_df`
+    # or similar module-based execution.
     main()

@@ -11,12 +11,12 @@ import os
 import pyarrow.parquet as pq
 import logging
 
-from git_scoreboard.config_models import (
+from git_dataframe_tools.config_models import (
     GitAnalysisConfig,
     print_header,
 )
-import git_scoreboard.git_stats_pandas as stats_module
-from git_scoreboard.logger import setup_logging
+import git_dataframe_tools.git_stats_pandas as stats_module
+from git_dataframe_tools.logger import setup_logging
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 

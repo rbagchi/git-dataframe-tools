@@ -25,4 +25,4 @@ def setup_logging(debug: bool = False, verbose: bool = False):
 
     # Set specific log levels for potentially chatty libraries if needed
     # logging.getLogger('git2df').setLevel(level)
-    # logging.getLogger('git_scoreboard').setLevel(level)
+    # logging.getLogger('git_dataframe_tools').setLevel(level)

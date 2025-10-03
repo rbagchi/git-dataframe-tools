@@ -81,7 +81,7 @@ def test_git_extract_commits_basic(temp_git_repo_with_remote, tmp_path):
     command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",
@@ -131,7 +131,7 @@ def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_p
     command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",
@@ -166,7 +166,7 @@ def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_pat
     command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",
@@ -204,7 +204,7 @@ def test_git_extract_commits_with_exclude_path_filter(
     command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",
@@ -239,7 +239,7 @@ def test_git_extract_commits_no_commits_found(temp_git_repo_with_remote, tmp_pat
     command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",

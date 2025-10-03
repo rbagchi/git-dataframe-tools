@@ -1,9 +1,9 @@
 from unittest.mock import patch, MagicMock
 import subprocess
 
-from git_scoreboard.config_models import GitAnalysisConfig
+from git_dataframe_tools.config_models import GitAnalysisConfig
 
-CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
+CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 
 
 # Test cases for GitAnalysisConfig._get_current_git_user

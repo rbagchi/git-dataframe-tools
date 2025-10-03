@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 
-from git_scoreboard.git_stats_pandas import (
+from git_dataframe_tools.git_stats_pandas import (
     parse_git_log,
     find_author_stats,
     get_ranking,

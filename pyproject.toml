@@ -29,10 +29,11 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["git_dataframe_tools*", "git2df*"]
 
 [project.scripts]
-git-scoreboard = "git_scoreboard.scoreboard:main"
-git-df = "git_scoreboard.git_df:main"
+git-scoreboard = "git_dataframe_tools.cli.scoreboard:main"
+git-df = "git_dataframe_tools.cli.git_df:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -4,7 +4,7 @@ import os
 import sys
 
 
-from git_scoreboard.config_models import GitAnalysisConfig
+from git_dataframe_tools.config_models import GitAnalysisConfig
 from git2df import get_commits_df
 
 
@@ -297,7 +297,7 @@ def test_scoreboard_with_df_path(temp_git_repo_with_remote, tmp_path):
     git_df_command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.git_df",
+        "src.git_dataframe_tools.cli.git_df",
         "--repo-path",
         str(temp_git_repo_with_remote),
         "--output",
@@ -317,7 +317,7 @@ def test_scoreboard_with_df_path(temp_git_repo_with_remote, tmp_path):
     scoreboard_command = [
         sys.executable,
         "-m",
-        "src.git_scoreboard.scoreboard",
+        "src.git_dataframe_tools.cli.scoreboard",
         "--df-path",
         str(df_output_file),
         "--since",

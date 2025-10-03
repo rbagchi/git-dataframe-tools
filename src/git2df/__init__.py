@@ -7,7 +7,7 @@ from git2df.dataframe_builder import build_commits_df
 
 
 def get_commits_df(
-    repo_path: str,
+    repo_path: str = ".",
     log_args: Optional[List[str]] = None,
     since: Optional[str] = None,
     until: Optional[str] = None,

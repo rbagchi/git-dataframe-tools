@@ -69,6 +69,8 @@ git-df . --output commits.parquet --since "1 year ago" --until "now"
 *   `-p, --path`: Include only changes in specified paths (can be used multiple times).
 *   `-x, --exclude-path`: Exclude changes in specified paths (can be used multiple times).
 *   `-o, --output`: Output Parquet file path (required).
+*   `-v, --verbose`: Enable verbose output (INFO level).
+*   `-d, --debug`: Enable debug output (DEBUG level).
 
 ### `git-scoreboard` (Git Author Scoreboard)
 
@@ -103,6 +105,8 @@ git-scoreboard . --since "6 months ago"
 *   `-p, --path`: Include only changes in specified paths.
 *   `-x, --exclude-path`: Exclude changes in specified paths.
 *   `--default-period`: Default period if `--since` or `--until` are not specified (e.g., "3 months").
+*   `-v, --verbose`: Enable verbose output (INFO level).
+*   `-d, --debug`: Enable debug output (DEBUG level).
 
 ## DataFrame Structure
 

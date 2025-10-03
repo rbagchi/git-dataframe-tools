@@ -1,6 +1,6 @@
-# Git Scoreboard
+# Git DataFrame Tools
 
-Git Scoreboard is a project designed to analyze Git repository history, providing powerful insights into author contributions and code changes. It's built on a modular architecture, featuring a core library (`git2df`), a data extraction CLI (`git-df`), and the main analysis CLI (`git-scoreboard`).
+Git DataFrame Tools is a project designed to analyze Git repository history, providing powerful insights into author contributions and code changes. It's built on a modular architecture, featuring a core library (`git2df`), a data extraction CLI (`git-df`), and the main analysis CLI (`git-scoreboard`).
 
 ## Project Structure
 

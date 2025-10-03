@@ -31,17 +31,17 @@ import git2df
 from datetime import datetime
 
 # Get commits since a specific date
-df_since = git2df.get_commits_df(since=datetime(2023, 1, 1))
+df_since = git2df.get_commits_df(since=datetime(2023, 1, 1).isoformat())
 print("Commits since Jan 1, 2023:")
 print(df_since.head())
 
 # Get commits until a specific date
-df_until = git2df.get_commits_df(until=datetime(2023, 12, 31))
+df_until = git2df.get_commits_df(until=datetime(2023, 12, 31).isoformat())
 print("\nCommits until Dec 31, 2023:")
 print(df_until.head())
 
 # Get commits between two dates
-df_range = git2df.get_commits_df(since=datetime(2023, 6, 1), until=datetime(2023, 6, 30))
+df_range = git2df.get_commits_df(since=datetime(2023, 6, 1).isoformat(), until=datetime(2023, 6, 30).isoformat())
 print("\nCommits in June 2023:")
 print(df_range.head())
 ```
@@ -118,8 +118,8 @@ from datetime import datetime
 
 # Get commits by "John Doe" in 2023, affecting "src/" and with "bugfix" in message
 df_combined = git2df.get_commits_df(
-    since=datetime(2023, 1, 1),
-    until=datetime(2023, 12, 31),
+    since=datetime(2023, 1, 1).isoformat(),
+    until=datetime(2023, 12, 31).isoformat(),
     author="John Doe",
     grep="bugfix",
     include_paths=["src/"]

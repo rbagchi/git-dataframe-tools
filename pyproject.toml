@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "git-dataframe-tools"
 version = "0.1.0"
 authors = [
-  { name="Your Name", email="your.email@example.com" }, # TODO: Update with actual author details
+  { name="Ranjan Bagchi", email="ranjan.bagchi@gmail.com" }, 
 ]
 description = "A command-line tool to analyze git history and rank authors by total lines changed."
 readme = "README.md"

@@ -15,6 +15,7 @@
     *   Addressed `IndentationError` and `datetime.now()` mocking issues.
     *   Refactored `scoreboard.main()` to return status codes instead of calling `sys.exit()`.
     *   Resolved mypy errors in `tests/test_git2df_integration.py` and `tests/test_git_stats_pandas.py`.
+    *   Refactored `src/git_dataframe_tools/cli/scoreboard.py` into smaller modules (`_validation.py`, `_data_loader.py`, `_display_utils.py`) to reduce complexity.
 
 **Next Steps:**
 *   **Phase 1, Step 1.4: Write unit tests for `src/git_dataframe_tools/cli/scoreboard.py`.** (This is already done as part of debugging)

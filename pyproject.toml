@@ -25,6 +25,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "python-dateutil",
+    "GitPython",
 ]
 
 [tool.setuptools.packages.find]

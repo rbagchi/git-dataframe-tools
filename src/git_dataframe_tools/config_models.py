@@ -1,4 +1,4 @@
-import subprocess
+import git
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -123,21 +123,11 @@ class GitAnalysisConfig:
             print_error("Error: Not in a git repository")
             sys.exit(1)
         try:
-            name_cmd = subprocess.run(
-                ["git", "config", "user.name"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            email_cmd = subprocess.run(
-                ["git", "config", "user.email"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            self.current_user_name = name_cmd.stdout.strip()
-            self.current_user_email = email_cmd.stdout.strip()
-        except subprocess.CalledProcessError:
+            repo = git.Repo(search_parent_directories=True)
+            reader = repo.config_reader()
+            self.current_user_name = reader.get_value("user", "name")
+            self.current_user_email = reader.get_value("user", "email")
+        except (git.InvalidGitRepositoryError, git.exc.GitCommandError, KeyError):
             print_error(
                 "Error: Could not retrieve git user.name or user.email. Please configure git or run without --me."
             )
@@ -146,14 +136,9 @@ class GitAnalysisConfig:
     def _check_git_repo(self, repo_path: str = "."):
         """Check if we're in a git repository"""
         try:
-            subprocess.run(
-                ["git", "rev-parse", "--git-dir"],
-                capture_output=True,
-                check=True,
-                cwd=repo_path,
-            )
+            git.Repo(repo_path, search_parent_directories=True)
             return True
-        except subprocess.CalledProcessError:
+        except git.InvalidGitRepositoryError:
             return False
 
     def is_author_specific(self) -> bool:

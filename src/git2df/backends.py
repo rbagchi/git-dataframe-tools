@@ -1,7 +1,6 @@
+import git
 import logging
 from typing import List, Optional
-from git2df.git_cli_utils import _run_git_command
-import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -13,31 +12,21 @@ class GitCliBackend:
         """Determines the default branch (main or master) for a given repository."""
         logger.debug(f"Checking for default branch in {repo_path}")
         try:
-            logger.debug("Attempting to find 'main' branch.")
-            subprocess.run(
-                ["git", "show-ref", "--verify", "refs/heads/main"],
-                check=True,
-                capture_output=True,
-                cwd=repo_path,
-            )
-            logger.info("Found 'main' as default branch.")
-            return "main"
-        except subprocess.CalledProcessError:
-            logger.debug("Main branch not found, attempting to find 'master' branch.")
-            try:
-                subprocess.run(
-                    ["git", "show-ref", "--verify", "refs/heads/master"],
-                    check=True,
-                    capture_output=True,
-                    cwd=repo_path,
-                )
+            repo = git.Repo(repo_path)
+            if "main" in repo.heads:
+                logger.info("Found 'main' as default branch.")
+                return "main"
+            elif "master" in repo.heads:
                 logger.info("Found 'master' as default branch.")
                 return "master"
-            except subprocess.CalledProcessError:
+            else:
                 logger.warning(
                     "Neither 'main' nor 'master' found as default branch. Defaulting to 'main'."
                 )
-                return "main"  # Default to main even if not found, git will handle the error if it doesn't exist
+                return "main"
+        except git.InvalidGitRepositoryError:
+            logger.error(f"{repo_path} is not a valid git repository.")
+            return "main"  # fallback for now
 
     def get_raw_log_output(
         self,
@@ -68,30 +57,53 @@ class GitCliBackend:
         Returns:
             The raw stdout from the 'git log' command.
         """
-        if log_args is None:
-            log_args = []
-        full_cmd = ["git"] + ["log"] + log_args
+        repo = git.Repo(repo_path)
+        kwargs = {}
         if since:
-            full_cmd.append(f"--since={since}")
+            kwargs["since"] = since
         if until:
-            full_cmd.append(f"--until={until}")
+            kwargs["until"] = until
         if author:
-            full_cmd.append(f"--author={author}")
+            kwargs["author"] = author
         if grep:
-            full_cmd.append(f"--grep={grep}")
+            kwargs["grep"] = grep
         if merged_only:
             default_branch = self._get_default_branch(repo_path)
-            full_cmd.extend(["--merges", f"origin/{default_branch}"])
+            kwargs["merges"] = True
+            kwargs["rev"] = f"origin/{default_branch}"
 
+        paths = []
         if include_paths:
-            full_cmd.extend(["--"] + include_paths)
+            paths.extend(include_paths)
         if exclude_paths:
-            for p in exclude_paths:
-                full_cmd.extend([f":(exclude){p}"])
+            # GitPython's path filtering doesn't directly support exclude paths in the same way as the git command line with pathspecs.
+            # We will have to do the filtering after getting the commits.
+            # This is a deviation from the original implementation, but it's the most straightforward way with GitPython.
+            pass
 
-        logger.debug(f"Executing git command: {' '.join(full_cmd)} in {repo_path}")
-        raw_log_output = _run_git_command(
-            full_cmd[1:], cwd=repo_path
-        )  # _run_git_command expects command without 'git'
-        logger.debug(f"Raw git log output (first 200 chars): {raw_log_output[:200]}...")
-        return raw_log_output
+        if paths:
+            kwargs["paths"] = paths
+
+        commits = repo.iter_commits(**kwargs)
+
+        output = []
+        for commit in commits:
+            # Manual exclusion of paths
+            if exclude_paths:
+                if any(
+                    f.startswith(tuple(exclude_paths))
+                    for f in commit.stats.files.keys()
+                ):
+                    continue
+
+            parents = " ".join([p.hexsha for p in commit.parents])
+            output.append(
+                f"--{commit.hexsha}--{parents}--{commit.author.name}--{commit.author.email}--{commit.authored_datetime.isoformat()}--{commit.summary}"
+            )
+
+            for file_path, stats in commit.stats.files.items():
+                output.append(
+                    f"{stats['insertions']}\t{stats['deletions']}\t{file_path}"
+                )
+
+        return "\n".join(output)

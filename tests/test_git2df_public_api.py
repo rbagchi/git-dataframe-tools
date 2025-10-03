@@ -45,11 +45,9 @@ MOCKED_DF = pd.DataFrame(MOCKED_PARSED_DATA)
 @patch("git2df.build_commits_df")
 @patch("git2df._parse_git_data_internal")
 @patch("git2df.GitCliBackend")
-@patch("git2df.backends._run_git_command")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 def test_get_commits_df_no_filters(
     mock_get_default_branch,
-    mock_run_git_command,
     mock_git_cli_backend,
     mock_parse_git_data_internal,
     mock_build_commits_df,
@@ -58,7 +56,6 @@ def test_get_commits_df_no_filters(
     # Setup mocks
     mock_backend_instance = MagicMock()
     mock_git_cli_backend.return_value = mock_backend_instance
-    mock_run_git_command.return_value = "\n".join(MOCKED_RAW_LOG_OUTPUT)
     mock_backend_instance.get_raw_log_output.return_value = "\n".join(
         MOCKED_RAW_LOG_OUTPUT
     )
@@ -92,20 +89,16 @@ def test_get_commits_df_no_filters(
 @patch("git2df.build_commits_df")
 @patch("git2df._parse_git_data_internal")
 @patch("git2df.GitCliBackend")
-@patch("git2df.backends._run_git_command")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 def test_get_commits_df_with_filters(
     mock_get_default_branch,
-    mock_run_git_command,
     mock_git_cli_backend,
     mock_parse_git_data_internal,
     mock_build_commits_df,
 ):
-    """Test get_commits_df with filters applied."""
     # Setup mocks
     mock_backend_instance = MagicMock()
     mock_git_cli_backend.return_value = mock_backend_instance
-    mock_run_git_command.return_value = "\n".join(MOCKED_RAW_LOG_OUTPUT)
     mock_backend_instance.get_raw_log_output.return_value = "\n".join(
         MOCKED_RAW_LOG_OUTPUT
     )
@@ -141,11 +134,9 @@ def test_get_commits_df_with_filters(
 @patch("git2df.build_commits_df")
 @patch("git2df._parse_git_data_internal")
 @patch("git2df.GitCliBackend")
-@patch("git2df.backends._run_git_command")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 def test_get_commits_df_with_all_filters(
     mock_get_default_branch,
-    mock_run_git_command,
     mock_git_cli_backend,
     mock_parse_git_data_internal,
     mock_build_commits_df,
@@ -154,7 +145,6 @@ def test_get_commits_df_with_all_filters(
     # Setup mocks
     mock_backend_instance = MagicMock()
     mock_git_cli_backend.return_value = mock_backend_instance
-    mock_run_git_command.return_value = "\n".join(MOCKED_RAW_LOG_OUTPUT)
     mock_backend_instance.get_raw_log_output.return_value = "\n".join(
         MOCKED_RAW_LOG_OUTPUT
     )
@@ -194,11 +184,9 @@ def test_get_commits_df_with_all_filters(
 @patch("git2df.build_commits_df")
 @patch("git2df._parse_git_data_internal")
 @patch("git2df.GitCliBackend")
-@patch("git2df.backends._run_git_command")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 def test_get_commits_df_with_all_filters_and_paths(
     mock_get_default_branch,
-    mock_run_git_command,
     mock_git_cli_backend,
     mock_parse_git_data_internal,
     mock_build_commits_df,
@@ -207,7 +195,6 @@ def test_get_commits_df_with_all_filters_and_paths(
     # Setup mocks
     mock_backend_instance = MagicMock()
     mock_git_cli_backend.return_value = mock_backend_instance
-    mock_run_git_command.return_value = "\n".join(MOCKED_RAW_LOG_OUTPUT)
     mock_backend_instance.get_raw_log_output.return_value = "\n".join(
         MOCKED_RAW_LOG_OUTPUT
     )

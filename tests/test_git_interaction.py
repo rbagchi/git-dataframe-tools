@@ -1,62 +1,77 @@
 from unittest.mock import patch, MagicMock
-import subprocess
+import pytest
+from git import InvalidGitRepositoryError, GitCommandError
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
 
 CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 
 
-# Test cases for GitAnalysisConfig._get_current_git_user
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.subprocess.run")
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.git.Repo")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo")
-def test_get_current_git_user_success(mock_check_git_repo, mock_run):
+def test_get_current_git_user_success(mock_check_git_repo, mock_repo):
     mock_check_git_repo.return_value = True
-    mock_run.side_effect = [
-        MagicMock(stdout="Test User\n", returncode=0),  # git config user.name
-        MagicMock(stdout="test@example.com\n", returncode=0),  # git config user.email
-    ]
+    mock_reader = MagicMock()
+    mock_reader.get_value.side_effect = ["Test User", "test@example.com"]
+    mock_repo_instance = MagicMock()
+    mock_repo_instance.config_reader.return_value = mock_reader
+    mock_repo.return_value = mock_repo_instance
+
     config = GitAnalysisConfig(use_current_user=True)
+
     assert config.current_user_name == "Test User"
     assert config.current_user_email == "test@example.com"
-    assert mock_run.call_count == 2
+    assert mock_reader.get_value.call_count == 2
 
 
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.subprocess.run")
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.git.Repo")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo")
-def test_get_current_git_user_no_name(mock_check_git_repo, mock_run):
+def test_get_current_git_user_no_name(mock_check_git_repo, mock_repo):
     mock_check_git_repo.return_value = True
-    mock_run.side_effect = [
-        MagicMock(stdout="\n", returncode=0),  # git config user.name (empty)
-        MagicMock(stdout="test@example.com\n", returncode=0),  # git config user.email
-    ]
+    mock_reader = MagicMock()
+    mock_reader.get_value.side_effect = ["", "test@example.com"]
+    mock_repo_instance = MagicMock()
+    mock_repo_instance.config_reader.return_value = mock_reader
+    mock_repo.return_value = mock_repo_instance
+
     config = GitAnalysisConfig(use_current_user=True)
+
     assert config.current_user_name == ""
     assert config.current_user_email == "test@example.com"
 
 
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.subprocess.run")
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.git.Repo")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo")
-def test_get_current_git_user_no_email(mock_check_git_repo, mock_run):
+def test_get_current_git_user_no_email(mock_check_git_repo, mock_repo):
     mock_check_git_repo.return_value = True
-    mock_run.side_effect = [
-        MagicMock(stdout="Test User\n", returncode=0),  # git config user.name
-        MagicMock(stdout="\n", returncode=0),  # git config user.email (empty)
-    ]
+    mock_reader = MagicMock()
+    mock_reader.get_value.side_effect = ["Test User", ""]
+    mock_repo_instance = MagicMock()
+    mock_repo_instance.config_reader.return_value = mock_reader
+    mock_repo.return_value = mock_repo_instance
+
     config = GitAnalysisConfig(use_current_user=True)
+
     assert config.current_user_name == "Test User"
     assert config.current_user_email == ""
 
 
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.subprocess.run")
+@pytest.mark.parametrize(
+    "raised_exception",
+    [InvalidGitRepositoryError, GitCommandError("git config", 1, b"", b""), KeyError],
+)
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.print_error")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.sys.exit")
+@patch(f"{CONFIG_MODELS_MODULE_PATH}.git.Repo")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._check_git_repo")
 def test_get_current_git_user_failure(
-    mock_check_git_repo, mock_exit, mock_print_error, mock_run
+    mock_check_git_repo, mock_repo, mock_exit, mock_print_error, raised_exception
 ):
     mock_check_git_repo.return_value = True
-    mock_run.side_effect = subprocess.CalledProcessError(1, "git config user.name")
-    GitAnalysisConfig(use_current_user=True)  # Call constructor for side effects
+    mock_repo.side_effect = raised_exception
+
+    GitAnalysisConfig(use_current_user=True)
+
     mock_print_error.assert_called_once_with(
         "Error: Could not retrieve git user.name or user.email. Please configure git or run without --me."
     )

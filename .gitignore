@@ -33,3 +33,4 @@ tests/RUNBOOK.md
 
 # Temporary files
 temp_repos/
+git_commits.parquet

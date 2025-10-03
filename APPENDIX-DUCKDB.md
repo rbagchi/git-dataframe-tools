@@ -19,7 +19,7 @@ First, we'll use `git-df` to extract commit data from a Git repository into a Pa
 
 ```bash
 # Example: Extract all commits from the current directory for the last year
-git-df . --output git_commits.parquet --since "1 year ago" --until "now" -v
+uv run git-df --repo-path . --output git_commits.parquet --since "1 year ago" --until "now" -v
 ```
 
 This command will create a file named `git_commits.parquet` in your current directory, containing the extracted Git history.

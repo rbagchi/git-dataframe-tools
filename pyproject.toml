@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "git-scoreboard"
 version = "0.1.0"
 authors = [
-  { name="Ranjan", email="ranjan@example.com" }, # Placeholder, user should update
+  { name="Your Name", email="your.email@example.com" }, # TODO: Update with actual author details
 ]
 description = "A command-line tool to analyze git history and rank authors by total lines changed."
 readme = "README.md"
@@ -23,6 +23,8 @@ dependencies = [
     "tqdm>=4.0.0",
     "parsedatetime",
     "pandas",
+    "pyarrow",
+    "python-dateutil",
 ]
 
 [tool.setuptools.packages.find]
@@ -30,7 +32,7 @@ where = ["src"]
 
 [project.scripts]
 git-scoreboard = "git_scoreboard.scoreboard:main"
-git-extract-commits = "git_scoreboard.git_extract_commits:main"
+git-df = "git_scoreboard.git_df:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -45,7 +45,18 @@ I am currently refactoring the `git-scoreboard` project into a modular `git2df` 
     *   Updated `src/git_scoreboard/git_stats_pandas.py` and `src/git_scoreboard/git_stats.py` to accept a DataFrame, and their tests (`tests/test_git_stats_pandas.py` and `tests/test_compatibility.py`) are passing.
     *   Updated `src/git_scoreboard/scoreboard.py` to remove the local `tqdm` import and `_parse_period_string` import.
     *   Updated `tests/test_git_integration.py` to correctly assert against the DataFrame returned by `git2df.get_commits_df` and are now passing.
+    *   **Added `--df-path` argument to `src/git_scoreboard/scoreboard.py`:** This allows `git-scoreboard` to operate on a pre-extracted DataFrame from a Parquet file, enhancing modularity and flexibility.
+    *   **Implemented major version checking for `--df-path` in `src/git_scoreboard/scoreboard.py`:** Ensures compatibility of loaded DataFrames with the expected data schema, with an option (`--force-version-mismatch`) to override the check.
+
+*   **Phase 2: Develop `git-df` CLI**
+    *   **Step 1: Implement `git-df` CLI**
+        *   Implemented `src/git_scoreboard/git_df.py` (formerly `git-extract-commits`) to extract filtered Git commit data and save it to a Parquet file.
+        *   Made `git-df` tests portable by replacing hardcoded `uv` commands with `sys.executable`.
+        *   Renamed `src/git_scoreboard/git_extract_commits.py` to `src/git_scoreboard/git_df.py` and `tests/test_git_extract_commits.py` to `tests/test_git_df.py`.
+        *   Updated internal references and help messages in `git_df.py`.
+        *   Added metadata (including a `data_version`) to the Parquet output of `git-df`.
+        *   Updated `tests/test_git_df.py` to verify the presence and content of the Parquet metadata. All `git-df` tests are passing.
 
 **Next Steps:**
 
-Proceed with **Phase 2: Develop `git-extract-commits` CLI** as outlined in `REFACTORING_PLAN.md`.
+Proceed with **Phase 3: Refactor `git-scoreboard` CLI** as outlined in `REFACTORING_PLAN.md`.

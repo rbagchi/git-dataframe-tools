@@ -1,7 +1,5 @@
 import pandas as pd
-import re
 import math
-from .config_models import GitAnalysisConfig
 
 def _calculate_decile_from_rank(rank, n):
     return min(10, math.ceil(rank * 10 / n))
@@ -21,9 +19,9 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
 
     # Aggregate by author
     author_stats = df.groupby(['author_email', 'author_name']).agg(
-        added=('added', 'sum'),
-        deleted=('deleted', 'sum'),
-        commits=('hash', 'nunique')
+        added=('additions', 'sum'),
+        deleted=('deletions', 'sum'),
+        commits=('commit_hash', 'nunique')
     ).reset_index()
 
     if author_stats.empty:

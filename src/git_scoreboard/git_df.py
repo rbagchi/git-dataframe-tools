@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-Git Commit Extractor: Extracts filtered commit data and saves it to a Parquet file.
+Git DataFrame Extractor: Extracts filtered Git commit data and saves it to a Parquet file.
 """
 
 import argparse
 import sys
 import os
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from git2df import get_commits_df
+
+DATA_VERSION = "1.0" # Major version of the data format
 
 # Helper functions for colored output
 def print_success(message):
@@ -22,7 +26,7 @@ def print_warning(message):
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description='Extracts filtered Git commit data and saves it to a Parquet file.',
+        description='Extracts filtered Git commit data and saves it to a Parquet file as a Pandas DataFrame.',
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument(
@@ -99,7 +103,23 @@ def main():
         # to indicate that the operation was successful but yielded no data.
         # This prevents downstream processes from failing due to missing files.
         try:
-            pd.DataFrame().to_parquet(args.output, index=False)
+            # Create an empty PyArrow Table with metadata
+            empty_df = pd.DataFrame()
+            table = pa.Table.from_pandas(empty_df)
+            custom_metadata = {
+                "data_version": DATA_VERSION,
+                "description": "Git commit data extracted by git-df CLI"
+            }
+            metadata_bytes = {k.encode(): str(v).encode() for k, v in custom_metadata.items()}
+            
+            # Create a PyArrow Schema with metadata for an empty DataFrame
+            empty_df = pd.DataFrame()
+            temp_table = pa.Table.from_pandas(empty_df)
+            new_schema = temp_table.schema.with_metadata(metadata_bytes)
+
+            # Convert pandas DataFrame to PyArrow Table with the new schema
+            table = pa.Table.from_pandas(empty_df, schema=new_schema)
+            pq.write_table(table, args.output)
             print_success(f"Created empty Parquet file at '{args.output}' as no commits were found.")
         except Exception as e:
             print_error(f"Error creating empty Parquet file: {e}")
@@ -108,7 +128,27 @@ def main():
 
     print_success(f"Saving {len(commits_df)} commits to '{args.output}'...")
     try:
-        commits_df.to_parquet(args.output, index=False)
+        # Convert pandas DataFrame to PyArrow Table
+        table = pa.Table.from_pandas(commits_df)
+
+        # Define custom metadata
+        custom_metadata = {
+            "data_version": DATA_VERSION,
+            "description": "Git commit data extracted by git-df CLI"
+        }
+
+        # Add custom metadata to the table schema
+        metadata_bytes = {k.encode(): str(v).encode() for k, v in custom_metadata.items()}
+        # Create a PyArrow Schema with metadata
+        # Get the schema from the pandas DataFrame first
+        temp_table = pa.Table.from_pandas(commits_df)
+        new_schema = temp_table.schema.with_metadata(metadata_bytes)
+
+        # Convert pandas DataFrame to PyArrow Table with the new schema
+        table = pa.Table.from_pandas(commits_df, schema=new_schema)
+
+        # Write the PyArrow Table to a Parquet file
+        pq.write_table(table, args.output)
         print_success(f"Successfully saved commit data to '{args.output}'.")
     except Exception as e:
         print_error(f"Error saving data to Parquet: {e}")

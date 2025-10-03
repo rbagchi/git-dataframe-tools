@@ -7,10 +7,14 @@ This script analyzes git history and ranks authors by total lines changed
 __version__ = "0.1.0"
 
 import argparse
+import os
+import pyarrow.parquet as pq
 
 from git_scoreboard.config_models import GitAnalysisConfig, print_success, print_error, print_warning, print_header
 
 import git_scoreboard.git_stats_pandas as stats_module
+
+EXPECTED_DATA_VERSION = "1.0" # Expected major version of the DataFrame schema
 
 
 
@@ -63,6 +67,16 @@ def parse_arguments():
         help='Default period if --since or --until are not specified (e.g., "3 months", "1 year")'
     )
 
+    parser.add_argument(
+        '--df-path',
+        help='Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df).'
+    )
+    parser.add_argument(
+        '--force-version-mismatch',
+        action='store_true',
+        help='Proceed with analysis even if the DataFrame version does not match the expected version.'
+    )
+
     
     return parser.parse_args()
 
@@ -73,6 +87,9 @@ def main():
     # Validate mutually exclusive arguments
     if args.author and args.me:
         print_error("Error: Cannot use both --author and --me options together")
+        return
+    if args.df_path and args.repo_path != '.': # If df_path is provided, repo_path should be default
+        print_error("Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis.")
         return
     
     # Create configuration object
@@ -89,26 +106,61 @@ def main():
     
 
 
-    from git2df import get_commits_df
-
-    print_success("Gathering commit data...")
-    try:
-        if not config._check_git_repo(args.repo_path):
-            print_error("Error: Not in a git repository")
+    git_log_data = None
+    if args.df_path:
+        if not os.path.exists(args.df_path):
+            print_error(f"Error: DataFrame file not found at '{args.df_path}'")
             return
+        print_success(f"Loading commit data from '{args.df_path}'...")
+        try:
+            # Load the table to read metadata
+            table = pq.read_table(args.df_path)
+            metadata = table.schema.metadata
+            
+            loaded_data_version = None
+            if b"data_version" in metadata:
+                loaded_data_version = metadata[b"data_version"].decode()
 
-        git_log_data = get_commits_df(
-            repo_path=args.repo_path,
-            since=config.start_date.isoformat(),
-            until=config.end_date.isoformat(),
-            author=config.author_query,
-            merged_only=config.merged_only,
-            include_paths=config.include_paths,
-            exclude_paths=config.exclude_paths
-        )
-    except Exception as e:
-        print_error(f"Error fetching git log data: {e}")
-        return
+            if loaded_data_version and loaded_data_version != EXPECTED_DATA_VERSION:
+                message = f"Warning: DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
+                if not args.force_version_mismatch:
+                    print_error(f"{message} Aborting. Use --force-version-mismatch to proceed anyway.")
+                    return
+                else:
+                    print_warning(f"{message} Proceeding due to --force-version-mismatch.")
+            elif not loaded_data_version:
+                message = "Warning: No 'data_version' metadata found in the DataFrame file."
+                if not args.force_version_mismatch:
+                    print_error(f"{message} Aborting. Use --force-version-mismatch to proceed anyway.")
+                    return
+                else:
+                    print_warning(f"{message} Proceeding due to --force-version-mismatch.")
+
+            git_log_data = table.to_pandas() # Convert to pandas DataFrame after version check
+        except Exception as e:
+            print_error(f"Error loading DataFrame from '{args.df_path}': {e}")
+            return
+    else:
+        from git2df import get_commits_df
+
+        print_success("Gathering commit data...")
+        try:
+            if not config._check_git_repo(args.repo_path):
+                print_error("Error: Not in a git repository")
+                return
+
+            git_log_data = get_commits_df(
+                repo_path=args.repo_path,
+                since=config.start_date.isoformat(),
+                until=config.end_date.isoformat(),
+                author=config.author_query,
+                merged_only=config.merged_only,
+                include_paths=config.include_paths,
+                exclude_paths=config.exclude_paths
+            )
+        except Exception as e:
+            print_error(f"Error fetching git log data: {e}")
+            return
     
     print_success("Processing commits...")
     author_stats = stats_module.parse_git_log(git_log_data)
@@ -186,7 +238,7 @@ def main():
         print(f"{author['rank']:>4} {author_display:<45} {added_str:>11} {deleted_str:>12} {author['total']:>11} {author['commits']:>7} {author['diff_decile']:>6} {author['commit_decile']:>6}")
     
     # Print decile distribution summary
-    print(f"\nDiff Size Decile Distribution:")
+    print("\nDiff Size Decile Distribution:")
     print(f"{'Decile':>6} {'Diff Size Range':>25} {'Authors':>8}")
     print(f"{'-'*6:>6} {'-'*25:>25} {'-'*8:>8}")
     
@@ -198,7 +250,7 @@ def main():
             diff_range = f"{min_diff:,}-{max_diff:,}" if min_diff != max_diff else f"{min_diff:,}"
             print(f"{decile:>6} {diff_range:>25} {len(diff_authors):>8}")
     
-    print(f"\nCommit Count Decile Distribution:")
+    print("\nCommit Count Decile Distribution:")
     print(f"{'Decile':>6} {'Commit Range':>15} {'Authors':>8}")
     print(f"{'-'*6:>6} {'-'*15:>15} {'-'*8:>8}")
     
@@ -210,10 +262,10 @@ def main():
             commit_range = f"{min_commits}-{max_commits}" if min_commits != max_commits else f"{min_commits}"
             print(f"{decile:>6} {commit_range:>15} {len(commit_authors):>8}")
     
-    print(f"\nSummary:")
-    print(f"- Ranking based on total lines changed (additions + deletions)")
-    print(f"- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
-    print(f"- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
+    print("\nSummary:")
+    print("- Ranking based on total lines changed (additions + deletions)")
+    print("- Diff D = Diff Size Decile (1=top 10%, 10=bottom 10%)")
+    print("- Comm D = Commit Count Decile (1=top 10%, 10=bottom 10%)")
     print(f"- Analysis period: from {config.start_date.isoformat()} to {config.end_date.isoformat()}")
     print(f"- Total unique authors: {len(author_list)}")
 

@@ -1,5 +1,4 @@
 import pytest
-import subprocess
 from git2df.git_cli_utils import _run_git_command
 
 def test_run_git_command_success():

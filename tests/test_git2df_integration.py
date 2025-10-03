@@ -1,6 +1,6 @@
+import subprocess
 from datetime import datetime
 import re
-from collections import defaultdict
 
 # Helper function to create a dummy git repo
 def create_dummy_repo(tmp_path):

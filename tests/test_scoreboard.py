@@ -1,7 +1,6 @@
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock, call
-import sys
+from unittest.mock import patch, MagicMock
 
 # Assuming scoreboard.py is in the parent directory
 

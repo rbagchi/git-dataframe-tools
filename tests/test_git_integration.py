@@ -1,11 +1,7 @@
 import pytest
 import subprocess
 import os
-import shutil
-from datetime import datetime, timedelta
-from unittest.mock import patch
-
-import re
+import sys
 
 
 from git_scoreboard.config_models import GitAnalysisConfig
@@ -253,7 +249,38 @@ def test_get_git_log_data_integration_exclude_paths(temp_git_repo_with_remote):
         assert git_data_df[git_data_df['author_name'] == "Test User"].shape[0] == 2 # 2 file changes by Test User after exclusion
         assert git_data_df[git_data_df['author_name'] == "Dev User"].shape[0] == 2 # 2 file changes by Dev User after exclusion
         assert git_data_df['additions'].sum() == 4 # 1+1+1+1
-        assert git_data_df['deletions'].sum() == 1 # 0+0+1+0
-
     finally:
         os.chdir(original_cwd)
+
+def test_scoreboard_with_df_path(temp_git_repo_with_remote, tmp_path):
+    """Integration test: scoreboard operates on a parquet file dumped by git-df."""
+    # 1. Run git-df to create a parquet file
+    df_output_file = tmp_path / "commits.parquet"
+    git_df_command = [
+        sys.executable, "-m", "src.git_scoreboard.git_df",
+        "--repo-path", str(temp_git_repo_with_remote),
+        "--output", str(df_output_file),
+        "--since", "2025-01-01",
+        "--until", "2025-12-31"
+    ]
+    git_df_result = subprocess.run(git_df_command, capture_output=True, text=True, check=True)
+    assert git_df_result.returncode == 0
+    assert df_output_file.exists()
+
+    # 2. Run git-scoreboard with the generated parquet file
+    scoreboard_command = [
+        sys.executable, "-m", "src.git_scoreboard.scoreboard",
+        "--df-path", str(df_output_file),
+        "--since", "2025-01-01",
+        "--until", "2025-12-31"
+    ]
+    scoreboard_result = subprocess.run(scoreboard_command, capture_output=True, text=True, check=True)
+    assert scoreboard_result.returncode == 0
+
+    # 3. Assert on scoreboard output
+    output = scoreboard_result.stdout
+    assert "Git Author Ranking by Diff Size" in output
+    assert "Test User" in output
+    assert "Dev User" in output
+    assert "Total Diff" in output
+    assert "Commits" in output

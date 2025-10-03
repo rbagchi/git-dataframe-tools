@@ -1,10 +1,7 @@
-import pytest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import subprocess
-import sys
-import pandas as pd
 
-from git_scoreboard.config_models import GitAnalysisConfig, print_error, Colors
+from git_scoreboard.config_models import GitAnalysisConfig
 
 CONFIG_MODELS_MODULE_PATH = "git_scoreboard.config_models"
 
@@ -57,7 +54,7 @@ def test_get_current_git_user_no_email(mock_check_git_repo, mock_run):
 def test_get_current_git_user_failure(mock_check_git_repo, mock_exit, mock_print_error, mock_run):
     mock_check_git_repo.return_value = True
     mock_run.side_effect = subprocess.CalledProcessError(1, "git config user.name")
-    config = GitAnalysisConfig(use_current_user=True)
+    GitAnalysisConfig(use_current_user=True) # Call constructor for side effects
     mock_print_error.assert_called_once_with("Error: Could not retrieve git user.name or user.email. Please configure git or run without --me.")
     mock_exit.assert_called_once_with(1)
 

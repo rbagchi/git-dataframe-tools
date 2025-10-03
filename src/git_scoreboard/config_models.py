@@ -6,9 +6,6 @@ from typing import Optional
 from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
-import pandas as pd
-
-from git2df import get_commits_df
 
 class Colors:
     RED = '\033[0;31m'

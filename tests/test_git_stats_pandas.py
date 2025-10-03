@@ -1,4 +1,3 @@
-import pytest
 import pandas as pd
 import re
 
@@ -19,10 +18,10 @@ def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
             parts = line.split('--')
             if len(parts) >= 5:
                 current_commit_info = {
-                    'hash': parts[1],
+                    'commit_hash': parts[1],
                     'author_name': parts[2],
                     'author_email': parts[3],
-                    'message': parts[4]
+                    'commit_message': parts[4]
                 }
         else:
             stat_match = re.match(r'^(\d+|-)\t(\d+|-)\t(.+)$', line)
@@ -34,14 +33,14 @@ def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
                 
                 row = current_commit_info.copy()
                 row.update({
-                    'added': added,
-                    'deleted': deleted,
-                    'filepath': filepath
+                    'additions': added,
+                    'deletions': deleted,
+                    'file_paths': filepath
                 })
                 data.append(row)
     
     if not data:
-        return pd.DataFrame(columns=['hash', 'author_name', 'author_email', 'message', 'added', 'deleted', 'filepath'])
+        return pd.DataFrame(columns=['commit_hash', 'author_name', 'author_email', 'commit_message', 'additions', 'deletions', 'file_paths'])
 
     df = pd.DataFrame(data)
     return df

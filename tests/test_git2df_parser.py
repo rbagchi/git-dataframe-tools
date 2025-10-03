@@ -108,6 +108,5 @@ def test_parse_git_data_internal_no_file_stats():
         "",
         "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2",
     ]
-    expected_output = [] # No file stats means no entries in the commit-centric output
     result = _parse_git_data_internal(git_log_output)
     assert result == []

@@ -18,6 +18,8 @@ def test_get_date_range_natural_language_start_end(
         2025, 9, 29, 10, 0, 0
     )  # Monday, Sep 29, 2025
     mock_datetime_class.combine = datetime.combine
+    mock_datetime_class.date = datetime.date
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     # Mock the Calendar instance and its parseDT method
     mock_cal_instance = MagicMock()
@@ -30,6 +32,6 @@ def test_get_date_range_natural_language_start_end(
         (datetime(2025, 9, 22, 0, 0, 0), 1),  # for "last week"
     ]
 
-    config = GitAnalysisConfig(start_date="last week", end_date="yesterday")
+    config = GitAnalysisConfig(_start_date_str="last week", _end_date_str="yesterday")
     assert config.start_date.isoformat() == "2025-09-22"
     assert config.end_date.isoformat() == "2025-09-28"

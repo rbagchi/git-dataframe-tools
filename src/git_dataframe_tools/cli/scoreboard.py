@@ -115,8 +115,8 @@ def main():
 
     # Create configuration object
     config = GitAnalysisConfig(
-        start_date=args.since,
-        end_date=args.until,
+        _start_date_str=args.since,
+        _end_date_str=args.until,
         author_query=args.author,
         use_current_user=args.me,
         merged_only=args.merges,

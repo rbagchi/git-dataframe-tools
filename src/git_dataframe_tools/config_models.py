@@ -67,8 +67,10 @@ def _parse_period_string(period_str: str) -> Union[timedelta, relativedelta]:
 class GitAnalysisConfig:
     """Configuration object for git analysis parameters"""
 
-    start_date: date = field(init=False)
-    end_date: date = field(init=False)
+    _start_date_str: Optional[str] = None
+    _end_date_str: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     author_query: Optional[str] = None
     use_current_user: bool = False
     merged_only: bool = False
@@ -89,8 +91,8 @@ class GitAnalysisConfig:
         cal = Calendar(version=parsedatetime.VERSION_CONTEXT_STYLE)
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
-        original_end_date_str = self.end_date
-        original_start_date_str = self.start_date
+        original_end_date_str = self._end_date_str
+        original_start_date_str = self._start_date_str
 
         if original_end_date_str:
             parsed_end_date, parse_status = cal.parseDT(original_end_date_str)

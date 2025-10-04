@@ -60,16 +60,6 @@ def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
                 "deletions",
                 "file_paths",
             ],
-            dtype={
-                "additions": int,
-                "deletions": int,
-                "commit_hash": str,
-                "parent_hash": str,
-                "author_name": str,
-                "author_email": str,
-                "commit_message": str,
-                "file_paths": str,
-            },
         )
 
     df = pd.DataFrame(data)

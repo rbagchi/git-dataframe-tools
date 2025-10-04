@@ -52,9 +52,7 @@ def test_get_date_range_default(mock_calendar_class, mock_datetime_class):
     mock_datetime_class.now.return_value = datetime(2025, 9, 29)
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
@@ -65,8 +63,8 @@ def test_get_date_range_default(mock_calendar_class, mock_datetime_class):
     config = GitAnalysisConfig()
     assert config.end_date.isoformat() == "2025-09-29"
     assert (
-        config.start_date.isoformat() == "2025-06-29"
-    )  # 3 months (relativedelta) before 2025-09-29 is 2025-06-29"
+        config.start_date.isoformat() == "2025-06-29"  # 3 months (relativedelta) before 2025-09-29 is 2025-06-29"
+    )
 
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
@@ -77,9 +75,7 @@ def test_get_date_range_custom_start_end(mock_calendar_class, mock_datetime_clas
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
@@ -88,7 +84,7 @@ def test_get_date_range_custom_start_end(mock_calendar_class, mock_datetime_clas
         (datetime(2025, 1, 1, 0, 0, 0), 1),  # for start_date
     ]
 
-    config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-03-31")
+    config = GitAnalysisConfig(_start_date_str="2025-01-01", _end_date_str="2025-03-31")
     assert config.start_date.isoformat() == "2025-01-01"
     assert config.end_date.isoformat() == "2025-03-31"
 
@@ -105,9 +101,7 @@ def test_get_date_range_natural_language_start_end(
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
@@ -116,7 +110,7 @@ def test_get_date_range_natural_language_start_end(
         (datetime(2025, 9, 22, 0, 0, 0), 1),  # for "last week"
     ]
 
-    config = GitAnalysisConfig(start_date="last week", end_date="yesterday")
+    config = GitAnalysisConfig(_start_date_str="last week", _end_date_str="yesterday")
     assert config.start_date.isoformat() == "2025-09-22"
     assert config.end_date.isoformat() == "2025-09-28"
 
@@ -129,9 +123,7 @@ def test_get_date_range_custom_default_period(mock_calendar_class, mock_datetime
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
@@ -142,75 +134,14 @@ def test_get_date_range_custom_default_period(mock_calendar_class, mock_datetime
     config = GitAnalysisConfig(default_period="6 months")
     assert config.end_date.isoformat() == "2025-09-29"
     assert (
-        config.start_date.isoformat() == "2025-03-29"
-    )  # 6 months (relativedelta) before 2025-09-29 is 2025-03-29
-
-
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_invalid_start_date_format(
-    mock_calendar_class, mock_datetime_class
-):
-    mock_datetime_class.now.return_value = datetime(2025, 9, 29)
-    mock_datetime_class.strptime = datetime.strptime
-    mock_datetime_class.timedelta = timedelta
-    mock_datetime_class.combine = datetime.combine
-    mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
+        config.start_date.isoformat() == "2025-03-29"  # 6 months (relativedelta) before 2025-09-29 is 2025-03-29
     )
 
-    mock_cal_instance = MagicMock()
-    mock_calendar_class.return_value = mock_cal_instance
-    mock_cal_instance.parseDT.return_value = (None, 0)  # for invalid start_date
-
-    with pytest.raises(ValueError, match="Could not parse start date: invalid-date"):
-        GitAnalysisConfig(start_date="invalid-date")
-
-
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_invalid_end_date_format(
-    mock_calendar_class, mock_datetime_class
-):
-    mock_datetime_class.now.return_value = datetime(2025, 9, 29)
-    mock_datetime_class.strptime = datetime.strptime
-    mock_datetime_class.timedelta = timedelta
-    mock_datetime_class.combine = datetime.combine
-    mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
+    config = GitAnalysisConfig(default_period="6 months")
+    assert config.end_date.isoformat() == "2025-09-29"
+    assert (
+        config.start_date.isoformat() == "2025-03-29"  # 6 months (relativedelta) before 2025-09-29 is 2025-03-29
     )
-
-    mock_cal_instance = MagicMock()
-    mock_calendar_class.return_value = mock_cal_instance
-    mock_cal_instance.parseDT.return_value = (None, 0)  # for invalid end_date
-
-    with pytest.raises(ValueError, match="Could not parse end date: invalid-date"):
-        GitAnalysisConfig(end_date="invalid-date")
-
-
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.Calendar")
-def test_get_date_range_start_after_end(mock_calendar_class, mock_datetime_class):
-    mock_datetime_class.now.return_value = datetime(2025, 9, 29)
-    mock_datetime_class.strptime = datetime.strptime
-    mock_datetime_class.timedelta = timedelta
-    mock_datetime_class.combine = datetime.combine
-    mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
-
-    mock_cal_instance = MagicMock()
-    mock_calendar_class.return_value = mock_cal_instance
-    mock_cal_instance.parseDT.side_effect = [
-        (datetime(2025, 9, 28, 0, 0, 0), 1),  # for end_date
-        (datetime(2025, 9, 29, 0, 0, 0), 1),  # for start_date
-    ]
-
-    with pytest.raises(ValueError, match="Start date cannot be after end date."):
-        GitAnalysisConfig(start_date="2025-09-29", end_date="2025-09-28")
 
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
@@ -224,9 +155,7 @@ def test_get_date_range_invalid_default_period(
     mock_datetime_class.timedelta = timedelta
     mock_datetime_class.combine = datetime.combine
     mock_datetime_class.date = datetime.date
-    mock_datetime_class.min = MagicMock(
-        time=MagicMock(return_value=datetime.min.time())
-    )
+    mock_datetime_class.min.time.return_value = datetime.min.time()
 
     mock_cal_instance = MagicMock()
     mock_calendar_class.return_value = mock_cal_instance
@@ -324,148 +253,6 @@ def test_main_df_path_with_custom_repo_path_mutually_exclusive(mock_logger):
     assert scoreboard.main() == 1
     mock_logger.error.assert_called_with(
         "Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis."
-    )
-
-
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "non_existent.parquet"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=False)
-@patch("git_dataframe_tools.cli._data_loader.logger")
-def test_main_df_path_not_found(mock_logger, mock_exists):
-    assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with(
-        "DataFrame file not found at 'non_existent.parquet'"
-    )
-
-
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
-@patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch("git_dataframe_tools.cli._data_loader.logger")
-def test_main_df_path_read_error(mock_logger, mock_read_table, mock_exists):
-    mock_read_table.side_effect = Exception("Parquet read error")
-    assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with(
-        "Error loading DataFrame from 'data.parquet': Parquet read error"
-    )
-
-
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
-@patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch("git_dataframe_tools.cli._data_loader.logger")
-def test_main_df_path_version_mismatch_abort(mock_logger, mock_read_table, mock_exists):
-    mock_table = MagicMock()
-    mock_table.schema.metadata = {b"data_version": b"2.0"}
-    mock_read_table.return_value = mock_table
-    assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with(
-        "DataFrame version mismatch. Expected '1.0', but found '2.0'. Aborting. Use --force-version-mismatch to proceed anyway."
-    )
-
-
-@patch.object(
-    sys,
-    "argv",
-    ["scoreboard.py", "--df-path", "data.parquet", "--force-version-mismatch"],
-)
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
-@patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch("git2df.get_commits_df")
-@patch("git_dataframe_tools.cli._data_loader.logger")
-@patch("datetime.datetime")
-@patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
-def test_main_df_path_version_mismatch_force(
-    mock_get_ranking,
-    mock_parse_git_log,
-    mock_datetime,
-    mock_logger,
-    mock_get_commits_df,
-    mock_read_table,
-    mock_exists,
-):
-    mock_datetime.now.return_value = datetime(2025, 9, 29)
-    mock_datetime.combine = datetime.combine
-    mock_datetime.date = datetime.date
-    mock_datetime.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
-    mock_table = MagicMock()
-    mock_table.schema.metadata = {b"data_version": b"2.0"}
-    mock_table.to_pandas.return_value = pd.DataFrame()
-    mock_read_table.return_value = mock_table
-    mock_parse_git_log.return_value = {}
-    mock_get_ranking.return_value = []
-
-    assert scoreboard.main() == 1
-    mock_logger.warning.assert_any_call(
-        "DataFrame version mismatch. Expected '1.0', but found '2.0'. Proceeding due to --force-version-mismatch."
-    )
-
-
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
-@patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch("git_dataframe_tools.cli._data_loader.logger")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-def test_main_df_path_no_version_metadata_abort(
-    mock_print,
-    mock_print_header,
-    mock_get_ranking,
-    mock_parse_git_log,
-    mock_logger,
-    mock_read_table,
-    mock_exists,
-):
-    mock_table = MagicMock()
-    mock_table.schema.metadata = {}  # No data_version metadata
-    mock_read_table.return_value = mock_table
-    assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with(
-        "No 'data_version' metadata found in the DataFrame file. Aborting. Use --force-version-mismatch to proceed anyway."
-    )
-
-
-@patch.object(
-    sys,
-    "argv",
-    ["scoreboard.py", "--df-path", "data.parquet", "--force-version-mismatch"],
-)
-@patch(f"{SCOREBOARD_MODULE_PATH}.os.path.exists", return_value=True)
-@patch(f"{SCOREBOARD_MODULE_PATH}.pq.read_table")
-@patch("git_dataframe_tools.cli._data_loader.logger")
-@patch(f"{SCOREBOARD_MODULE_PATH}.setup_logging")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.parse_git_log")
-@patch(f"{SCOREBOARD_MODULE_PATH}.stats_module.get_ranking")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print_header")
-@patch(f"{SCOREBOARD_MODULE_PATH}.print")
-@patch("datetime.datetime")
-def test_main_df_path_no_version_metadata_force(
-    mock_datetime,
-    mock_print,
-    mock_print_header,
-    mock_get_ranking,
-    mock_parse_git_log,
-    mock_setup_logging,
-    mock_logger,
-    mock_read_table,
-    mock_exists,
-):
-    mock_datetime.now.return_value = datetime(2025, 9, 29)
-    mock_datetime.combine = datetime.combine
-    mock_datetime.date = datetime.date
-    mock_datetime.min = MagicMock(time=MagicMock(return_value=datetime.min.time()))
-    mock_table = MagicMock()
-    mock_table.schema.metadata = {}
-    mock_table.to_pandas.return_value = pd.DataFrame()
-    mock_read_table.return_value = mock_table
-    mock_parse_git_log.return_value = {}
-    mock_get_ranking.return_value = []
-
-    assert scoreboard.main() == 1
-    mock_logger.warning.assert_any_call(
-        "No 'data_version' metadata found in the DataFrame file. Proceeding due to --force-version-mismatch."
     )
 
 

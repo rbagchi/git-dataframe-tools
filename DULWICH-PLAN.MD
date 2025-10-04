@@ -13,6 +13,9 @@ Implement a new backend for `git2df` that utilizes `dulwich` to fetch Git histor
 *   **Timeframe:** Last year from the current date.
 *   **Desired Output:** A Pandas DataFrame with the same detailed commit and file change information as a local `git clone` would provide.
 
+**Note on Remote URL and Branch Specification:**
+The `remote_url` will refer to the base URL of the Git repository (e.g., `https://github.com/python/cpython`). The specific branch (e.g., `3.14`) will be provided via a separate `--remote-branch` option. This mirrors standard Git practice where the repository URL and branch are distinct.
+
 ## Achievable Steps
 
 ### Phase 1: Dulwich Research and Basic Fetch
@@ -50,7 +53,7 @@ Implement a new backend for `git2df` that utilizes `dulwich` to fetch Git histor
     *   **Action:** Create a new class `DulwichRemoteBackend` in `src/git2df/backends.py` (or a new file like `src/git2df/remote_backends.py`). This class will encapsulate the `dulwich` logic developed in Phases 1-3.
     *   **Interface:** Ensure it conforms to an abstract backend interface (if one exists or is created) that `git2df.get_commits_df` can use.
 2.  **Modify `git2df.get_commits_df`:**
-    *   **Action:** Add `remote_url: Optional[str]` to its signature.
+    *   **Action:** Add `remote_url: Optional[str]` and `remote_branch: Optional[str] = "master"` (or "main") to its signature.
     *   **Logic:** If `remote_url` is provided, instantiate and use the `DulwichRemoteBackend`. Otherwise, use the existing `GitPython` backend.
     *   **Parameter Mapping:** Map `get_commits_df` parameters (like `since`, `until`, `author`, `grep`, `include_paths`, `exclude_paths`) to `dulwich`'s filtering capabilities or implement post-fetch filtering.
 3.  **Temporary Object Store Management:**
@@ -59,13 +62,15 @@ Implement a new backend for `git2df` that utilizes `dulwich` to fetch Git histor
 ### Phase 5: CLI Integration and Testing
 
 1.  **Modify `git-df` CLI:**
-    *   **Action:** Add `--remote-url <url>` option to `git-df`.
-    *   **Logic:** If `--remote-url` is used, pass it to `git2df.get_commits_df`. Ensure mutual exclusivity with `repo_path`.
+    *   **Action:** Add `--remote-url <url>` and `--remote-branch <branch>` options to `git-df`.
+    *   **Logic:** If `--remote-url` is used, pass it along with `--remote-branch` to `git2df.get_commits_df`. Ensure mutual exclusivity with `repo_path`.
+    *   **Example:** `git-df --remote-url https://github.com/python/cpython --remote-branch 3.14 --output cpython_314_commits.parquet`
 2.  **Modify `git-scoreboard` CLI:**
-    *   **Action:** Add `--remote-url <url>` option to `git-scoreboard`.
-    *   **Logic:** If `--remote-url` is used, internally call `git2df.get_commits_df` with the `remote_url` and then proceed with analysis. Ensure mutual exclusivity with `repo_path` and `--df-path`.
+    *   **Action:** Add `--remote-url <url>` and `--remote-branch <branch>` options to `git-scoreboard`.
+    *   **Logic:** If `--remote-url` is used, internally call `git2df.get_commits_df` with the `remote_url` and `remote_branch`, and then proceed with analysis. Ensure mutual exclusivity with `repo_path` and `--df-path`.
+    *   **Example:** `git-scoreboard --remote-url https://github.com/python/cpython --remote-branch 3.14 --since "1 year ago"`
 3.  **Update Documentation:**
-    *   **Action:** Update `README.md` and `RUNBOOK-git2df.md` to reflect the new `--remote-url` option and its usage.
+    *   **Action:** Update `README.md` and `RUNBOOK-git2df.md` to reflect the new `--remote-url` and `--remote-branch` options and their usage.
 4.  **Add Comprehensive Tests:**
     *   **Action:** Write unit tests for the `DulwichRemoteBackend`.
-    *   **Action:** Write integration tests for `git-df` and `git-scoreboard` using `--remote-url` against `https://github.com/python/cpython` (or a smaller, dedicated test repository) for the specified branch and timeframe. Mock network interactions where necessary.
+    *   **Action:** Write integration tests for `git-df` and `git-scoreboard` using `--remote-url` and `--remote-branch` against `https://github.com/python/cpython` (or a smaller, dedicated test repository) for the specified branch and timeframe. Mock network interactions where necessary.

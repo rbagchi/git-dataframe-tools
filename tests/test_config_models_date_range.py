@@ -1,9 +1,8 @@
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
-from dateutil.relativedelta import relativedelta
 
-from git_dataframe_tools.config_models import GitAnalysisConfig, _parse_period_string
+from git_dataframe_tools.config_models import GitAnalysisConfig
 
 CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 
@@ -25,7 +24,8 @@ def test_get_date_range_default(mock_calendar_class, mock_datetime_class):
     config = GitAnalysisConfig()
     assert config.end_date.isoformat() == "2025-09-29"
     assert (
-        config.start_date.isoformat() == "2025-06-29"  # 3 months (relativedelta) before 2025-09-29 is 2025-06-29"
+        config.start_date.isoformat()
+        == "2025-06-29"  # 3 months (relativedelta) before 2025-09-29 is 2025-06-29"
     )
 
 

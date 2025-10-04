@@ -5,8 +5,7 @@ import sys
 import pandas as pd
 
 # Assuming scoreboard.py is in the parent directory
-from git_dataframe_tools.config_models import GitAnalysisConfig, _parse_period_string
-from dateutil.relativedelta import relativedelta
+from git_dataframe_tools.config_models import GitAnalysisConfig
 
 # Import the main script to be tested
 from git_dataframe_tools.cli import scoreboard

@@ -8,49 +8,29 @@ from git_dataframe_tools.config_models import GitAnalysisConfig
 from git2df import get_commits_df
 
 
-@pytest.fixture(scope="function")
-def temp_git_repo(tmp_path):
-    """Fixture to create a temporary git repository for integration tests."""
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
+sample_commits = [
+    {
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "message": "Initial commit",
+        "files": {"file1.txt": "hello world"},
+    },
+    {
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "message": "Second commit",
+        "files": {"file2.txt": "another file"},
+    },
+    {
+        "author_name": "Dev User",
+        "author_email": "dev@example.com",
+        "message": "Third commit by Dev User",
+        "files": {"file1.txt": "hello world again"},
+    },
+]
 
-    # Initialize git repo
-    subprocess.run(["git", "init"], cwd=repo_path, check=True)
 
-    # Set up a dummy user for commits
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
-    )
 
-    # Create some commits
-    (repo_path / "file1.txt").write_text("hello world")
-    subprocess.run(["git", "add", "file1.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=repo_path, check=True)
-
-    (repo_path / "file2.txt").write_text("another file")
-    subprocess.run(["git", "add", "file2.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Second commit"], cwd=repo_path, check=True)
-
-    # Simulate a different author
-    subprocess.run(
-        ["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True
-    )
-
-    (repo_path / "file1.txt").write_text("hello world again")
-    subprocess.run(["git", "add", "file1.txt"], cwd=repo_path, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True
-    )
-
-    yield repo_path
-
-    # Teardown: shutil.rmtree(repo_path) is handled by tmp_path fixture
 
 
 @pytest.fixture(scope="function")
@@ -170,13 +150,14 @@ def test_get_current_git_user_integration(temp_git_repo_with_remote):
         os.chdir(original_cwd)
 
 
-def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
+@pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
+def test_get_git_log_data_integration_default(git_repo):
     original_cwd = os.getcwd()
-    os.chdir(temp_git_repo_with_remote)
+    os.chdir(git_repo)
     try:
         config = GitAnalysisConfig(start_date="2025-01-01", end_date="2025-12-31")
         git_data_df = get_commits_df(
-            repo_path=temp_git_repo_with_remote,
+            repo_path=git_repo,
             since=config.start_date.isoformat(),
             until=config.end_date.isoformat(),
             author=config.author_query,
@@ -187,7 +168,7 @@ def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
 
         # Check for presence of expected authors and total number of commits
         assert not git_data_df.empty
-        assert len(git_data_df) == 5  # 5 total file changes in the fixture
+        assert len(git_data_df) == 3  # 3 total file changes in the fixture
         assert "commit_hash" in git_data_df.columns
         assert "parent_hash" in git_data_df.columns
         assert "author_name" in git_data_df.columns
@@ -199,7 +180,7 @@ def test_get_git_log_data_integration_default(temp_git_repo_with_remote):
         assert "deletions" in git_data_df.columns
         assert "commit_message" in git_data_df.columns
         assert git_data_df["author_name"].nunique() == 2  # Test User and Dev User
-        assert git_data_df["commit_hash"].nunique() == 5  # 5 unique commits
+        assert git_data_df["commit_hash"].nunique() == 3  # 3 unique commits
 
     finally:
         os.chdir(original_cwd)

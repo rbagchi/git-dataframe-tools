@@ -41,7 +41,7 @@ def print_error(text):
 def _parse_period_string(period_str: str) -> Union[timedelta, relativedelta]:
     """Parses a period string like '3 months' or '1 year' into a timedelta."""
     period_str = period_str.lower().strip()
-    match = re.match(r"^(\d+)\s*(day|week|month|year)s?$", period_str)
+    match = re.match(r"^(\d+)\s+(day|week|month|year)s?(\s+ago)?$", period_str)
     if not match:
         raise ValueError(
             f"Invalid period format: {period_str}. Use format like '3 months' or '1 year'."

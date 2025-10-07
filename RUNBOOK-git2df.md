@@ -4,6 +4,13 @@ This runbook demonstrates how to use the `git2df` library to extract commit data
 
 The primary function to use is `git2df.get_commits_df`.
 
+## Backends
+
+`git2df` uses different backends to extract data depending on the source of the repository.
+
+*   **`GitCliBackend`**: This is the default backend and is used for local repositories. It uses the `git` command-line interface to extract data.
+*   **`DulwichRemoteBackend`**: This backend is used for remote repositories. It uses the `dulwich` library to extract data directly from the remote repository without needing to clone it locally.
+
 ## Basic Usage
 
 To get all commit data from the current repository:
@@ -18,9 +25,33 @@ print(df.head())
 print(df.info())
 ```
 
+### Analyze Remote Repositories (`remote_url`, `remote_branch`)
+
+You can now analyze remote Git repositories directly without a local clone by providing a `remote_url`.
+
+```python
+import git2df
+
+# Analyze a remote repository's 'main' branch
+df_remote = git2df.get_commits_df(
+    remote_url="https://github.com/pallets/flask",
+    remote_branch="main",
+    since="6 months ago"
+)
+print("Commits from remote Flask repository:")
+print(df_remote.head())
+```
+
+*   `remote_url`: URL of the remote Git repository to analyze (e.g., `https://github.com/user/repo`). Mutually exclusive with `repo_path`.
+*   `remote_branch`: Branch of the remote repository to analyze (default: `main`). Only applicable with `remote_url`.
+
 ## Filtering Commits
 
 The `get_commits_df` function supports various parameters to filter the commits.
+
+*   `repo_path`: The path to the git repository. Mutually exclusive with `remote_url`.
+*   `remote_url`: URL of the remote Git repository to analyze (e.g., `https://github.com/user/repo`). Mutually exclusive with `repo_path`.
+*   `remote_branch`: Branch of the remote repository to analyze (default: `main`). Only applicable with `remote_url`.
 
 ### Filter by Date (`since`, `until`)
 

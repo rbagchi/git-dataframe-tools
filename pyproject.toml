@@ -26,6 +26,7 @@ dependencies = [
     "pyarrow",
     "python-dateutil",
     "GitPython",
+    "pytest>=7.4.4",
 ]
 
 [tool.setuptools.packages.find]

@@ -40,7 +40,7 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
                 current_files = []
             continue
 
-        if line.startswith("--"):
+        if line.startswith("|||"):
             # New commit entry
             if current_commit and current_files:
                 # If we have a previous commit and its files, add them
@@ -53,8 +53,8 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
             current_commit = {}
             current_files = []
 
-            parts = line.split("--")
-            # Expected format: --%H--%P--%an--%ae--%ad--%s
+            parts = line.split("|||")
+            # Expected format: |||%H|||%P|||%an|||%ae|||%ad|||%s
             if len(parts) >= 7:
                 commit_hash = parts[1]
                 parent_hash = (

@@ -24,10 +24,21 @@ def parse_arguments():
         description="Extracts filtered Git commit data and saves it to a Parquet file as a Pandas DataFrame.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument(
+
+    repo_group = parser.add_mutually_exclusive_group(required=True)
+    repo_group.add_argument(
         "--repo-path",
         default=".",
-        help="Path to the Git repository (default: current directory).",
+        help="Path to the Git repository (default: current directory). This cannot be used with --remote-url.",
+    )
+    repo_group.add_argument(
+        "--remote-url",
+        help="URL of the remote Git repository to analyze (e.g., https://github.com/user/repo). This cannot be used with --repo-path.",
+    )
+    parser.add_argument(
+        "--remote-branch",
+        default="main",
+        help="Branch of the remote repository to analyze (default: main). Only applicable with --remote-url.",
     )
     parser.add_argument(
         "-S",
@@ -86,17 +97,25 @@ def run_git_df_cli(args):
     setup_logging(debug=args.debug, verbose=args.verbose)
     logger.debug(f"CLI arguments: {args}")
 
-    # Ensure the repository path exists
-    if not os.path.isdir(args.repo_path):
+    # Ensure the repository path exists if a local repo is used
+    if not args.remote_url and args.repo_path and not os.path.isdir(args.repo_path):
         logger.error(
             f"Repository path '{args.repo_path}' does not exist or is not a directory."
         )
         sys.exit(1)
 
-    logger.info(f"Extracting commit data from '{args.repo_path}'...")
+    if args.remote_url:
+        logger.info(f"Extracting commit data from remote '{args.remote_url}' branch '{args.remote_branch}'...")
+        repo_path_arg = None # Not used for remote
+    else:
+        logger.info(f"Extracting commit data from local '{args.repo_path}'...")
+        repo_path_arg = args.repo_path
+
     try:
         commits_df = get_commits_df(
-            repo_path=args.repo_path,
+            repo_path=repo_path_arg,
+            remote_url=args.remote_url,
+            remote_branch=args.remote_branch,
             since=args.since,
             until=args.until,
             author=args.author,

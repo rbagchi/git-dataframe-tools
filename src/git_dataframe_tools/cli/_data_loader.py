@@ -59,12 +59,16 @@ def _gather_git_data(args, config: GitAnalysisConfig):
 
     logger.info("Gathering commit data directly from Git...")
     try:
-        if not config._check_git_repo(args.repo_path):
-            logger.error("Not in a git repository")
-            return None, 1
+        if not args.remote_url:
+            # Only check for local repo if remote_url is not provided
+            if not config._check_git_repo(args.repo_path):
+                logger.error("Not in a git repository")
+                return None, 1
 
         git_log_data = get_commits_df(
-            repo_path=args.repo_path,
+            repo_path=args.repo_path if not args.remote_url else ".", # Pass repo_path only if local
+            remote_url=args.remote_url,
+            remote_branch=args.remote_branch,
             since=config.start_date.isoformat() if config.start_date else None,
             until=config.end_date.isoformat() if config.end_date else None,
             author=config.author_query,
@@ -74,5 +78,5 @@ def _gather_git_data(args, config: GitAnalysisConfig):
         )
         return git_log_data, 0
     except Exception as e:
-        logger.error(f"Error fetching git log data: {e}")
+        logger.error(f"Error fetching git log data: {e}", exc_info=True)
         return None, 1

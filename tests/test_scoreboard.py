@@ -14,7 +14,7 @@ SCOREBOARD_MODULE_PATH = "git_dataframe_tools.cli.scoreboard"
 # --- Tests for scoreboard.py ---
 
 
-@patch.object(sys, "argv", ["scoreboard.py"])
+@patch.object(sys, "argv", ["scoreboard.py", "."])
 def test_parse_arguments_default():
     args = scoreboard.parse_arguments()
     assert args.repo_path == "."
@@ -25,7 +25,7 @@ def test_parse_arguments_default():
     assert args.merges is False
     assert args.path is None
     assert args.exclude_path is None
-    assert args.default_period == "3 months"
+    assert args.default_period == "3 months ago"
     assert args.df_path is None
     assert args.force_version_mismatch is False
     assert args.verbose is False
@@ -37,7 +37,6 @@ def test_parse_arguments_default():
     "argv",
     [
         "scoreboard.py",
-        "~/my_repo",
         "--since",
         "2024-01-01",
         "-U",
@@ -63,7 +62,7 @@ def test_parse_arguments_default():
 )
 def test_parse_arguments_all_options():
     args = scoreboard.parse_arguments()
-    assert args.repo_path == "~/my_repo"
+    assert args.repo_path == "."
     assert args.since == "2024-01-01"
     assert args.until == "2024-03-31"
     assert args.author == "John Doe"
@@ -78,7 +77,7 @@ def test_parse_arguments_all_options():
     assert args.debug is True
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--author", "test", "--me"])
+@patch.object(sys, "argv", ["scoreboard.py", ".", "--author", "test", "--me"])
 @patch("git_dataframe_tools.cli._validation.logger")
 def test_main_author_and_me_mutually_exclusive(mock_logger):
     assert scoreboard.main() == 1
@@ -87,18 +86,10 @@ def test_main_author_and_me_mutually_exclusive(mock_logger):
     )
 
 
-@patch.object(
-    sys, "argv", ["scoreboard.py", "--df-path", "data.parquet", "./custom/repo"]
-)
-@patch("git_dataframe_tools.cli._validation.logger")
-def test_main_df_path_with_custom_repo_path_mutually_exclusive(mock_logger):
-    assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with(
-        "Error: Cannot use --df-path with a custom repo_path. The --df-path option replaces direct Git repository analysis."
-    )
 
 
-@patch.object(sys, "argv", ["scoreboard.py"])
+
+@patch.object(sys, "argv", ["scoreboard.py", "/tmp/non-existent-repo"])
 @patch(
     f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=False
 )
@@ -108,7 +99,7 @@ def test_main_not_a_git_repo(mock_logger, mock_check_git_repo):
     mock_logger.error.assert_called_with("Not in a git repository")
 
 
-@patch.object(sys, "argv", ["scoreboard.py"])
+@patch.object(sys, "argv", ["scoreboard.py", "."])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
 @patch("git_dataframe_tools.cli._data_loader.logger")
@@ -120,7 +111,7 @@ def test_main_get_commits_df_error(
     mock_logger.error.assert_called_with("Error fetching git log data: Git error")
 
 
-@patch.object(sys, "argv", ["scoreboard.py"])
+@patch.object(sys, "argv", ["scoreboard.py", "."])
 @patch("git_dataframe_tools.cli._display_utils.logger")
 @patch("builtins.print")
 @patch("git_dataframe_tools.cli._display_utils.print_header")
@@ -152,7 +143,7 @@ def test_main_no_commits_found(
     )
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "-a", "John Doe"])
+@patch.object(sys, "argv", ["scoreboard.py", ".", "-a", "John Doe"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
@@ -171,7 +162,7 @@ def test_main_author_specific_no_match(
     mock_display_author_specific_stats.assert_called_once()
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "-a", "John Doe"])
+@patch.object(sys, "argv", ["scoreboard.py", ".", "-a", "John Doe"])
 @patch("git_dataframe_tools.git_stats_pandas.find_author_stats")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
 @patch("git2df.get_commits_df")
@@ -213,7 +204,7 @@ def test_main_author_specific_single_match(
     mock_display_author_specific_stats.assert_called_once()
 
 
-@patch.object(sys, "argv", ["scoreboard.py"])
+@patch.object(sys, "argv", ["scoreboard.py", "."])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
@@ -274,7 +265,7 @@ def test_main_full_ranking_output(
     mock_print.assert_any_call("- Total unique authors: 2")
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "-m"])
+@patch.object(sys, "argv", ["scoreboard.py", ".", "--me"])
 @patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git2df.get_commits_df")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")

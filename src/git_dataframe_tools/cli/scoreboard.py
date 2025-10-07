@@ -33,11 +33,26 @@ def parse_arguments():
         description="Git Author Ranking by Diff Size (Last 3 Months)",
         formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument(
+
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument(
         "repo_path",
         nargs="?",
         default=".",
-        help="Path to the Git repository (default: current directory).",
+        help="Path to the Git repository (default: current directory). Cannot be used with --remote-url or --df-path.",
+    )
+    source_group.add_argument(
+        "--remote-url",
+        help="URL of the remote Git repository to analyze (e.g., https://github.com/user/repo). Cannot be used with repo_path or --df-path.",
+    )
+    source_group.add_argument(
+        "--df-path",
+        help="Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df). Cannot be used with repo_path or --remote-url.",
+    )
+    parser.add_argument(
+        "--remote-branch",
+        default="main",
+        help="Branch of the remote repository to analyze (default: main). Only applicable with --remote-url.",
     )
     parser.add_argument(
         "-S",
@@ -52,13 +67,9 @@ def parse_arguments():
         "--author",
         help='Filter by author name or email (e.g., "John Doe", "john@example.com")',
     )
+    parser.add_argument("--me", action="store_true", help="Filter by your own git user name and email")
     parser.add_argument(
         "-m",
-        "--me",
-        action="store_true",
-        help="Filter by current git user (uses git config user.name and user.email)",
-    )
-    parser.add_argument(
         "--merges",
         action="store_true",
         help="Only include commits that are merged into the current branch (e.g., via pull requests)",
@@ -77,13 +88,8 @@ def parse_arguments():
     )
     parser.add_argument(
         "--default-period",
-        default="3 months",
-        help='Default period if --since or --until are not specified (e.g., "3 months", "1 year")',
-    )
-
-    parser.add_argument(
-        "--df-path",
-        help="Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df).",
+        default="3 months ago",
+        help="Default time period for analysis if --since is not provided (default: 3 months ago)",
     )
     parser.add_argument(
         "--force-version-mismatch",

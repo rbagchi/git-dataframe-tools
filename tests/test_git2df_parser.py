@@ -5,15 +5,15 @@ from git2df.git_parser import _parse_git_data_internal
 def test_parse_git_data_internal_commit_centric():
     """Test _parse_git_data_internal with commit-centric git log output."""
     git_log_output = [
-        "--commit1hash--parent1hash--Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1",
+        "---commit1hash---parent1hash---Author One---author1@example.com---2023-01-01T10:00:00+00:00---Subject 1",
         "10\t5\tfile1.txt",
         "2\t1\tfile2.py",
         "",  # Empty line separator
-        "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2",  # No parent hash
+        "---commit2hash------Author Two---author2@example.com---2023-01-02T11:00:00+00:00---Subject 2",  # No parent hash
         "20\t0\tfile3.md",
         "-\t-\tbinary_file.bin",  # Binary file, no changes
         "",
-        "--commit3hash--parent3hash--Author One--author1@example.com--2023-01-03T12:00:00+00:00--Subject 3",
+        "---commit3hash---parent3hash---Author One---author1@example.com---2023-01-03T12:00:00+00:00---Subject 3",
         "0\t15\tfile4.js",  # Deletion
         "5\t0\tfile5.txt",  # Addition
     ]
@@ -107,9 +107,9 @@ def test_parse_git_data_internal_empty_input():
 def test_parse_git_data_internal_no_file_stats():
     """Test _parse_git_data_internal with commits but no file stats."""
     git_log_output = [
-        "--commit1hash--parent1hash--Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1",
+        "---commit1hash---parent1hash---Author One---author1@example.com---2023-01-01T10:00:00+00:00---Subject 1",
         "",
-        "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2",
+        "---commit2hash------Author Two---author2@example.com---2023-01-02T11:00:00+00:00---Subject 2",
     ]
     result = _parse_git_data_internal(git_log_output)
     assert result == []

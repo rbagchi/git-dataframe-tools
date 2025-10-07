@@ -11,7 +11,6 @@ from dulwich.diff_tree import TreeChange
 import dulwich.diff_tree
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class DulwichRemoteBackend:
@@ -129,8 +128,9 @@ class DulwichRemoteBackend:
                 author_email = commit.author.decode('utf-8').split('<')[1].strip('>')
                 commit_message_summary = commit.message.decode('utf-8').splitlines()[0].replace("--", " ")
 
-                commit_line = f"|||{commit_hash}|||{parent_hashes}|||{author_name}|||{author_email}|||{commit_datetime.isoformat()}|||{commit_message_summary}"
-                output_lines.append(commit_line)
+                output_lines.append(
+                    f"---{commit_hash}---{parent_hashes}---{author_name}---{author_email}---{commit_datetime.isoformat()}---{commit_message_summary}"
+                )
                 logger.debug(f"Appended commit line for {commit_hash}")
 
                 # Extract file changes
@@ -143,9 +143,6 @@ class DulwichRemoteBackend:
                 raw_changes = dulwich.diff_tree.tree_changes(repo.object_store, old_tree_id, commit.tree)
 
 
-
-                file_stats = {}
-                file_change_lines = [] # New list for file changes
 
                 for change in raw_changes:
                     change_type = change.type
@@ -169,36 +166,27 @@ class DulwichRemoteBackend:
                     size = 0 # Placeholder
                     hash_val = "" # Placeholder
 
-
-                    # Initialize file_stats entry if not present
-                    if path not in file_stats:
-                        file_stats[path] = {"additions": 0, "deletions": 0}
+                    additions = 0
+                    deletions = 0
 
                     # Calculate additions and deletions based on change_type and blob content
                     if change_type == b"add" and new_sha:
                         blob = repo.get_object(new_sha)
-                        additions_val = len(blob.as_pretty_string().splitlines())
-                        file_stats[path]["additions"] += additions_val
+                        additions = len(blob.as_pretty_string().splitlines())
                     elif change_type == b"delete" and old_sha:
                         blob = repo.get_object(old_sha)
-                        deletions_val = len(blob.as_pretty_string().splitlines())
-                        file_stats[path]["deletions"] += deletions_val
+                        deletions = len(blob.as_pretty_string().splitlines())
                     elif change_type == b"modify" and old_sha and new_sha:
                         old_blob = repo.get_object(old_sha)
                         new_blob = repo.get_object(new_sha)
                         old_lines = old_blob.as_pretty_string().splitlines()
                         new_lines = new_blob.as_pretty_string().splitlines()
-                        additions_val = len(new_lines) - len(old_lines) if len(new_lines) > len(old_lines) else 0
-                        deletions_val = len(old_lines) - len(new_lines) if len(old_lines) > len(new_lines) else 0
-                        file_stats[path]["additions"] += additions_val
-                        file_stats[path]["deletions"] += deletions_val
+                        additions = len(new_lines) - len(old_lines) if len(new_lines) > len(old_lines) else 0
+                        deletions = len(old_lines) - len(new_lines) if len(old_lines) > len(new_lines) else 0
 
-                for path, stats in file_stats.items():
-                    file_change_lines.append(
-                        f"{stats['additions']}\t{stats['deletions']}\t{path}"
+                    output_lines.append(
+                        f"{additions}\t{deletions}\t{path}"
                     )
-
-                output_lines.extend(file_change_lines)
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)

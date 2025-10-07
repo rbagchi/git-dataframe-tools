@@ -48,3 +48,6 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

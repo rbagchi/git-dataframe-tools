@@ -108,8 +108,7 @@ def test_main_get_commits_df_error(
 ):
     mock_get_commits_df.side_effect = Exception("Git error")
     assert scoreboard.main() == 1
-    mock_logger.error.assert_called_with("Error fetching git log data: Git error")
-
+    mock_logger.error.assert_called_with("Error fetching git log data: Git error", exc_info=True)
 
 @patch.object(sys, "argv", ["scoreboard.py", "."])
 @patch("git_dataframe_tools.cli._display_utils.logger")

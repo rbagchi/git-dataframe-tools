@@ -28,7 +28,7 @@ def test_get_raw_log_output_no_filters(mock_get_default_branch, mock_repo):
 
     # Assert
     expected_output = (
-        "--commit1hash----Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1\n"
+        "---commit1hash------Author One---author1@example.com---2023-01-01T10:00:00+00:00---Subject 1\n"
         "10\t5\tfile1.txt"
     )
     assert output == expected_output

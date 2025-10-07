@@ -5,7 +5,6 @@ from typing import List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 from git2df.dulwich_backend import DulwichRemoteBackend
 from dulwich.objects import Commit, Tree, Blob
@@ -141,7 +140,7 @@ def test_get_raw_log_output_basic_fetch(
         output = backend.get_raw_log_output(since="2 days ago")  # Changed since
     # Assert
     expected_output = (
-        f"|||commit_sha_head|||{'commit_sha_parent'.encode('ascii').hex()}|||Author One|||author1@example.com|||{commit_time.isoformat()}|||Subject 1\n"
+        f"---commit_sha_head---{'commit_sha_parent'.encode('ascii').hex()}---Author One---author1@example.com---{commit_time.isoformat()}---Subject 1\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output
@@ -230,7 +229,7 @@ def test_get_raw_log_output_initial_commit(
 
     # Assert
     expected_output = (
-        f"|||initial_commit_sha||||||Author Initial|||initial@example.com|||{commit_time.isoformat()}|||Initial commit\n"
+        f"---initial_commit_sha------Author Initial---initial@example.com---{commit_time.isoformat()}---Initial commit\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output

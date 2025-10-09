@@ -12,28 +12,12 @@ def extract_code_blocks(markdown_file):
     return code_blocks
 
 @pytest.mark.parametrize("code", extract_code_blocks('RUNBOOK-git2df.md'))
-def test_runbook_code(code, tmp_path: Path):
+def test_runbook_code(code, tmp_path: Path, git_repo):
     if "remote_url" in code:
         pytest.skip("Skipping remote repo test in runbook")
 
-    # Create a dummy git repository in the temporary directory
-    os.chdir(tmp_path)
-    subprocess.run(["git", "init"], check=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], check=True)
-    (tmp_path / "file1.txt").write_text("file1 content")
-    subprocess.run(["git", "add", "file1.txt"], check=True)
-    subprocess_env = os.environ.copy()
-    subprocess_env["GIT_COMMITTER_DATE"] = "2023-01-01T12:00:00+00:00"
-    subprocess.run(["git", "commit", "-m", "Initial commit"], check=True, env=subprocess_env)
-    (tmp_path / "file1.txt").write_text("file1 content updated")
-    subprocess.run(["git", "add", "file1.txt"], check=True)
-    subprocess_env["GIT_COMMITTER_DATE"] = "2023-06-15T12:00:00+00:00"
-    subprocess.run(["git", "commit", "-m", "Update file1"], check=True, env=subprocess_env)
-    (tmp_path / "file2.txt").write_text("file2 content")
-    subprocess.run(["git", "add", "file2.txt"], check=True)
-    subprocess_env["GIT_COMMITTER_DATE"] = "2023-12-01T12:00:00+00:00"
-    subprocess.run(["git", "commit", "-m", "Add file2"], check=True, env=subprocess_env)
+    # Change to the git_repo directory
+    os.chdir(git_repo)
 
     # Create a virtualenv
     venv_path = tmp_path / ".venv"
@@ -51,6 +35,11 @@ def test_runbook_code(code, tmp_path: Path):
     # Run the code in the virtualenv
     python_executable = str(venv_path / "bin" / "python")
     try:
-        subprocess.run([python_executable, str(py_file)], shell=False, check=True, capture_output=True, text=True)
+        # Set PYTHONPATH to include the project root so git2df can be found
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(Path(__file__).parent.parent)
+        # Pass the git_repo path to the environment for the subprocess
+        env["GIT_REPO_PATH"] = str(git_repo)
+        subprocess.run([python_executable, str(py_file)], shell=False, check=True, capture_output=True, text=True, env=env)
     except subprocess.CalledProcessError as e:
         pytest.fail(f"Code block failed: {code}\nStdout: {e.stdout}\nStderr: {e.stderr}")

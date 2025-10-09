@@ -162,6 +162,7 @@ def test_main_author_specific_no_match(
 
 
 @patch.object(sys, "argv", ["scoreboard.py", ".", "-a", "John Doe"])
+@patch(f"{SCOREBOARD_MODULE_PATH}.GitAnalysisConfig._check_git_repo", return_value=True)
 @patch("git_dataframe_tools.git_stats_pandas.find_author_stats")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
 @patch("git2df.get_commits_df")
@@ -171,8 +172,9 @@ def test_main_author_specific_single_match(
     mock_get_commits_df,
     mock_parse_git_log,
     mock_find_author_stats,
+    mock_check_git_repo,
 ):
-    mock_get_commits_df.return_value = pd.DataFrame()
+    mock_get_commits_df.return_value = pd.DataFrame([{"commit_hash": "dummy", "author_name": "John Doe"}])
     mock_parse_git_log.return_value = {
         "John Doe <john@example.com>": [
             {
@@ -184,22 +186,10 @@ def test_main_author_specific_single_match(
             }
         ]
     }
-    mock_find_author_stats.return_value = [
-        {
-            "author_name": "John Doe",
-            "author_email": "john@example.com",
-            "rank": 1,
-            "added": 100,
-            "deleted": 50,
-            "total": 150,
-            "commits": 10,
-            "diff_decile": 1,
-            "commit_decile": 1,
-        }
-    ]
     mock_display_author_specific_stats.return_value = 0
 
-    assert scoreboard.main() == 0
+    result = scoreboard.main()
+    assert result == 0
     mock_display_author_specific_stats.assert_called_once()
 
 

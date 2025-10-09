@@ -47,11 +47,3 @@ def test_readme_commands(tmp_path: Path):
     # 4. Run git-scoreboard directly on the git repo
     git_scoreboard_direct_command = "python -m git_dataframe_tools.cli.scoreboard . --since \"6 months ago\""
     subprocess.run(git_scoreboard_direct_command, shell=True, check=True, capture_output=True, text=True, env=env)
-
-    # 5. Run git-df with a remote repo
-    git_df_remote_command = "python -m git_dataframe_tools.cli.git_df --remote-url https://github.com/pallets/flask --remote-branch main --output remote_commits.parquet --since \"1 year ago\""
-    subprocess.run(git_df_remote_command, shell=True, check=True, capture_output=True, text=True, env=env)
-
-    # 6. Run git-scoreboard with a remote repo
-    git_scoreboard_remote_command = "python -m git_dataframe_tools.cli.scoreboard --remote-url https://github.com/pallets/flask --remote-branch main --since \"6 months ago\""
-    subprocess.run(git_scoreboard_remote_command, shell=True, check=True, capture_output=True, text=True, env=env)

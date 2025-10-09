@@ -27,6 +27,7 @@ dependencies = [
     "python-dateutil",
     "GitPython",
     "pytest>=7.4.4",
+    "dulwich>=0.21.7",
 ]
 
 [tool.setuptools.packages.find]

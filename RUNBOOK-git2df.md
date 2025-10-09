@@ -103,19 +103,6 @@ print("Commits with 'feature' in message:")
 print(df_grep.head())
 ```
 
-### Filter for Merged Commits Only (`merged_only`)
-
-To get only commits that have been merged into the current branch:
-
-```python
-import git2df
-
-# Get only merged commits
-df_merged = git2df.get_commits_df(merged_only=True)
-print("Merged commits only:")
-print(df_merged.head())
-```
-
 ### Filter by Included/Excluded Paths (`include_paths`, `exclude_paths`)
 
 To get commits affecting specific files or directories, or to exclude them:

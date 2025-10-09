@@ -4,6 +4,8 @@ import shutil
 from dulwich.repo import Repo
 import os
 import subprocess
+from pathlib import Path
+import git
 from dulwich.objects import Commit, Tree, Blob
 import dulwich.index
 import dulwich.porcelain
@@ -50,23 +52,41 @@ def git_repo(request):
     A pytest fixture that creates a temporary Git repository for testing.
     Can be pre-populated with commits using `request.param`.
     """
+    original_cwd = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = os.path.join(tmpdir, "test_repo")
-        os.makedirs(repo_path, exist_ok=True) # Create the directory before initializing the repo
-        Repo.init(repo_path)
+        os.makedirs(repo_path, exist_ok=True)  # Create the directory before initializing the repo
+        try:
+            os.chdir(repo_path)  # Change to the repo directory
+            Repo.init(repo_path)
+            repo = git.Repo(repo_path)
+            # Initial commit
+            (Path(repo_path) / "initial_file.txt").write_text("initial content")
+            repo.index.add(["initial_file.txt"])
+            initial_commit = repo.index.commit("Initial commit")
 
-        # Set up a default dummy user for initial git config
-        subprocess.run(
-            ["git", "config", "user.email", "default@example.com"], cwd=repo_path, check=True
-        )
-        subprocess.run(
-            ["git", "config", "user.name", "Default User"], cwd=repo_path, check=True
-        )
+            repo.head.reference = repo.create_head(
+                "main", initial_commit
+            )  # Create and checkout main branch
 
-        if hasattr(request, "param") and request.param:
-            _create_commits(repo_path, request.param)
+            # Set up a default dummy user for initial git config
+            subprocess.run(
+                ["git", "config", "user.email", "default@example.com"],
+                cwd=repo_path,
+                check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Default User"],
+                cwd=repo_path,
+                check=True,
+            )
 
-        yield repo_path
+            if hasattr(request, "param") and request.param:
+                _create_commits(repo_path, request.param)
+
+            yield repo_path
+        finally:
+            os.chdir(original_cwd)
 
 def _create_dulwich_commit(repo, files_to_add, message, author_name, author_email, timestamp):
     # Write files to the repository working directory
@@ -80,13 +100,32 @@ def _create_dulwich_commit(repo, files_to_add, message, author_name, author_emai
     if files_to_add:
         dulwich.porcelain.add(repo, list(files_to_add.keys()))
 
-    return repo.do_commit(
-        message.encode('utf-8'),
-        committer=f"{author_name} <{author_email}>".encode("utf-8"),
-        author=f"{author_name} <{author_email}>".encode("utf-8"),
-        commit_timestamp=timestamp,
-        author_timestamp=timestamp,
-    )
+    # Manually create commit object
+    commit = Commit()
+    commit.author = f"{author_name} <{author_email}>".encode("utf-8")
+    commit.committer = commit.author
+    commit.commit_time = timestamp
+    commit.author_time = timestamp
+    commit.author_timezone = 0
+    commit.commit_timezone = 0
+    commit.encoding = b"UTF-8"
+    commit.message = message.encode("utf-8")
+
+    try:
+        commit.parents = [repo.head()]
+    except KeyError:
+        commit.parents = []
+
+    # Create a tree from the index and set it to the commit
+    index = repo.open_index()
+    tree_id = index.commit(repo.object_store)
+    commit.tree = tree_id
+
+    repo.object_store.add_object(commit)
+    repo.refs[b"refs/heads/main"] = commit.id
+    repo.refs[b"HEAD"] = commit.id
+
+    return commit.id
 
 @pytest.fixture
 def dulwich_repo():

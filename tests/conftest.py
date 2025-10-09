@@ -16,7 +16,38 @@ import time
 import logging
 
 logging.getLogger("git2df.dulwich_backend").setLevel(logging.DEBUG)
+import re
+
 logger = logging.getLogger(__name__)
+
+sample_commits = [
+    {
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "message": "Initial commit",
+        "files": {"file1.txt": "hello world"},
+    },
+    {
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "message": "Second commit",
+        "files": {"file2.txt": "another file"},
+    },
+    {
+        "author_name": "Dev User",
+        "author_email": "dev@example.com",
+        "message": "Third commit by Dev User",
+        "files": {"file1.txt": "hello world again"},
+    },
+]
+
+def extract_code_blocks(markdown_file, language="python"):
+    with open(markdown_file, 'r') as f:
+        content = f.read()
+    # Look for code blocks with the specified language
+    code_blocks = re.findall(rf"```({language})\n(.*?)\n```", content, re.DOTALL)
+    # re.findall returns a list of tuples (language, code_block), we only need the code_block
+    return [block for lang, block in code_blocks if lang == language]
 
 def _create_commits(repo_path, commits_data):
     """Helper to create commits in a given repository."""

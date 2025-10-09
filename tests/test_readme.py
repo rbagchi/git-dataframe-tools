@@ -1,16 +1,9 @@
 import pytest
 import os
 import subprocess
-import re
 from pathlib import Path
 import sys
-
-def extract_code_blocks(markdown_file):
-    with open(markdown_file, 'r') as f:
-        content = f.read()
-    # Look for bash code blocks
-    code_blocks = re.findall(r"```bash\n(.*?)\n```", content, re.DOTALL)
-    return code_blocks
+from tests.conftest import extract_code_blocks
 
 def test_readme_commands(git_repo):
     project_root = Path(__file__).parent.parent
@@ -18,7 +11,7 @@ def test_readme_commands(git_repo):
     
     # Extract commands before changing directory
     commands_from_readme = []
-    for code in extract_code_blocks(readme_path):
+    for code in extract_code_blocks(readme_path, language="bash"):
         if "remote-url" in code:
             continue
         if "uv pip install" in code:

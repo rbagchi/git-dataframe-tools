@@ -7,27 +7,7 @@ from pathlib import Path
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
 from git2df import get_commits_df
-
-sample_commits = [
-    {
-        "author_name": "Test User",
-        "author_email": "test@example.com",
-        "message": "Initial commit",
-        "files": {"file1.txt": "hello world"},
-    },
-    {
-        "author_name": "Test User",
-        "author_email": "test@example.com",
-        "message": "Second commit",
-        "files": {"file2.txt": "another file"},
-    },
-    {
-        "author_name": "Dev User",
-        "author_email": "dev@example.com",
-        "message": "Third commit by Dev User",
-        "files": {"file1.txt": "hello world again"},
-    },
-]
+from tests.conftest import sample_commits
 
 
 

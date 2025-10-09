@@ -6,27 +6,7 @@ from unittest.mock import patch
 import sys
 
 from git_dataframe_tools.cli import scoreboard
-
-sample_commits = [
-    {
-        "author_name": "Test User",
-        "author_email": "test@example.com",
-        "message": "Initial commit",
-        "files": {"file1.txt": "hello world"},
-    },
-    {
-        "author_name": "Test User",
-        "author_email": "test@example.com",
-        "message": "Second commit",
-        "files": {"file2.txt": "another file"},
-    },
-    {
-        "author_name": "Dev User",
-        "author_email": "dev@example.com",
-        "message": "Third commit by Dev User",
-        "files": {"file1.txt": "hello world again"},
-    },
-]
+from tests.conftest import sample_commits
 
 # --- Unit tests for argument parsing ---
 

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 from git2df.dulwich_backend import DulwichRemoteBackend
 from dulwich.objects import Commit, Tree, Blob
 from dulwich.repo import Repo
-from conftest import _create_dulwich_commit
+from .conftest import _create_dulwich_commit
 from dulwich.diff_tree import TreeChange, TreeEntry  # Corrected import
 
 

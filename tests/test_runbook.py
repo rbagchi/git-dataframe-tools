@@ -1,17 +1,11 @@
 import pytest
 import os
 import subprocess
-import re
 from pathlib import Path
 import sys
+from tests.conftest import extract_code_blocks
 
-def extract_code_blocks(markdown_file):
-    with open(markdown_file, 'r') as f:
-        content = f.read()
-    code_blocks = re.findall(r"```python\n(.*?)\n```", content, re.DOTALL)
-    return code_blocks
-
-@pytest.mark.parametrize("code", extract_code_blocks('RUNBOOK-git2df.md'))
+@pytest.mark.parametrize("code", extract_code_blocks('RUNBOOK-git2df.md', language="python"))
 def test_runbook_code(code, tmp_path: Path, git_repo):
     if "remote_url" in code:
         pytest.skip("Skipping remote repo test in runbook")

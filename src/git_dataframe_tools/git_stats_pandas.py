@@ -73,11 +73,9 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     if n_diff > 0:
         current_decile_diff = 1
         for i in range(n_diff):
-            if (
-                i > 0
-                and author_stats_diff_sorted.loc[i, "total"]
-                < author_stats_diff_sorted.loc[i - 1, "total"]
-            ):
+            current_total = author_stats_diff_sorted["total"].iloc[i]
+            previous_total = author_stats_diff_sorted["total"].iloc[i - 1]
+            if i > 0 and current_total < previous_total:
                 current_rank_diff = i + 1
                 current_decile_diff = min(
                     10, math.ceil(current_rank_diff * 10 / n_diff)
@@ -94,11 +92,9 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     if n_commit > 0:
         current_decile_commit = 1
         for i in range(n_commit):
-            if (
-                i > 0
-                and author_stats_commit_sorted.loc[i, "commits"]
-                < author_stats_commit_sorted.loc[i - 1, "commits"]
-            ):
+            current_commits = author_stats_commit_sorted["commits"].iloc[i]
+            previous_commits = author_stats_commit_sorted["commits"].iloc[i - 1]
+            if i > 0 and current_commits < previous_commits:
                 current_rank_commit = i + 1
                 current_decile_commit = min(
                     10, math.ceil(current_rank_commit * 10 / n_commit)

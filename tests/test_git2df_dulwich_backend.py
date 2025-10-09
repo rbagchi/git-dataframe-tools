@@ -1,16 +1,14 @@
-from unittest.mock import patch, MagicMock, PropertyMock
-from datetime import datetime, timezone, timedelta  # Import timedelta
-import pytest
-from typing import List, Optional
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timezone, timedelta
+from typing import List
 import logging
-
-logger = logging.getLogger(__name__)
 
 from git2df.dulwich_backend import DulwichRemoteBackend
 from dulwich.objects import Commit, Tree, Blob
 from dulwich.repo import Repo
 from .conftest import _create_dulwich_commit
-from dulwich.diff_tree import TreeChange, TreeEntry  # Corrected import
+
+logger = logging.getLogger(__name__)
 
 
 # Helper to create a mock commit object
@@ -56,14 +54,10 @@ def create_mock_blob(sha: str, content: str) -> MagicMock:
 # Helper to create a mock TreeChange object (formerly create_mock_change)
 
 
-
 @patch("git2df.dulwich_backend.datetime")  # Patch datetime module
-@patch("time.time") # Patch time.time
-def test_get_raw_log_output_basic_fetch(
-    mock_time, mock_datetime_module, dulwich_repo
-):
+@patch("time.time")  # Patch time.time
+def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich_repo):
     # Arrange
-    remote_url = "https://github.com/test/repo"
     remote_branch = "main"
 
     # Mock datetime.datetime.now() to a fixed point in time
@@ -72,7 +66,9 @@ def test_get_raw_log_output_basic_fetch(
         spec=datetime
     )  # Mock datetime.datetime class
     mock_datetime_module.datetime.now.return_value = fixed_now
-    mock_time.return_value = fixed_now.timestamp() # Make time.time return the fixed timestamp
+    mock_time.return_value = (
+        fixed_now.timestamp()
+    )  # Make time.time return the fixed timestamp
     mock_datetime_module.datetime.fromtimestamp = (
         datetime.fromtimestamp
     )  # Ensure original fromtimestamp is used
@@ -87,11 +83,11 @@ def test_get_raw_log_output_basic_fetch(
     # Create parent commit
     parent_commit_id = _create_dulwich_commit(
         repo,
-        {}, # No files for parent commit
+        {},  # No files for parent commit
         "Subject 0",
         "Author Zero",
         "author0@example.com",
-        int(commit_time_parent.timestamp())
+        int(commit_time_parent.timestamp()),
     )
 
     # Create head commit
@@ -101,7 +97,7 @@ def test_get_raw_log_output_basic_fetch(
         "Subject 1\n\nBody 1",
         "Author One",
         "author1@example.com",
-        int(commit_time_head.timestamp())
+        int(commit_time_head.timestamp()),
     )
 
     backend = DulwichRemoteBackend(repo.path, remote_branch)
@@ -120,13 +116,12 @@ def test_get_raw_log_output_basic_fetch(
 
 
 @patch("git2df.dulwich_backend.datetime")  # Patch datetime module
-@patch("time.time") # Patch time.time
+@patch("time.time")  # Patch time.time
 def test_get_raw_log_output_initial_commit(
     mock_time,
     mock_datetime_module,
     dulwich_repo,
-):    # Arrange
-    remote_url = "https://github.com/test/repo"
+):  # Arrange
     remote_branch = "main"
 
     # Mock datetime.datetime.now() to a fixed point in time
@@ -135,7 +130,9 @@ def test_get_raw_log_output_initial_commit(
         spec=datetime
     )  # Mock datetime.datetime class
     mock_datetime_module.datetime.now.return_value = fixed_now
-    mock_time.return_value = fixed_now.timestamp() # Make time.time return the fixed timestamp
+    mock_time.return_value = (
+        fixed_now.timestamp()
+    )  # Make time.time return the fixed timestamp
     mock_datetime_module.datetime.fromtimestamp = (
         datetime.fromtimestamp
     )  # Ensure original fromtimestamp is used
@@ -151,7 +148,7 @@ def test_get_raw_log_output_initial_commit(
         "Initial commit",
         "Author Initial",
         "initial@example.com",
-        int(commit_time.timestamp())
+        int(commit_time.timestamp()),
     )
 
     backend = DulwichRemoteBackend(repo.path, remote_branch)

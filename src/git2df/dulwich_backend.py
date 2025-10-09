@@ -1,14 +1,12 @@
 import logging
 import tempfile
 import datetime
-import shutil
-from typing import List, Optional, Any
+from typing import List, Optional
 import os
 
 from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 from dulwich.objects import Commit
-from dulwich.diff_tree import TreeChange
 import dulwich.diff_tree
 
 logger = logging.getLogger(__name__)
@@ -22,58 +20,90 @@ class DulwichRemoteBackend:
         self.remote_branch = remote_branch
         self.is_local_repo = os.path.exists(remote_url) and os.path.isdir(remote_url)
 
+        self.repo: Optional[Repo]  # Declare the type once
+
         if self.is_local_repo:
             self.repo = Repo(remote_url)
-            logger.info(f"Using Dulwich backend for local repository at {remote_url}/{remote_branch}")
+            logger.info(
+                f"Using Dulwich backend for local repository at {remote_url}/{remote_branch}"
+            )
         else:
-            self.repo = None # Will be initialized in get_raw_log_output if needed
-            logger.info(f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}")
+            self.repo = None
+            logger.info(
+                f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}"
+            )
 
-    def _walk_commits(self, repo, since_dt, until, author, grep, include_paths, exclude_paths):
-        output_lines = []
-        logger.info(f"Iterating commits on branch '{self.remote_branch}' since {since_dt.date() if since_dt else 'beginning of time'}:")
-            
+    def _walk_commits(
+        self, repo, since_dt, until, author, grep, include_paths, exclude_paths
+    ):
+        output_lines: list[str] = []
+        logger.info(
+            f"Iterating commits on branch '{self.remote_branch}' since {since_dt.date() if since_dt else 'beginning of time'}:"
+        )
+
         for entry in repo.get_walker():
-            logger.debug(f"--- Entered walker loop for commit: {entry.commit.id.hex()} ---") # New debug log
+            logger.debug(
+                f"--- Entered walker loop for commit: {entry.commit.id.hex()} ---"
+            )  # New debug log
             commit: Commit = entry.commit
-            commit_datetime = datetime.datetime.fromtimestamp(commit.commit_time, tz=datetime.timezone.utc)
-            logger.debug(f"Processing commit {commit.id.hex()} with date {commit_datetime}")
+            commit_datetime = datetime.datetime.fromtimestamp(
+                commit.commit_time, tz=datetime.timezone.utc
+            )
+            logger.debug(
+                f"Processing commit {commit.id.hex()} with date {commit_datetime}"
+            )
 
             if since_dt and commit_datetime < since_dt:
-                logger.debug(f"Breaking loop: commit date {commit_datetime} is older than since_dt {since_dt}")
-                break # Stop if commit is older than 'since_dt'
-            
+                logger.debug(
+                    f"Breaking loop: commit date {commit_datetime} is older than since_dt {since_dt}"
+                )
+                break  # Stop if commit is older than 'since_dt'
+
             # Apply 'until' filter if provided
             until_dt = None
             if until:
                 # Simplified parsing for 'until' as well
                 try:
                     if "yesterday" in until:
-                        until_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)
+                        until_dt = datetime.datetime.now(
+                            datetime.timezone.utc
+                        ) - datetime.timedelta(days=1)
                     else:
-                        logger.warning(f"Unsupported 'until' format: {until}. Ignoring.")
+                        logger.warning(
+                            f"Unsupported 'until' format: {until}. Ignoring."
+                        )
                 except Exception as e:
-                    logger.error(f"Error parsing 'until' date '{until}': {e}. Ignoring.")
-            
+                    logger.error(
+                        f"Error parsing 'until' date '{until}': {e}. Ignoring."
+                    )
+
             if until_dt and commit_datetime > until_dt:
-                logger.debug(f"Skipping commit: commit date {commit_datetime} is newer than until_dt {until_dt}")
+                logger.debug(
+                    f"Skipping commit: commit date {commit_datetime} is newer than until_dt {until_dt}"
+                )
                 continue
 
             # Apply author filter
-            if author and author.lower() not in commit.author.decode('utf-8').lower():
-                logger.debug(f"Skipping commit: author '{author}' not found in '{commit.author.decode('utf-8')}'")
+            if author and author.lower() not in commit.author.decode("utf-8").lower():
+                logger.debug(
+                    f"Skipping commit: author '{author}' not found in '{commit.author.decode('utf-8')}'"
+                )
                 continue
 
             # Apply grep filter (simplified: check in commit message summary)
-            if grep and grep.lower() not in commit.message.decode('utf-8').lower():
-                logger.debug(f"Skipping commit: grep '{grep}' not found in '{commit.message.decode('utf-8')}'")
+            if grep and grep.lower() not in commit.message.decode("utf-8").lower():
+                logger.debug(
+                    f"Skipping commit: grep '{grep}' not found in '{commit.message.decode('utf-8')}'"
+                )
                 continue
 
             commit_hash = commit.id.hex()
             parent_hashes = " ".join([p.hex() for p in commit.parents])
-            author_name = commit.author.decode('utf-8').split('<')[0].strip()
-            author_email = commit.author.decode('utf-8').split('<')[1].strip('>')
-            commit_message_summary = commit.message.decode('utf-8').splitlines()[0].replace("--", " ")
+            author_name = commit.author.decode("utf-8").split("<")[0].strip()
+            author_email = commit.author.decode("utf-8").split("<")[1].strip(">")
+            commit_message_summary = (
+                commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
+            )
 
             output_lines.append(
                 f"---{commit_hash}---{parent_hashes}---{author_name}---{author_email}---{commit_datetime.isoformat()}---{commit_message_summary}"
@@ -82,27 +112,30 @@ class DulwichRemoteBackend:
 
             # Extract file changes
             old_tree_id = None
-            if commit.parents: # Not an initial commit
+            if commit.parents:  # Not an initial commit
                 parent_commit = repo.get_object(commit.parents[0])
                 old_tree_id = parent_commit.tree
-                current_tree = commit.tree # This variable is not used in the raw_changes line
 
-            for change in dulwich.diff_tree.tree_changes(repo.object_store, old_tree_id, commit.tree):
+            for change in dulwich.diff_tree.tree_changes(
+                repo.object_store, old_tree_id, commit.tree
+            ):
                 path = None
-                if change.type == 'add':
+                if change.type == "add":
                     path = change.new.path
-                elif change.type == 'delete':
+                elif change.type == "delete":
                     path = change.old.path
-                elif change.type == 'modify':
+                elif change.type == "modify":
                     path = change.new.path
 
                 if not path:
                     continue
 
-                path_str = path.decode('utf-8')
+                path_str = path.decode("utf-8")
 
                 # Apply include_paths and exclude_paths filters
-                if include_paths and not any(path_str.startswith(p) for p in include_paths):
+                if include_paths and not any(
+                    path_str.startswith(p) for p in include_paths
+                ):
                     continue
                 if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
                     continue
@@ -117,21 +150,20 @@ class DulwichRemoteBackend:
 
     def get_raw_log_output(
         self,
+        repo_path: Optional[str] = None,  # Added for compatibility
         log_args: Optional[List[str]] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
         grep: Optional[str] = None,
-        merged_only: bool = False, # Not directly supported by dulwich fetch by date
-        include_paths: Optional[List[str]] = None, # Will be filtered post-fetch
-        exclude_paths: Optional[List[str]] = None, # Will be filtered post-fetch
+        merged_only: bool = False,  # Not directly supported by dulwich fetch by date
+        include_paths: Optional[List[str]] = None,  # Will be filtered post-fetch
+        exclude_paths: Optional[List[str]] = None,  # Will be filtered post-fetch
     ) -> str:
         """
         Fetches git log information from a remote repository using Dulwich and returns it
         in a raw string format compatible with git2df's parser.
         """
-        output_lines = []
-
         # Convert since/until to datetime objects for filtering
         since_dt = None
         if since:
@@ -141,58 +173,99 @@ class DulwichRemoteBackend:
                 # For now, we'll just use the 'last year' logic from the PoC.
                 # This needs to be improved for full compatibility with git2df's date parsing.
                 if "year" in since:
-                    num_years = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_years * 365)
+                    num_years = int(since.split(" ")[0])
+                    since_dt = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) - datetime.timedelta(days=num_years * 365)
                 elif "month" in since:
-                    num_months = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_months * 30) # Approximation
+                    num_months = int(since.split(" ")[0])
+                    since_dt = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) - datetime.timedelta(
+                        days=num_months * 30
+                    )  # Approximation
                 elif "day" in since:
-                    num_days = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_days)
+                    num_days = int(since.split(" ")[0])
+                    since_dt = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) - datetime.timedelta(days=num_days)
                 else:
-                    logger.warning(f"Unsupported 'since' format: {since}. Using last year as default.")
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+                    logger.warning(
+                        f"Unsupported 'since' format: {since}. Using last year as default."
+                    )
+                    since_dt = datetime.datetime.now(
+                        datetime.timezone.utc
+                    ) - datetime.timedelta(days=365)
             except Exception as e:
-                logger.error(f"Error parsing 'since' date '{since}': {e}. Using last year as default.")
-                since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+                logger.error(
+                    f"Error parsing 'since' date '{since}': {e}. Using last year as default."
+                )
+                since_dt = datetime.datetime.now(
+                    datetime.timezone.utc
+                ) - datetime.timedelta(days=365)
         else:
             # Default to last year if no 'since' is provided, matching the PoC
-            since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+            since_dt = datetime.datetime.now(
+                datetime.timezone.utc
+            ) - datetime.timedelta(days=365)
 
         if self.is_local_repo:
             repo = self.repo
-            logger.info(f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}")
-            logger.debug(f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}")
-            return self._walk_commits(repo, since_dt, until, author, grep, include_paths, exclude_paths)
+            if repo is None:
+                raise ValueError("Local repository not initialized.")
+            logger.info(
+                f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}"
+            )
+            logger.debug(
+                f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}"
+            )
+            return self._walk_commits(
+                repo, since_dt, until, author, grep, include_paths, exclude_paths
+            )
         else:
             # Dulwich operations require a temporary local repository
             with tempfile.TemporaryDirectory() as tmpdir:
                 repo = Repo.init(tmpdir)
                 client = HttpGitClient(self.remote_url)
 
-                def determine_wants_func(refs):
-                    head_sha = refs.get(b'HEAD')
+                def determine_wants_func(
+                    refs: dict[bytes, bytes], depth: int | None = None
+                ) -> list[bytes]:
+                    head_sha = refs.get(b"HEAD")
                     if head_sha:
                         return [head_sha]
                     try:
-                        return [refs[f"refs/heads/{self.remote_branch}".encode('utf-8')]]
+                        return [
+                            refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
+                        ]
                     except KeyError:
-                        logger.error(f"Branch '{self.remote_branch}' not found in remote refs.")
+                        logger.error(
+                            f"Branch '{self.remote_branch}' not found in remote refs."
+                        )
                         raise
 
-                logger.info(f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}...")
+                logger.info(
+                    f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
+                )
                 fetch_result = client.fetch(
-                    self.remote_url,
-                    repo,
-                    determine_wants=determine_wants_func
+                    self.remote_url, repo, determine_wants=determine_wants_func
                 )
                 remote_refs = fetch_result.refs
 
-                branch_ref = f"refs/heads/{self.remote_branch}".encode('utf-8')
+                branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")
                 if branch_ref not in remote_refs:
-                    raise ValueError(f"Branch '{self.remote_branch}' not found in remote repository.")
+                    raise ValueError(
+                        f"Branch '{self.remote_branch}' not found in remote repository."
+                    )
 
                 head_sha = remote_refs[branch_ref]
-                repo.refs[f"refs/heads/{self.remote_branch}".encode('utf-8')] = head_sha # Set the branch ref
-                repo.refs.set_symbolic_ref(b'HEAD', f"refs/heads/{self.remote_branch}".encode('utf-8')) # Set HEAD to the branch
-                return self._walk_commits(repo, since_dt, until, author, grep, include_paths, exclude_paths)
+                assert head_sha is not None  # Ensure head_sha is not None
+                repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")] = (
+                    head_sha  # Set the branch ref
+                )
+                repo.refs.set_symbolic_ref(
+                    b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
+                )  # Set HEAD to the branch
+                return self._walk_commits(
+                    repo, since_dt, until, author, grep, include_paths, exclude_paths
+                )

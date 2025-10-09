@@ -66,7 +66,9 @@ def _gather_git_data(args, config: GitAnalysisConfig):
                 return None, 1
 
         git_log_data = get_commits_df(
-            repo_path=args.repo_path if not args.remote_url else ".", # Pass repo_path only if local
+            repo_path=(
+                args.repo_path if not args.remote_url else "."
+            ),  # Pass repo_path only if local
             remote_url=args.remote_url,
             remote_branch=args.remote_branch,
             since=config.start_date.isoformat() if config.start_date else None,

@@ -4,8 +4,8 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_arguments(args):
-    author_arg = getattr(args, 'author', None)
-    me_arg = getattr(args, 'me', None)
+    author_arg = getattr(args, "author", None)
+    me_arg = getattr(args, "me", None)
 
     if author_arg and me_arg:
         logger.error("Error: Cannot use both --author and --me options together")

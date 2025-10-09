@@ -1,15 +1,15 @@
 import pytest
 import subprocess
-from pathlib import Path
 import pyarrow.parquet as pq
 import os
 from tests.conftest import sample_commits
+
 
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_git_df_cli_basic(git_repo, tmp_path):
     """Test the git-df CLI with basic arguments."""
     output_file = tmp_path / "commits.parquet"
-    
+
     os.chdir(git_repo)
 
     command = [
@@ -27,9 +27,10 @@ def test_git_df_cli_basic(git_repo, tmp_path):
     df = table.to_pandas()
     assert not df.empty
     # 1 initial commit + 3 sample commits
-    assert len(df) == 4 
+    assert len(df) == 4
     assert "commit_hash" in df.columns
     assert "author_name" in df.columns
+
 
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_git_df_cli_author_filter(git_repo, tmp_path):
@@ -54,6 +55,7 @@ def test_git_df_cli_author_filter(git_repo, tmp_path):
     assert not df.empty
     assert (df["author_name"] == "Test User").all()
 
+
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_git_df_cli_no_commits_found(git_repo, tmp_path):
     """Test the git-df CLI when no commits are found."""
@@ -74,7 +76,7 @@ def test_git_df_cli_no_commits_found(git_repo, tmp_path):
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode == 0
     assert output_file.exists()
-    
+
     df = pq.read_table(output_file).to_pandas()
     assert df.empty
     assert "No commits found" in result.stdout

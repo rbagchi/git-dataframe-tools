@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from git2df.backends import GitCliBackend
 from git2df.dulwich_backend import DulwichRemoteBackend
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def get_commits_df(
     repo_path: str = ".",
     remote_url: Optional[str] = None,
-    remote_branch: Optional[str] = "main",
+    remote_branch: str = "main",
     log_args: Optional[List[str]] = None,
     since: Optional[str] = None,
     until: Optional[str] = None,
@@ -57,9 +57,12 @@ def get_commits_df(
         # Prepend default args if custom args are provided, ensuring format is always present
         final_log_args = default_log_args + log_args
 
+    backend: Union[GitCliBackend, DulwichRemoteBackend]
+
     if remote_url:
         backend = DulwichRemoteBackend(remote_url, remote_branch)
         raw_log_output = backend.get_raw_log_output(
+            repo_path=repo_path,  # Pass repo_path
             log_args=final_log_args,
             since=since,
             until=until,
@@ -72,8 +75,8 @@ def get_commits_df(
     else:
         backend = GitCliBackend()
         raw_log_output = backend.get_raw_log_output(
-            repo_path,
-            final_log_args,
+            repo_path=repo_path,
+            log_args=final_log_args,
             since=since,
             until=until,
             author=author,

@@ -105,8 +105,10 @@ def run_git_df_cli(args):
         sys.exit(1)
 
     if args.remote_url:
-        logger.info(f"Extracting commit data from remote '{args.remote_url}' branch '{args.remote_branch}'...")
-        repo_path_arg = None # Not used for remote
+        logger.info(
+            f"Extracting commit data from remote '{args.remote_url}' branch '{args.remote_branch}'..."
+        )
+        repo_path_arg = None  # Not used for remote
     else:
         logger.info(f"Extracting commit data from local '{args.repo_path}'...")
         repo_path_arg = args.repo_path

@@ -1,6 +1,5 @@
 import pytest
 import subprocess
-from pathlib import Path
 import os
 from unittest.mock import patch
 import sys
@@ -9,6 +8,7 @@ from git_dataframe_tools.cli import scoreboard
 from tests.conftest import sample_commits
 
 # --- Unit tests for argument parsing ---
+
 
 @patch.object(sys, "argv", ["scoreboard.py", "."])
 def test_parse_arguments_default():
@@ -81,7 +81,9 @@ def test_main_author_and_me_mutually_exclusive(mock_logger):
         "Error: Cannot use both --author and --me options together"
     )
 
+
 # --- Integration tests for CLI ---
+
 
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_scoreboard_cli_basic(git_repo):
@@ -97,6 +99,7 @@ def test_scoreboard_cli_basic(git_repo):
     assert "Git Author Ranking by Diff Size" in result.stdout
     assert "Test User" in result.stdout
     assert "Dev User" in result.stdout
+
 
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_scoreboard_cli_author_filter(git_repo):

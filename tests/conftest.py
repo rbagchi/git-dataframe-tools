@@ -1,23 +1,19 @@
+import re
 import pytest
 import tempfile
-import shutil
 from dulwich.repo import Repo
 import os
 import subprocess
 from pathlib import Path
-import git
-from dulwich.objects import Commit, Tree, Blob
+
+from dulwich.objects import Commit
 import dulwich.index
 import dulwich.porcelain
 
-from dulwich.index import build_index_from_tree
 
-import time
 import logging
 
 logging.getLogger("git2df.dulwich_backend").setLevel(logging.DEBUG)
-import re
-
 logger = logging.getLogger(__name__)
 
 sample_commits = [
@@ -41,13 +37,15 @@ sample_commits = [
     },
 ]
 
+
 def extract_code_blocks(markdown_file, language="python"):
-    with open(markdown_file, 'r') as f:
+    with open(markdown_file, "r") as f:
         content = f.read()
     # Look for code blocks with the specified language
     code_blocks = re.findall(rf"```({language})\n(.*?)\n```", content, re.DOTALL)
     # re.findall returns a list of tuples (language, code_block), we only need the code_block
     return [block for lang, block in code_blocks if lang == language]
+
 
 def _create_commits(repo_path, commits_data):
     """Helper to create commits in a given repository."""
@@ -77,6 +75,7 @@ def _create_commits(repo_path, commits_data):
             ["git", "commit", "-m", commit_data["message"]], cwd=repo_path, check=True
         )
 
+
 @pytest.fixture
 def git_repo(request):
     """
@@ -86,19 +85,21 @@ def git_repo(request):
     original_cwd = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = os.path.join(tmpdir, "test_repo")
-        os.makedirs(repo_path, exist_ok=True)  # Create the directory before initializing the repo
+        os.makedirs(
+            repo_path, exist_ok=True
+        )  # Create the directory before initializing the repo
         try:
             os.chdir(repo_path)  # Change to the repo directory
-            Repo.init(repo_path)
-            repo = git.Repo(repo_path)
+            repo_obj = Repo.init(repo_path)
             # Initial commit
             (Path(repo_path) / "initial_file.txt").write_text("initial content")
-            repo.index.add(["initial_file.txt"])
-            initial_commit = repo.index.commit("Initial commit")
+            dulwich.porcelain.add(repo_obj, ["initial_file.txt"])
+            initial_commit = dulwich.porcelain.commit(
+                repo_obj, message="Initial commit"
+            )
 
-            repo.head.reference = repo.create_head(
-                "main", initial_commit
-            )  # Create and checkout main branch
+            repo_obj.refs[b"HEAD"] = initial_commit
+            repo_obj.refs[b"refs/heads/main"] = initial_commit
 
             # Set up a default dummy user for initial git config
             subprocess.run(
@@ -119,7 +120,10 @@ def git_repo(request):
         finally:
             os.chdir(original_cwd)
 
-def _create_dulwich_commit(repo, files_to_add, message, author_name, author_email, timestamp):
+
+def _create_dulwich_commit(
+    repo, files_to_add, message, author_name, author_email, timestamp
+):
     # Write files to the repository working directory
     for filename, content in files_to_add.items():
         file_path = os.path.join(repo.path, filename)
@@ -158,6 +162,7 @@ def _create_dulwich_commit(repo, files_to_add, message, author_name, author_emai
 
     return commit.id
 
+
 @pytest.fixture
 def dulwich_repo():
     """
@@ -165,7 +170,6 @@ def dulwich_repo():
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = os.path.join(tmpdir, "dulwich_test_repo")
-        os.makedirs(repo_path, exist_ok=True) # Create the directory before initializing the repo
-        repo = Repo.init(repo_path)
+        Repo.init(repo_path, mkdir=True)
 
         yield repo_path

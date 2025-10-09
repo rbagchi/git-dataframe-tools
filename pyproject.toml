@@ -49,3 +49,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["parsedatetime", "pyarrow", "dulwich", "pyarrow.parquet"]
+ignore_missing_imports = true

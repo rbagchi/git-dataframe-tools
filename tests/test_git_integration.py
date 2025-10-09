@@ -1,20 +1,12 @@
 import pytest
 import subprocess
 import os
-import sys
 from pathlib import Path
 
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
 from git2df import get_commits_df
 from tests.conftest import sample_commits
-
-
-
-
-
-
-
 
 
 @pytest.fixture(scope="function")
@@ -163,7 +155,9 @@ def test_get_git_log_data_integration_default(git_repo):
         assert "additions" in git_data_df.columns
         assert "deletions" in git_data_df.columns
         assert "commit_message" in git_data_df.columns
-        assert git_data_df["author_name"].nunique() == 3  # Default User, Test User and Dev User
+        assert (
+            git_data_df["author_name"].nunique() == 3
+        )  # Default User, Test User and Dev User
         assert git_data_df["commit_hash"].nunique() == 4  # 4 unique commits
 
     finally:
@@ -243,7 +237,9 @@ def test_scoreboard_with_df_path(temp_git_repo_with_remote, tmp_path):
     """Integration test: scoreboard operates on a parquet file dumped by git-df."""
     # 1. Run git-df to create a parquet file
     df_output_file = tmp_path / "commits.parquet"
-    project_root = Path(__file__).parent.parent # Adjust path to get to the project root
+    project_root = Path(
+        __file__
+    ).parent.parent  # Adjust path to get to the project root
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
 

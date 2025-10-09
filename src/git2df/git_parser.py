@@ -33,7 +33,9 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
         if not line:
             # Empty line, usually separates commits or ends file stats
             if current_commit and current_files:
-                logger.debug(f"End of commit block for {current_commit.get('commit_hash')}. Adding {len(current_files)} file changes.")
+                logger.debug(
+                    f"End of commit block for {current_commit.get('commit_hash')}. Adding {len(current_files)} file changes."
+                )
                 # If we have a commit and files, add them to commits_data
                 for file_info in current_files:
                     commit_record = current_commit.copy()
@@ -42,13 +44,17 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
                 current_commit = None
                 current_files = []
             else:
-                logger.debug("Empty line encountered, but no current_commit or current_files to process.")
+                logger.debug(
+                    "Empty line encountered, but no current_commit or current_files to process."
+                )
             continue
 
         if line.startswith("---"):
             # New commit entry
             if current_commit and current_files:
-                logger.debug(f"Found new commit marker. Processing previous commit {current_commit.get('commit_hash')} with {len(current_files)} files.")
+                logger.debug(
+                    f"Found new commit marker. Processing previous commit {current_commit.get('commit_hash')} with {len(current_files)} files."
+                )
                 # If we have a previous commit and its files, add them
                 for file_info in current_files:
                     commit_record = current_commit.copy()
@@ -111,11 +117,15 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
                 else:
                     logger.warning(f"Line did not match file stat pattern: '{line}'")
             else:
-                logger.warning(f"File stat line encountered without current_commit: '{line}'")
+                logger.warning(
+                    f"File stat line encountered without current_commit: '{line}'"
+                )
 
     # Add the last commit's data if any
     if current_commit and current_files:
-        logger.debug(f"Processing last commit {current_commit.get('commit_hash')} with {len(current_files)} files.")
+        logger.debug(
+            f"Processing last commit {current_commit.get('commit_hash')} with {len(current_files)} files."
+        )
         for file_info in current_files:
             commit_record = current_commit.copy()
             commit_record.update(file_info)

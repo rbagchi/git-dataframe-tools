@@ -1,6 +1,5 @@
-import pytest
 from git2df.dulwich_backend import DulwichRemoteBackend
-from datetime import datetime, timezone
+
 
 def test_remote_fetch():
     # This test requires network access

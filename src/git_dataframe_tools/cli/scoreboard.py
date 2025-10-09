@@ -67,7 +67,9 @@ def parse_arguments():
         "--author",
         help='Filter by author name or email (e.g., "John Doe", "john@example.com")',
     )
-    parser.add_argument("--me", action="store_true", help="Filter by your own git user name and email")
+    parser.add_argument(
+        "--me", action="store_true", help="Filter by your own git user name and email"
+    )
     parser.add_argument(
         "-m",
         "--merges",

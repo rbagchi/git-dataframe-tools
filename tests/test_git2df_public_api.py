@@ -71,8 +71,12 @@ def test_get_commits_df_no_filters(
     # Assertions
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
-        repo_path,
-        ["--numstat", "--pretty=format:--%H--%P--%an--%ae--%ad--%s", "--date=iso"],
+        repo_path=repo_path,
+        log_args=[
+            "--numstat",
+            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--date=iso",
+        ],
         since=None,
         until=None,
         author=None,
@@ -116,8 +120,12 @@ def test_get_commits_df_with_filters(
     # Assertions
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
-        repo_path,
-        ["--numstat", "--pretty=format:--%H--%P--%an--%ae--%ad--%s", "--date=iso"],
+        repo_path=repo_path,
+        log_args=[
+            "--numstat",
+            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--date=iso",
+        ],
         since=since_arg,
         until=None,
         author=None,
@@ -166,8 +174,12 @@ def test_get_commits_df_with_all_filters(
     # Assertions
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
-        repo_path,
-        ["--numstat", "--pretty=format:--%H--%P--%an--%ae--%ad--%s", "--date=iso"],
+        repo_path=repo_path,
+        log_args=[
+            "--numstat",
+            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--date=iso",
+        ],
         since=since_arg,
         until=until_arg,
         author=author_arg,
@@ -226,8 +238,12 @@ def test_get_commits_df_with_all_filters_and_paths(
     # Assertions
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
-        repo_path,
-        ["--numstat", "--pretty=format:--%H--%P--%an--%ae--%ad--%s", "--date=iso"],
+        repo_path=repo_path,
+        log_args=[
+            "--numstat",
+            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--date=iso",
+        ],
         since=since_arg,
         until=until_arg,
         author=author_arg,

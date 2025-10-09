@@ -28,6 +28,7 @@ dependencies = [
     "GitPython",
     "pytest>=7.4.4",
     "dulwich>=0.21.7",
+    "tqdm",
 ]
 
 [tool.setuptools.packages.find]

@@ -8,6 +8,7 @@ from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 from dulwich.objects import Commit
 import dulwich.diff_tree
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -244,12 +245,26 @@ class DulwichRemoteBackend:
                         )
                         raise
 
+                def dulwich_progress_callback(progress_bytes: bytes) -> None:
+                    message = progress_bytes.decode("utf-8", errors="ignore").strip()
+                    if message:
+                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                        pbar.update(1)
+
                 logger.info(
                     f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
                 )
-                fetch_result = client.fetch(
-                    self.remote_url, repo, determine_wants=determine_wants_func
-                )
+                with tqdm(
+                    unit="obj",
+                    desc=f"Fetching {self.remote_branch} from {self.remote_url}",
+                    disable=logger.level > logging.INFO,
+                ) as pbar:
+                    fetch_result = client.fetch(
+                        self.remote_url,
+                        repo,
+                        determine_wants=determine_wants_func,
+                        progress=dulwich_progress_callback,
+                    )
                 remote_refs = fetch_result.refs
 
                 branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")

@@ -23,6 +23,8 @@ df = git2df.get_commits_df()
 
 print(df.head())
 print(df.info())
+
+For persistent storage and re-use with `git-scoreboard`, consider using the `git-df` CLI to extract data to Parquet files.
 ```
 
 ### Analyze Remote Repositories (`remote_url`, `remote_branch`)

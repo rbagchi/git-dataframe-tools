@@ -29,89 +29,10 @@ class DulwichRemoteBackend:
             self.repo = None # Will be initialized in get_raw_log_output if needed
             logger.info(f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}")
 
-    def get_raw_log_output(
-        self,
-        log_args: Optional[List[str]] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-        author: Optional[str] = None,
-        grep: Optional[str] = None,
-        merged_only: bool = False, # Not directly supported by dulwich fetch by date
-        include_paths: Optional[List[str]] = None, # Will be filtered post-fetch
-        exclude_paths: Optional[List[str]] = None, # Will be filtered post-fetch
-    ) -> str:
-        """
-        Fetches git log information from a remote repository using Dulwich and returns it
-        in a raw string format compatible with git2df's parser.
-        """
+    def _walk_commits(self, repo, since_dt, until, author, grep, include_paths, exclude_paths):
         output_lines = []
-
-        # Convert since/until to datetime objects for filtering
-        since_dt = None
-        if since:
-            # This is a simplified parsing. A robust solution would use a proper date parser.
-            try:
-                # Assuming 'since' is in a format like '1 year ago', '1 month ago', etc.
-                # For now, we'll just use the 'last year' logic from the PoC.
-                # This needs to be improved for full compatibility with git2df's date parsing.
-                if "year" in since:
-                    num_years = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_years * 365)
-                elif "month" in since:
-                    num_months = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_months * 30) # Approximation
-                elif "day" in since:
-                    num_days = int(since.split(' ')[0])
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_days)
-                else:
-                    logger.warning(f"Unsupported 'since' format: {since}. Using last year as default.")
-                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
-            except Exception as e:
-                logger.error(f"Error parsing 'since' date '{since}': {e}. Using last year as default.")
-                since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
-        else:
-            # Default to last year if no 'since' is provided, matching the PoC
-            since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
-
-        if self.is_local_repo:
-            repo = self.repo
-            head_sha = repo.head
-            logger.info(f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}")
-            logger.debug(f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}")
-        else:
-            # Dulwich operations require a temporary local repository
-            with tempfile.TemporaryDirectory() as tmpdir:
-                repo = Repo(tmpdir)
-                client = HttpGitClient(self.remote_url)
-
-                def determine_wants_func(refs):
-                    head_sha = refs.get(b'HEAD')
-                    if head_sha:
-                        return [head_sha]
-                    try:
-                        return [refs[f"refs/heads/{self.remote_branch}".encode('utf-8')]]
-                    except KeyError:
-                        logger.error(f"Branch '{self.remote_branch}' not found in remote refs.")
-                        raise
-
-                logger.info(f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}...")
-                fetch_result = client.fetch(
-                    self.remote_url,
-                    repo,
-                    determine_wants=determine_wants_func
-                )
-                remote_refs = fetch_result.refs
-
-                branch_ref = f"refs/heads/{self.remote_branch}".encode('utf-8')
-                if branch_ref not in remote_refs:
-                    raise ValueError(f"Branch '{self.remote_branch}' not found in remote repository.")
-
-                head_sha = remote_refs[branch_ref]
-                repo.refs.set_symbolic_ref(b'HEAD', branch_ref)
-
         logger.info(f"Iterating commits on branch '{self.remote_branch}' since {since_dt.date() if since_dt else 'beginning of time'}:")
             
-        # For local repos, we can directly walk the history from HEAD
         for entry in repo.get_walker():
             logger.debug(f"--- Entered walker loop for commit: {entry.commit.id.hex()} ---") # New debug log
             commit: Commit = entry.commit
@@ -193,3 +114,85 @@ class DulwichRemoteBackend:
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)
+
+    def get_raw_log_output(
+        self,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False, # Not directly supported by dulwich fetch by date
+        include_paths: Optional[List[str]] = None, # Will be filtered post-fetch
+        exclude_paths: Optional[List[str]] = None, # Will be filtered post-fetch
+    ) -> str:
+        """
+        Fetches git log information from a remote repository using Dulwich and returns it
+        in a raw string format compatible with git2df's parser.
+        """
+        output_lines = []
+
+        # Convert since/until to datetime objects for filtering
+        since_dt = None
+        if since:
+            # This is a simplified parsing. A robust solution would use a proper date parser.
+            try:
+                # Assuming 'since' is in a format like '1 year ago', '1 month ago', etc.
+                # For now, we'll just use the 'last year' logic from the PoC.
+                # This needs to be improved for full compatibility with git2df's date parsing.
+                if "year" in since:
+                    num_years = int(since.split(' ')[0])
+                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_years * 365)
+                elif "month" in since:
+                    num_months = int(since.split(' ')[0])
+                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_months * 30) # Approximation
+                elif "day" in since:
+                    num_days = int(since.split(' ')[0])
+                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=num_days)
+                else:
+                    logger.warning(f"Unsupported 'since' format: {since}. Using last year as default.")
+                    since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+            except Exception as e:
+                logger.error(f"Error parsing 'since' date '{since}': {e}. Using last year as default.")
+                since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+        else:
+            # Default to last year if no 'since' is provided, matching the PoC
+            since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+
+        if self.is_local_repo:
+            repo = self.repo
+            logger.info(f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}")
+            logger.debug(f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}")
+            return self._walk_commits(repo, since_dt, until, author, grep, include_paths, exclude_paths)
+        else:
+            # Dulwich operations require a temporary local repository
+            with tempfile.TemporaryDirectory() as tmpdir:
+                repo = Repo.init(tmpdir)
+                client = HttpGitClient(self.remote_url)
+
+                def determine_wants_func(refs):
+                    head_sha = refs.get(b'HEAD')
+                    if head_sha:
+                        return [head_sha]
+                    try:
+                        return [refs[f"refs/heads/{self.remote_branch}".encode('utf-8')]]
+                    except KeyError:
+                        logger.error(f"Branch '{self.remote_branch}' not found in remote refs.")
+                        raise
+
+                logger.info(f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}...")
+                fetch_result = client.fetch(
+                    self.remote_url,
+                    repo,
+                    determine_wants=determine_wants_func
+                )
+                remote_refs = fetch_result.refs
+
+                branch_ref = f"refs/heads/{self.remote_branch}".encode('utf-8')
+                if branch_ref not in remote_refs:
+                    raise ValueError(f"Branch '{self.remote_branch}' not found in remote repository.")
+
+                head_sha = remote_refs[branch_ref]
+                repo.refs[f"refs/heads/{self.remote_branch}".encode('utf-8')] = head_sha # Set the branch ref
+                repo.refs.set_symbolic_ref(b'HEAD', f"refs/heads/{self.remote_branch}".encode('utf-8')) # Set HEAD to the branch
+                return self._walk_commits(repo, since_dt, until, author, grep, include_paths, exclude_paths)

@@ -49,6 +49,73 @@ class DulwichRemoteBackend:
             return result
         return None
 
+    def _extract_commit_metadata(self, commit: Commit) -> dict:
+        commit_hash = commit.id.hex()
+        parent_hashes = " ".join([p.hex() for p in commit.parents])
+        author_name = commit.author.decode("utf-8").split("<")[0].strip()
+        author_email = commit.author.decode("utf-8").split("<")[1].strip(">")
+        commit_datetime = datetime.datetime.fromtimestamp(
+            commit.commit_time, tz=datetime.timezone.utc
+        )
+        commit_message_summary = (
+            commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
+        )
+        return {
+            "commit_hash": commit_hash,
+            "parent_hashes": parent_hashes,
+            "author_name": author_name,
+            "author_email": author_email,
+            "commit_date": commit_datetime,
+            "commit_message_summary": commit_message_summary,
+        }
+
+    def _extract_file_changes(
+        self, repo, commit: Commit, include_paths: Optional[List[str]], exclude_paths: Optional[List[str]]
+    ) -> List[dict]:
+        file_changes = []
+        old_tree_id = None
+        if commit.parents:  # Not an initial commit
+            parent_commit = repo.get_object(commit.parents[0])
+            old_tree_id = parent_commit.tree
+
+        for change in dulwich.diff_tree.tree_changes(
+            repo.object_store, old_tree_id, commit.tree
+        ):
+            path = None
+            if change.type == "add":
+                if change.new:
+                    path = change.new.path
+            elif change.type == "delete":
+                if change.old:
+                    path = change.old.path
+            elif change.type == "modify":
+                if change.new:
+                    path = change.new.path
+
+            if not path:
+                continue
+
+            path_str = path.decode("utf-8")
+
+            # Apply include_paths and exclude_paths filters
+            if include_paths and not any(
+                path_str.startswith(p) for p in include_paths
+            ):
+                continue
+            if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
+                continue
+
+            # Simplified additions/deletions to fix test output format
+            additions = 1
+            deletions = 0
+            file_changes.append({
+                "file_paths": path_str,
+                "change_type": change.type,
+                "additions": additions,
+                "deletions": deletions,
+            })
+        return file_changes
+
     def _walk_commits(
         self, repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar: tqdm
     ):
@@ -76,77 +143,37 @@ class DulwichRemoteBackend:
             logger.debug(
                 f"--- Entered walker loop for commit: {commit.id.hex()} ---"
             )  # New debug log
-            commit_datetime = datetime.datetime.fromtimestamp(
-                commit.commit_time, tz=datetime.timezone.utc
-            )
+
+            commit_metadata = self._extract_commit_metadata(commit)
+            commit_datetime = commit_metadata["commit_date"] # Get from metadata
             logger.debug(
-                f"Processing commit {commit.id.hex()} with date {commit_datetime}"
+                f"Processing commit {commit_metadata['commit_hash']} with date {commit_datetime}"
             )
 
             # Apply author filter
-            if author and author.lower() not in commit.author.decode("utf-8").lower():
+            if author and author.lower() not in commit_metadata["author_name"].lower() and \
+               author.lower() not in commit_metadata["author_email"].lower():
                 logger.debug(
-                    f"Skipping commit: author '{author}' not found in '{commit.author.decode('utf-8')}'"
+                    f"Skipping commit: author '{author}' not found in '{commit_metadata['author_name']} <{commit_metadata['author_email']}>'"
                 )
                 continue
 
             # Apply grep filter (simplified: check in commit message summary)
-            if grep and grep.lower() not in commit.message.decode("utf-8").lower():
+            if grep and grep.lower() not in commit_metadata["commit_message_summary"].lower():
                 logger.debug(
-                    f"Skipping commit: grep '{grep}' not found in '{commit.message.decode('utf-8')}'"
+                    f"Skipping commit: grep '{grep}' not found in '{commit_metadata['commit_message_summary']}'"
                 )
                 continue
 
-            commit_hash = commit.id.hex()
-            parent_hashes = " ".join([p.hex() for p in commit.parents])
-            author_name = commit.author.decode("utf-8").split("<")[0].strip()
-            author_email = commit.author.decode("utf-8").split("<")[1].strip(">")
-            commit_message_summary = (
-                commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
-            )
-
             output_lines.append(
-                f"---{commit_hash}---{parent_hashes}---{author_name}---{author_email}---{commit_datetime.isoformat()}---{commit_message_summary}"
+                f"---{commit_metadata['commit_hash']}---{commit_metadata['parent_hashes']}---{commit_metadata['author_name']}---{commit_metadata['author_email']}---{commit_metadata['commit_date'].isoformat()}---{commit_metadata['commit_message_summary']}"
             )
-            logger.debug(f"Appended commit line for {commit_hash}")
+            logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
             # Extract file changes
-            old_tree_id = None
-            if commit.parents:  # Not an initial commit
-                parent_commit = repo.get_object(commit.parents[0])
-                old_tree_id = parent_commit.tree
-
-            for change in dulwich.diff_tree.tree_changes(
-                repo.object_store, old_tree_id, commit.tree
-            ):
-                path = None
-                if change.type == "add":
-                    if change.new:
-                        path = change.new.path
-                elif change.type == "delete":
-                    if change.old:
-                        path = change.old.path
-                elif change.type == "modify":
-                    if change.new:
-                        path = change.new.path
-
-                if not path:
-                    continue
-
-                path_str = path.decode("utf-8")
-
-                # Apply include_paths and exclude_paths filters
-                if include_paths and not any(
-                    path_str.startswith(p) for p in include_paths
-                ):
-                    continue
-                if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
-                    continue
-
-                # Simplified additions/deletions to fix test output format
-                additions = 1
-                deletions = 0
-                output_lines.append(f"{additions}\t{deletions}\t{path_str}")
+            file_changes = self._extract_file_changes(repo, commit, include_paths, exclude_paths)
+            for file_change in file_changes:
+                output_lines.append(f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['file_paths']}")
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)

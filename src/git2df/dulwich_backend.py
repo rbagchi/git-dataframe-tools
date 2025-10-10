@@ -9,6 +9,8 @@ from dulwich.client import HttpGitClient
 from dulwich.objects import Commit
 import dulwich.diff_tree
 from tqdm import tqdm
+import parsedatetime as pdt
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +36,20 @@ class DulwichRemoteBackend:
                 f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}"
             )
 
+    def _parse_date_string(self, date_string: str) -> Optional[datetime.datetime]:
+        cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
+        result, parse_status = cal.parseDT(date_string, sourceTime=datetime.datetime.now(datetime.timezone.utc))
+
+        if result: # If result is not None, parsing was successful
+            # parsedatetime returns naive datetime objects, so we need to make them timezone-aware
+            # If the parsed datetime is naive, assume UTC
+            if result.tzinfo is None:
+                result = result.replace(tzinfo=datetime.timezone.utc)
+            return result
+        return None
+
     def _walk_commits(
-        self, repo, since_dt, until, author, grep, include_paths, exclude_paths
+        self, repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
     ):
         output_lines: list[str] = []
         logger.info(
@@ -59,24 +73,6 @@ class DulwichRemoteBackend:
                     f"Breaking loop: commit date {commit_datetime} is older than since_dt {since_dt}"
                 )
                 break  # Stop if commit is older than 'since_dt'
-
-            # Apply 'until' filter if provided
-            until_dt = None
-            if until:
-                # Simplified parsing for 'until' as well
-                try:
-                    if "yesterday" in until:
-                        until_dt = datetime.datetime.now(
-                            datetime.timezone.utc
-                        ) - datetime.timedelta(days=1)
-                    else:
-                        logger.warning(
-                            f"Unsupported 'until' format: {until}. Ignoring."
-                        )
-                except Exception as e:
-                    logger.error(
-                        f"Error parsing 'until' date '{until}': {e}. Ignoring."
-                    )
 
             if until_dt and commit_datetime > until_dt:
                 logger.debug(
@@ -168,47 +164,21 @@ class DulwichRemoteBackend:
         # Convert since/until to datetime objects for filtering
         since_dt = None
         if since:
-            # This is a simplified parsing. A robust solution would use a proper date parser.
-            try:
-                # Assuming 'since' is in a format like '1 year ago', '1 month ago', etc.
-                # For now, we'll just use the 'last year' logic from the PoC.
-                # This needs to be improved for full compatibility with git2df's date parsing.
-                if "year" in since:
-                    num_years = int(since.split(" ")[0])
-                    since_dt = datetime.datetime.now(
-                        datetime.timezone.utc
-                    ) - datetime.timedelta(days=num_years * 365)
-                elif "month" in since:
-                    num_months = int(since.split(" ")[0])
-                    since_dt = datetime.datetime.now(
-                        datetime.timezone.utc
-                    ) - datetime.timedelta(
-                        days=num_months * 30
-                    )  # Approximation
-                elif "day" in since:
-                    num_days = int(since.split(" ")[0])
-                    since_dt = datetime.datetime.now(
-                        datetime.timezone.utc
-                    ) - datetime.timedelta(days=num_days)
-                else:
-                    logger.warning(
-                        f"Unsupported 'since' format: {since}. Using last year as default."
-                    )
-                    since_dt = datetime.datetime.now(
-                        datetime.timezone.utc
-                    ) - datetime.timedelta(days=365)
-            except Exception as e:
-                logger.error(
-                    f"Error parsing 'since' date '{since}': {e}. Using last year as default."
-                )
-                since_dt = datetime.datetime.now(
-                    datetime.timezone.utc
-                ) - datetime.timedelta(days=365)
+            since_dt = self._parse_date_string(since)
+            if not since_dt:
+                logger.warning(f"Unsupported 'since' format: {since}. Ignoring.")
         else:
-            # Default to last year if no 'since' is provided, matching the PoC
-            since_dt = datetime.datetime.now(
-                datetime.timezone.utc
-            ) - datetime.timedelta(days=365)
+            # Default to last year if no 'since' is provided
+            since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
+
+        until_dt = None
+        if until:
+            until_dt = self._parse_date_string(until)
+            if not until_dt:
+                logger.warning(f"Unsupported 'until' format: {until}. Ignoring.")
+        else:
+            # Default to now if no 'until' is provided
+            until_dt = datetime.datetime.now(datetime.timezone.utc)
 
         if self.is_local_repo:
             repo = self.repo
@@ -221,7 +191,7 @@ class DulwichRemoteBackend:
                 f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}"
             )
             return self._walk_commits(
-                repo, since_dt, until, author, grep, include_paths, exclude_paths
+                repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
             )
         else:
             # Dulwich operations require a temporary local repository
@@ -282,5 +252,5 @@ class DulwichRemoteBackend:
                     b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
                 )  # Set HEAD to the branch
                 return self._walk_commits(
-                    repo, since_dt, until, author, grep, include_paths, exclude_paths
+                    repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
                 )

@@ -240,7 +240,7 @@ class DulwichRemoteBackend:
                     desc=f"Fetching {self.remote_branch} from {self.remote_url}",
                     disable=not sys.stdout.isatty() or logger.level > logging.INFO,
                     mininterval=0.5,
-                    leave=True,
+                    leave=False, # Set to False so it disappears after completion
                     dynamic_ncols=True,
                 ) as pbar:
                     fetch_result = client.fetch(

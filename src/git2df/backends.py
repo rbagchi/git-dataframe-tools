@@ -102,7 +102,7 @@ class GitCliBackend:
 
             parents = " ".join([p.hexsha for p in commit.parents])
             output.append(
-                f"---{commit.hexsha}---{parents}---{commit.author.name}---{commit.author.email}---{commit.authored_datetime.isoformat()}---{commit.summary}"  # type: ignore
+                f"@@@COMMIT@@@{commit.hexsha}@@@FIELD@@@{parents}@@@FIELD@@@{commit.author.name}@@@FIELD@@@{commit.author.email}@@@FIELD@@@{commit.authored_datetime.isoformat()}@@@FIELD@@@{commit.summary}"  # type: ignore
             )
 
             for file_path, stats in commit.stats.files.items():

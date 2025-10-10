@@ -19,7 +19,10 @@ class Colors:
 
 def print_colored(text, color):
     """Print colored text"""
-    print(f"{color}{text}{Colors.NC}")
+    if sys.stdout.isatty():
+        print(f"{color}{text}{Colors.NC}")
+    else:
+        print(text)
 
 
 def print_header(text):

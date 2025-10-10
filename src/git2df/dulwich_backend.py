@@ -166,7 +166,7 @@ class DulwichRemoteBackend:
                 continue
 
             output_lines.append(
-                f"---{commit_metadata['commit_hash']}---{commit_metadata['parent_hashes']}---{commit_metadata['author_name']}---{commit_metadata['author_email']}---{commit_metadata['commit_date'].isoformat()}---{commit_metadata['commit_message_summary']}"
+                f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@{commit_metadata['parent_hashes']}@@@FIELD@@@{commit_metadata['author_name']}@@@FIELD@@@{commit_metadata['author_email']}@@@FIELD@@@{commit_metadata['commit_date'].isoformat()}@@@FIELD@@@{commit_metadata['commit_message_summary']}"
             )
             logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
@@ -234,7 +234,7 @@ class DulwichRemoteBackend:
                 repo = Repo.init(tmpdir)
                 client = HttpGitClient(self.remote_url)
 
-                _disable_tqdm = not sys.stdout.isatty() or logger.level > logging.INFO
+                _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
 
                 # Create a single tqdm instance for overall progress
                 with tqdm(

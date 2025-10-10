@@ -1,11 +1,13 @@
-import git
 import sys
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, date
 from typing import Optional, Union
 from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
+
+from git_dataframe_tools.git_utils import check_git_repo, get_current_git_user
 
 
 class Colors:
@@ -124,27 +126,16 @@ class GitAnalysisConfig:
             raise ValueError("Start date cannot be after end date.")
 
     def _set_current_git_user(self):
-        if not self._check_git_repo():
+        if not check_git_repo(os.getcwd()):
             print_error("Error: Not in a git repository")
             sys.exit(1)
         try:
-            repo = git.Repo(search_parent_directories=True)
-            reader = repo.config_reader()
-            self.current_user_name = reader.get_value("user", "name")
-            self.current_user_email = reader.get_value("user", "email")
-        except (git.InvalidGitRepositoryError, git.exc.GitCommandError, KeyError):
+            self.current_user_name, self.current_user_email = get_current_git_user(os.getcwd())
+        except Exception as e:
             print_error(
-                "Error: Could not retrieve git user.name or user.email. Please configure git or run without --me."
+                f"Error: Could not retrieve git user.name or user.email: {e}. Please configure git or run without --me."
             )
             sys.exit(1)
-
-    def _check_git_repo(self, repo_path: str = "."):
-        """Check if we're in a git repository"""
-        try:
-            git.Repo(repo_path, search_parent_directories=True)
-            return True
-        except git.InvalidGitRepositoryError:
-            return False
 
     def is_author_specific(self) -> bool:
         """Checks if the analysis is focused on a specific author."""

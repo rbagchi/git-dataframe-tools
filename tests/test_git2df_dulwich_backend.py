@@ -109,7 +109,7 @@ def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich
     parent_commit = repo[parent_commit_id]
 
     expected_output = (
-        f"---{head_commit.id.hex()}---{parent_commit.id.hex()}---Author One---author1@example.com---{commit_time_head.isoformat()}---Subject 1\n"
+        f"@@@COMMIT@@@{head_commit.id.hex()}@@@FIELD@@@{parent_commit.id.hex()}@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@{commit_time_head.isoformat()}@@@FIELD@@@Subject 1\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output
@@ -160,7 +160,7 @@ def test_get_raw_log_output_initial_commit(
     initial_commit = repo[initial_commit_id]
 
     expected_output = (
-        f"---{initial_commit.id.hex()}------Author Initial---initial@example.com---{commit_time.isoformat()}---Initial commit\n"
+        f"@@@COMMIT@@@{initial_commit.id.hex()}@@@FIELD@@@@@@FIELD@@@Author Initial@@@FIELD@@@initial@example.com@@@FIELD@@@{commit_time.isoformat()}@@@FIELD@@@Initial commit\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output

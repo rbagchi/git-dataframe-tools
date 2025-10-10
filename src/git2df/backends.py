@@ -1,3 +1,4 @@
+import subprocess
 import git
 import logging
 from typing import List, Optional, Any
@@ -61,53 +62,52 @@ class GitCliBackend:
         Returns:
             The raw stdout from the 'git log' command.
         """
-        repo = git.Repo(repo_path)
-        kwargs: dict[str, Any] = {}
+        cmd = ["git", "log"]
+
+        # Always include --numstat for file changes and the custom pretty format
+        cmd.append("--numstat")
+        cmd.append(
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        )
+        cmd.append("--date=iso") # Ensure ISO format for consistent date parsing
+
         if since:
-            kwargs["since"] = since
+            cmd.extend(["--since", since])
         if until:
-            kwargs["until"] = until
+            cmd.extend(["--until", until])
         if author:
-            kwargs["author"] = author
+            cmd.extend(["--author", author])
         if grep:
-            kwargs["grep"] = grep
+            cmd.extend(["--grep", grep])
         if merged_only:
+            # For merged_only, we need to find the default branch first
+            # This still uses GitPython for _get_default_branch, but the log itself is CLI
             default_branch = self._get_default_branch(repo_path)
-            kwargs["merges"] = True
-            kwargs["rev"] = f"origin/{default_branch}"
+            cmd.append("--merges")
+            cmd.append(f"origin/{default_branch}") # Assuming origin is the remote name
 
-        paths = []
+        if log_args:
+            cmd.extend(log_args)
+
         if include_paths:
-            paths.extend(include_paths)
+            cmd.append("--") # Separator for paths
+            cmd.extend(include_paths)
         if exclude_paths:
-            # GitPython's path filtering doesn't directly support exclude paths in the same way as the git command line with pathspecs.
-            # We will have to do the filtering after getting the commits.
-            # This is a deviation from the original implementation, but it's the most straightforward way with GitPython.
-            pass
+            cmd.append("--") # Separator for paths
+            for p in exclude_paths:
+                cmd.append(f":(exclude){p}")
 
-        if paths:
-            kwargs["paths"] = paths
-
-        commits = repo.iter_commits(**kwargs)
-
-        output = []
-        for commit in commits:
-            # Manual exclusion of paths
-            if exclude_paths:
-                if any(
-                    str(f).startswith(tuple(exclude_paths))
-                    for f in commit.stats.files.keys()
-                ):
-                    continue
-
-            parents = " ".join([p.hexsha for p in commit.parents])
-            output.append(
-                f"@@@COMMIT@@@{commit.hexsha}@@@FIELD@@@{parents}@@@FIELD@@@{commit.author.name}@@@FIELD@@@{commit.author.email}@@@FIELD@@@{commit.authored_datetime.isoformat()}@@@FIELD@@@{commit.summary}"  # type: ignore
+        logger.debug(f"Executing git log command: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
+                encoding="utf-8",
             )
-
-            for file_path, stats in commit.stats.files.items():
-                output.append(
-                    f"{stats['insertions']}\t{stats['deletions']}\t{file_path}"
-                )
-
-        return "\n".join(output)
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Git command failed with error: {e.stderr}")
+            raise

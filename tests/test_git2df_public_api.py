@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 
 # Mock data for commit-centric output
 MOCKED_RAW_LOG_OUTPUT = [
-    "--commit1hash--parent1hash--Author One--author1@example.com--2023-01-01T10:00:00+00:00--Subject 1",
+    "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1",
     "10\t5\tfile1.txt",
     "",
-    "--commit2hash----Author Two--author2@example.com--2023-01-02T11:00:00+00:00--Subject 2",
+    "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00@@@FIELD@@@Subject 2",
     "20\t0\tfile2.py",
 ]
 
@@ -74,7 +74,7 @@ def test_get_commits_df_no_filters(
         repo_path=repo_path,
         log_args=[
             "--numstat",
-            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
             "--date=iso",
         ],
         since=None,
@@ -121,14 +121,13 @@ def test_get_commits_df_with_filters(
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
         repo_path=repo_path,
-        log_args=[
-            "--numstat",
-            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
-            "--date=iso",
-        ],
-        since=since_arg,
-        until=None,
-        author=None,
+                    log_args=[
+                        "--numstat",
+                        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
+                        "--date=iso",
+                    ],
+                    since=since_arg,
+                    until=None,        author=None,
         grep=grep_arg,
         merged_only=False,
         include_paths=None,
@@ -177,7 +176,7 @@ def test_get_commits_df_with_all_filters(
         repo_path=repo_path,
         log_args=[
             "--numstat",
-            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
             "--date=iso",
         ],
         since=since_arg,
@@ -239,12 +238,11 @@ def test_get_commits_df_with_all_filters_and_paths(
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
         repo_path=repo_path,
-        log_args=[
-            "--numstat",
-            "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
-            "--date=iso",
-        ],
-        since=since_arg,
+                    log_args=[
+                        "--numstat",
+                        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
+                        "--date=iso",
+                    ],        since=since_arg,
         until=until_arg,
         author=author_arg,
         grep=grep_arg,

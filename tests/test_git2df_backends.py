@@ -1,24 +1,20 @@
 from unittest.mock import patch, MagicMock
 from git2df.backends import GitCliBackend
 from datetime import datetime, timezone
+import subprocess
 
 
-@patch("git2df.backends.git.Repo")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-def test_get_raw_log_output_no_filters(mock_get_default_branch, mock_repo):
+@patch("subprocess.run")
+def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_branch):
     # Arrange
-    mock_commit = MagicMock()
-    mock_commit.hexsha = "commit1hash"
-    mock_commit.parents = []
-    mock_commit.author.name = "Author One"
-    mock_commit.author.email = "author1@example.com"
-    mock_commit.authored_datetime = datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc)
-    mock_commit.summary = "Subject 1"
-    mock_commit.stats.files = {"file1.txt": {"insertions": 10, "deletions": 5}}
-
-    mock_repo_instance = MagicMock()
-    mock_repo_instance.iter_commits.return_value = [mock_commit]
-    mock_repo.return_value = mock_repo_instance
+    # Mock subprocess.run
+    mock_subprocess_run.return_value = MagicMock(
+        stdout=(
+            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
+            "10\t5\tfile1.txt"
+        )
+    )
 
     backend = GitCliBackend()
     repo_path = "/test/repo"
@@ -32,17 +28,25 @@ def test_get_raw_log_output_no_filters(mock_get_default_branch, mock_repo):
         "10\t5\tfile1.txt"
     )
     assert output == expected_output
-    mock_repo.assert_called_once_with(repo_path)
-    mock_repo_instance.iter_commits.assert_called_once_with()
+    mock_subprocess_run.assert_called_once() # Ensure subprocess.run was called
+    # Verify the arguments passed to subprocess.run
+    args, kwargs = mock_subprocess_run.call_args
+    assert args[0][0] == "git"
+    assert "--numstat" in args[0]
+    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert "--date=iso" in args[0]
+    assert kwargs["cwd"] == repo_path
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
+    assert kwargs["encoding"] == "utf-8"
 
 
-@patch("git2df.backends.git.Repo")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-def test_get_raw_log_output_with_filters(mock_get_default_branch, mock_repo):
+@patch("subprocess.run")
+def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_branch):
     # Arrange
-    mock_repo_instance = MagicMock()
-    mock_repo_instance.iter_commits.return_value = []
-    mock_repo.return_value = mock_repo_instance
+    # Mock subprocess.run
+    mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
     backend = GitCliBackend()
     repo_path = "/test/repo"
@@ -57,18 +61,32 @@ def test_get_raw_log_output_with_filters(mock_get_default_branch, mock_repo):
     )
 
     # Assert
-    mock_repo_instance.iter_commits.assert_called_once_with(
-        since=since, until=until, author=author, grep=grep
-    )
+    mock_subprocess_run.assert_called_once()
+    args, kwargs = mock_subprocess_run.call_args
+    assert args[0][0] == "git"
+    assert "--numstat" in args[0]
+    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert "--date=iso" in args[0]
+    assert "--since" in args[0]
+    assert since in args[0]
+    assert "--until" in args[0]
+    assert until in args[0]
+    assert "--author" in args[0]
+    assert author in args[0]
+    assert "--grep" in args[0]
+    assert grep in args[0]
+    assert kwargs["cwd"] == repo_path
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
+    assert kwargs["encoding"] == "utf-8"
 
 
-@patch("git2df.backends.git.Repo")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-def test_get_raw_log_output_with_merges(mock_get_default_branch, mock_repo):
+@patch("subprocess.run")
+def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_branch):
     # Arrange
-    mock_repo_instance = MagicMock()
-    mock_repo_instance.iter_commits.return_value = []
-    mock_repo.return_value = mock_repo_instance
+    # Mock subprocess.run
+    mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
     backend = GitCliBackend()
     repo_path = "/test/repo"
@@ -77,18 +95,26 @@ def test_get_raw_log_output_with_merges(mock_get_default_branch, mock_repo):
     backend.get_raw_log_output(repo_path, merged_only=True)
 
     # Assert
-    mock_repo_instance.iter_commits.assert_called_once_with(
-        merges=True, rev="origin/main"
-    )
+    mock_subprocess_run.assert_called_once()
+    args, kwargs = mock_subprocess_run.call_args
+    assert args[0][0] == "git"
+    assert "--numstat" in args[0]
+    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert "--date=iso" in args[0]
+    assert "--merges" in args[0]
+    assert f"origin/{mock_get_default_branch.return_value}" in args[0]
+    assert kwargs["cwd"] == repo_path
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
+    assert kwargs["encoding"] == "utf-8"
 
 
-@patch("git2df.backends.git.Repo")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-def test_get_raw_log_output_with_paths(mock_get_default_branch, mock_repo):
+@patch("subprocess.run")
+def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_branch):
     # Arrange
-    mock_repo_instance = MagicMock()
-    mock_repo_instance.iter_commits.return_value = []
-    mock_repo.return_value = mock_repo_instance
+    # Mock subprocess.run
+    mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
     backend = GitCliBackend()
     repo_path = "/test/repo"
@@ -98,23 +124,32 @@ def test_get_raw_log_output_with_paths(mock_get_default_branch, mock_repo):
     backend.get_raw_log_output(repo_path, include_paths=include_paths)
 
     # Assert
-    mock_repo_instance.iter_commits.assert_called_once_with(paths=include_paths)
+    mock_subprocess_run.assert_called_once()
+    args, kwargs = mock_subprocess_run.call_args
+    assert args[0][0] == "git"
+    assert "--numstat" in args[0]
+    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert "--date=iso" in args[0]
+    assert "--" in args[0]
+    assert include_paths[0] in args[0]
+    assert kwargs["cwd"] == repo_path
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
+    assert kwargs["encoding"] == "utf-8"
 
 
-@patch("git2df.backends.git.Repo")
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-def test_get_raw_log_output_with_exclude_paths(mock_get_default_branch, mock_repo):
+@patch("subprocess.run")
+def test_get_raw_log_output_with_exclude_paths(mock_subprocess_run, mock_get_default_branch):
     # Arrange
-    mock_commit1 = MagicMock()
-    mock_commit1.stats.files = {"src/main.py": {"insertions": 10, "deletions": 0}}
-    mock_commit2 = MagicMock()
-    mock_commit2.stats.files = {
-        "tests/test_main.py": {"insertions": 20, "deletions": 0}
-    }
-
-    mock_repo_instance = MagicMock()
-    mock_repo_instance.iter_commits.return_value = [mock_commit1, mock_commit2]
-    mock_repo.return_value = mock_repo_instance
+    mock_subprocess_run.return_value = MagicMock(
+        stdout=(
+            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
+            "10\t0\tsrc/main.py\n"
+            "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00@@@FIELD@@@Subject 2\n"
+            "20\t0\ttests/test_main.py"
+        )
+    )
 
     backend = GitCliBackend()
     repo_path = "/test/repo"
@@ -124,5 +159,22 @@ def test_get_raw_log_output_with_exclude_paths(mock_get_default_branch, mock_rep
     output = backend.get_raw_log_output(repo_path, exclude_paths=exclude_paths)
 
     # Assert
-    assert "tests/test_main.py" not in output
-    assert "src/main.py" in output
+    expected_output = (
+        "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
+        "10\t0\tsrc/main.py\n"
+        "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00@@@FIELD@@@Subject 2\n"
+        "20\t0\ttests/test_main.py"
+    )
+    assert output == expected_output
+    mock_subprocess_run.assert_called_once()
+    args, kwargs = mock_subprocess_run.call_args
+    assert args[0][0] == "git"
+    assert "--numstat" in args[0]
+    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert "--date=iso" in args[0]
+    assert "--" in args[0]
+    assert f":(exclude){exclude_paths[0]}" in args[0]
+    assert kwargs["cwd"] == repo_path
+    assert kwargs["capture_output"] is True
+    assert kwargs["check"] is True
+    assert kwargs["encoding"] == "utf-8"

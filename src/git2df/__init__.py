@@ -47,7 +47,7 @@ def get_commits_df(
 
     default_log_args = [
         "--numstat",
-        "--pretty=format:--%H--%P--%an--%ae--%ad--%s",
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
         "--date=iso",
     ]
 
@@ -87,6 +87,7 @@ def get_commits_df(
         )
 
     # Split raw output into lines for the parser
+    logger.debug(f"Raw log output from backend:\n{raw_log_output[:1000]}") # Log first 1000 chars
     log_lines = raw_log_output.splitlines()
     logger.debug(f"Received {len(log_lines)} raw log lines from Git.")
 

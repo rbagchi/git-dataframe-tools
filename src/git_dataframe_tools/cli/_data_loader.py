@@ -3,6 +3,7 @@ import pyarrow.parquet as pq
 import logging
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
+from git_dataframe_tools.git_utils import check_git_repo
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def _gather_git_data(args, config: GitAnalysisConfig):
     try:
         if not args.remote_url:
             # Only check for local repo if remote_url is not provided
-            if not config._check_git_repo(args.repo_path):
+            if not check_git_repo(args.repo_path):
                 logger.error("Not in a git repository")
                 return None, 1
 

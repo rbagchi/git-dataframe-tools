@@ -11,7 +11,7 @@ from dulwich.objects import Commit
 import dulwich.diff_tree
 from tqdm import tqdm
 import parsedatetime as pdt
-import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -121,11 +121,14 @@ class DulwichRemoteBackend:
             ):
                 path = None
                 if change.type == "add":
-                    path = change.new.path
+                    if change.new:
+                        path = change.new.path
                 elif change.type == "delete":
-                    path = change.old.path
+                    if change.old:
+                        path = change.old.path
                 elif change.type == "modify":
-                    path = change.new.path
+                    if change.new:
+                        path = change.new.path
 
                 if not path:
                     continue

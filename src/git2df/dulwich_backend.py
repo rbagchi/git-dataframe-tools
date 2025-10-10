@@ -74,9 +74,10 @@ class DulwichRemoteBackend:
             total=len(all_commits),
             unit="commit",
             desc="Parsing git log",
-            disable=not sys.stdout.isatty() or logger.level > logging.INFO,
+            disable=(not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO,
             leave=True,
             dynamic_ncols=True,
+            file=sys.stderr,
         ) as pbar:
             for commit in all_commits:
                 pbar.update(1)
@@ -231,6 +232,12 @@ class DulwichRemoteBackend:
                         if any(keyword in message for keyword in ["Counting objects", "Compressing objects", "Total"]):
                             pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
 
+                _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
+
+                _dulwich_progress_callback = None
+                if not _disable_tqdm:
+                    _dulwich_progress_callback = dulwich_progress_callback
+
                 logger.info(
                     f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
                 )
@@ -238,16 +245,17 @@ class DulwichRemoteBackend:
                     total=0,
                     unit="obj",
                     desc=f"Fetching {self.remote_branch} from {self.remote_url}",
-                    disable=not sys.stdout.isatty() or logger.level > logging.INFO,
+                    disable=_disable_tqdm,
                     mininterval=0.5,
                     leave=False, # Set to False so it disappears after completion
                     dynamic_ncols=True,
+                    file=sys.stderr,
                 ) as pbar:
                     fetch_result = client.fetch(
                         self.remote_url,
                         repo,
                         determine_wants=determine_wants_func,
-                        progress=dulwich_progress_callback,
+                        progress=_dulwich_progress_callback,
                     )
                 remote_refs = fetch_result.refs
 

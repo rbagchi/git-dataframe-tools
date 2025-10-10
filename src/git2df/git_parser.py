@@ -24,7 +24,7 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
 
     # Wrap iteration with tqdm if available
     iterable_git_data = (
-        tqdm(git_data, desc="Parsing git log", disable=not sys.stderr.isatty())
+        tqdm(git_data, desc="Parsing git log", disable=(not sys.stdout.isatty() or not sys.stderr.isatty()))
         if TQDM_AVAILABLE
         else git_data
     )

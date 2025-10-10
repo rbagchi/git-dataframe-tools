@@ -3,6 +3,9 @@
 **Goal:** Ensure a robust and maintainable test suite with high code quality.
 
 **Progress:**
+- **Decomposed `_walk_commits`:** The `_walk_commits` method in `src/git2df/dulwich_backend.py` has been decomposed into smaller, more focused functions (`_collect_and_filter_commits` and `_process_single_commit`), improving readability, testability, and maintainability.
+- **Dulwich Backend Output Alignment:** Aligned the output format of `_format_commit_line` in `src/git2df/dulwich_backend.py` with the expected input format of `_parse_commit_metadata_line` in `src/git2df/git_parser.py`.
+- **Accurate Additions/Deletions Calculation:** Implemented accurate calculation of additions and deletions in `_extract_file_changes` within `src/git2df/dulwich_backend.py` by parsing `dulwich.patch.write_tree_diff` output, replacing the previous hardcoded values. Updated relevant tests accordingly.
 - **Runbook and README Tests:** `tests/test_runbook.py` and `tests/test_readme.py` have been refactored to be data-driven, extracting code blocks directly from `RUNBOOK-git2df.md` and `README.md` respectively. This ensures documentation stays in sync with the application's behavior. The tests now run in the current Python environment, simplifying execution and improving speed.
 - **Flaky Test Resolution:** The flaky test in `tests/test_git_integration.py` was resolved by correctly managing the current working directory within the `git_repo` fixture.
 - **Pytest Output:** Restored default, less verbose `pytest` output by removing `log_cli` configuration.
@@ -45,3 +48,16 @@
 
 **Next Steps:**
 - Refer to `CODE_IMPROVEMENTS.md` for further code quality improvements.
+
+## Current Work: Enhancing `git_parser.py` Robustness and Dulwich Backend Data Accuracy
+
+**Goal:** Make the parsing logic in `src/git2df/git_parser.py` more resilient and ensure the Dulwich backend provides accurate and complete data.
+
+**Progress:**
+- The Dulwich backend (`src/git2df/dulwich_backend.py`) now accurately calculates additions and deletions for file changes, providing richer data to the parser.
+- The output format from the Dulwich backend has been aligned with the parser's expectations.
+
+**Plan:**
+1.  **Review `git_parser.py` for Dulwich Backend Integration:** Examine `src/git2df/git_parser.py` to ensure it can fully utilize the improved data (especially additions and deletions) now provided by the Dulwich backend.
+2.  **Refine `_parse_file_stat_line`:** Ensure `_parse_file_stat_line` correctly interprets the additions and deletions from the Dulwich backend's output.
+3.  **Expand Unit Tests for `git_parser.py`:** Add new test cases to `tests/test_git2df_parser.py` to specifically validate the parsing of file changes (additions/deletions) from the Dulwich backend's output.

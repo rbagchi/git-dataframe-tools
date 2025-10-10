@@ -1,11 +1,11 @@
-@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1
-10	5	file1.txt
-2	1	file2.py
+@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00	1672588800@@@FIELD@@@---MSG_START---Subject 1---MSG_END---
+10	5	M	file1.txt
+2	1	M	file2.py
 
-@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00@@@FIELD@@@Subject 2
-20	0	file3.md
--	-	binary_file.bin
+@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00	1672678800@@@FIELD@@@---MSG_START---Subject 2---MSG_END---
+20	0	A	file3.md
+-	-	M	binary_file.bin
 
-@@@COMMIT@@@commit3hash@@@FIELD@@@parent3hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-03T12:00:00+00:00@@@FIELD@@@Subject 3
-0	15	file4.js
-5	0	file5.txt
+@@@COMMIT@@@commit3hash@@@FIELD@@@parent3hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-03T12:00:00+00:00	1672772400@@@FIELD@@@---MSG_START---Subject 3---MSG_END---
+0	15	D	file4.js
+5	0	A	file5.txt

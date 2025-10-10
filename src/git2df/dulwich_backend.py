@@ -9,8 +9,10 @@ from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 from dulwich.objects import Commit
 import dulwich.diff_tree
+import dulwich.patch
 from tqdm import tqdm
 import parsedatetime as pdt
+import io
 
 
 logger = logging.getLogger(__name__)
@@ -162,32 +164,164 @@ class DulwichRemoteBackend:
             parent_commit = repo.get_object(commit.parents[0])
             old_tree_id = parent_commit.tree
 
+        # Use an in-memory stream to capture diff output
+        diff_stream = io.BytesIO()
+        dulwich.patch.write_tree_diff(
+            diff_stream,
+            repo.object_store,
+            old_tree_id,
+            commit.tree,
+        )
+        diff_output = diff_stream.getvalue().decode("utf-8", errors="replace")
+
+        current_file_path = None
+        additions = 0
+        deletions = 0
+
+        for line in diff_output.splitlines():
+            if line.startswith("--- a/"):
+                # Extract old file path
+                pass  # Not directly used for counting, but good for context
+            elif line.startswith("+++ b/"):
+                # Extract new file path
+                current_file_path = line[6:].strip()
+                additions = 0
+                deletions = 0
+            elif line.startswith("-") and not line.startswith("---"):
+                deletions += 1
+            elif line.startswith("+") and not line.startswith("+++"):
+                additions += 1
+            elif line.startswith("diff --git"):
+                # New file diff starts, save previous file's stats if any
+                if current_file_path:
+                    path_str = current_file_path
+                    if self._should_include_path(path_str, include_paths, exclude_paths):
+                        file_changes.append(
+                            {
+                                "file_paths": path_str,
+                                "change_type": "M",  # Assume modify for now, refine later
+                                "additions": additions,
+                                "deletions": deletions,
+                            }
+                        )
+                current_file_path = None  # Reset for next file
+
+        # Add the last file's changes after the loop
+        if current_file_path:
+            path_str = current_file_path
+            if self._should_include_path(path_str, include_paths, exclude_paths):
+                file_changes.append(
+                    {
+                        "file_paths": path_str,
+                        "change_type": "M",  # Assume modify for now, refine later
+                        "additions": additions,
+                        "deletions": deletions,
+                    }
+                )
+
+        # Handle added/deleted files explicitly from tree_changes
         for change in dulwich.diff_tree.tree_changes(
             repo.object_store, old_tree_id, commit.tree
         ):
             path = self._get_path_from_change(change)
-
             if not path:
                 continue
-
             path_str = path.decode("utf-8")
 
-            # Apply include_paths and exclude_paths filters
             if not self._should_include_path(path_str, include_paths, exclude_paths):
                 continue
 
-            # Simplified additions/deletions to fix test output format
-            additions = 1
-            deletions = 0
-            file_changes.append(
-                {
-                    "file_paths": path_str,
-                    "change_type": change.type,
-                    "additions": additions,
-                    "deletions": deletions,
-                }
-            )
+            if change.type == "add":
+                # Check if this file was already processed as a 'modify' (e.g., if it was empty before)
+                # If not, add it with its full content as additions
+                if not any(fc['file_paths'] == path_str for fc in file_changes):
+                    blob = repo.get_object(change.new.sha)
+                    additions = len(blob.as_pretty_string().splitlines())
+                    file_changes.append(
+                        {
+                            "file_paths": path_str,
+                            "change_type": "A",
+                            "additions": additions,
+                            "deletions": 0,
+                        }
+                    )
+            elif change.type == "delete":
+                # Check if this file was already processed as a 'modify' (e.g., if it was empty before)
+                # If not, add it with its full content as deletions
+                if not any(fc['file_paths'] == path_str for fc in file_changes):
+                    blob = repo.get_object(change.old.sha)
+                    deletions = len(blob.as_pretty_string().splitlines())
+                    file_changes.append(
+                        {
+                            "file_paths": path_str,
+                            "change_type": "D",
+                            "additions": 0,
+                            "deletions": deletions,
+                        }
+                    )
+            elif change.type == "modify":
+                # If it's a modify, ensure it's in file_changes, if not, add it with 0,0 and let the diff handle it
+                if not any(fc['file_paths'] == path_str for fc in file_changes):
+                    file_changes.append(
+                        {
+                            "file_paths": path_str,
+                            "change_type": "M",
+                            "additions": 0,
+                            "deletions": 0,
+                        }
+                    )
+
         return file_changes
+
+    def _process_single_commit(
+        self,
+        repo,
+        commit: Commit,
+        author: Optional[str],
+        grep: Optional[str],
+        include_paths: Optional[List[str]],
+        exclude_paths: Optional[List[str]],
+    ) -> List[str]:
+        commit_output_lines: List[str] = []
+
+        logger.debug(
+            f"--- Entered walker loop for commit: {commit.id.hex()} ---"
+        )  # New debug log
+
+        commit_metadata = self._extract_commit_metadata(commit)
+        logger.debug(
+            f"Processing commit {commit_metadata['commit_hash']} with date {commit_metadata['commit_date']}"
+        )
+
+        if not self._filter_commits_by_author_and_grep(
+            commit_metadata, author, grep
+        ):
+            return []
+
+        commit_output_lines.append(self._format_commit_line(commit_metadata))
+        logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
+
+        # Extract file changes
+        file_changes = self._extract_file_changes(
+            repo, commit, include_paths, exclude_paths
+        )
+        for file_change in file_changes:
+            commit_output_lines.append(
+                f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['change_type']}\t{file_change['file_paths']}"
+            )
+        return commit_output_lines
+
+    def _collect_and_filter_commits(
+        self, repo, since_dt: Optional[datetime.datetime], until_dt: Optional[datetime.datetime]
+    ) -> List[Commit]:
+        all_commits = []
+        for entry in repo.get_walker():
+            commit: Commit = entry.commit
+
+            if not self._filter_commits_by_date(commit, since_dt, until_dt):
+                continue
+            all_commits.append(commit)
+        return all_commits
 
     def _walk_commits(
         self,
@@ -201,13 +335,7 @@ class DulwichRemoteBackend:
         pbar: tqdm,
     ):
         output_lines: list[str] = []
-        all_commits = []
-        for entry in repo.get_walker():
-            commit: Commit = entry.commit
-
-            if not self._filter_commits_by_date(commit, since_dt, until_dt):
-                continue
-            all_commits.append(commit)
+        all_commits = self._collect_and_filter_commits(repo, since_dt, until_dt)
 
         # Update the total of the passed pbar for the parsing phase
         if not pbar.disable:
@@ -216,31 +344,10 @@ class DulwichRemoteBackend:
 
         for commit in all_commits:
             pbar.update(1)
-            logger.debug(
-                f"--- Entered walker loop for commit: {commit.id.hex()} ---"
-            )  # New debug log
-
-            commit_metadata = self._extract_commit_metadata(commit)
-            logger.debug(
-                f"Processing commit {commit_metadata['commit_hash']} with date {commit_metadata['commit_date']}"
+            commit_output = self._process_single_commit(
+                repo, commit, author, grep, include_paths, exclude_paths
             )
-
-            if not self._filter_commits_by_author_and_grep(
-                commit_metadata, author, grep
-            ):
-                continue
-
-            output_lines.append(self._format_commit_line(commit_metadata))
-            logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
-
-            # Extract file changes
-            file_changes = self._extract_file_changes(
-                repo, commit, include_paths, exclude_paths
-            )
-            for file_change in file_changes:
-                output_lines.append(
-                    f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['file_paths']}"
-                )
+            output_lines.extend(commit_output)
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)

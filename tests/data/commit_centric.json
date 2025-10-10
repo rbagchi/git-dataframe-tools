@@ -1,74 +1,71 @@
 [
-    {
-        "commit_hash": "commit1hash",
-        "parent_hash": "parent1hash",
-        "author_name": "Author One",
-        "author_email": "author1@example.com",
-        "commit_date": "2023-01-01T10:00:00+00:00",
-        "commit_message": "Subject 1",
-        "file_paths": "file1.txt",
-        "change_type": "M",
+  {
+    "commit_hash": "commit1hash",
+    "parent_hash": "parent1hash",
+    "author_name": "Author One",
+    "author_email": "author1@example.com",
+    "commit_date": "2023-01-01T10:00:00+00:00",
+    "commit_timestamp": 1672588800,
+    "commit_message": "Subject 1",
+    "file_changes": [
+      {
+        "file_path": "file1.txt",
         "additions": 10,
-        "deletions": 5
-    },
-    {
-        "commit_hash": "commit1hash",
-        "parent_hash": "parent1hash",
-        "author_name": "Author One",
-        "author_email": "author1@example.com",
-        "commit_date": "2023-01-01T10:00:00+00:00",
-        "commit_message": "Subject 1",
-        "file_paths": "file2.py",
-        "change_type": "M",
+        "deletions": 5,
+        "change_type": "M"
+      },
+      {
+        "file_path": "file2.py",
         "additions": 2,
-        "deletions": 1
-    },
-    {
-        "commit_hash": "commit2hash",
-        "parent_hash": null,
-        "author_name": "Author Two",
-        "author_email": "author2@example.com",
-        "commit_date": "2023-01-02T11:00:00+00:00",
-        "commit_message": "Subject 2",
-        "file_paths": "file3.md",
-        "change_type": "A",
+        "deletions": 1,
+        "change_type": "M"
+      }
+    ]
+  },
+  {
+    "commit_hash": "commit2hash",
+    "parent_hash": null,
+    "author_name": "Author Two",
+    "author_email": "author2@example.com",
+    "commit_date": "2023-01-02T11:00:00+00:00",
+    "commit_timestamp": 1672678800,
+    "commit_message": "Subject 2",
+    "file_changes": [
+      {
+        "file_path": "file3.md",
         "additions": 20,
-        "deletions": 0
-    },
-    {
-        "commit_hash": "commit2hash",
-        "parent_hash": null,
-        "author_name": "Author Two",
-        "author_email": "author2@example.com",
-        "commit_date": "2023-01-02T11:00:00+00:00",
-        "commit_message": "Subject 2",
-        "file_paths": "binary_file.bin",
-        "change_type": "M",
+        "deletions": 0,
+        "change_type": "A"
+      },
+      {
+        "file_path": "binary_file.bin",
         "additions": 0,
-        "deletions": 0
-    },
-    {
-        "commit_hash": "commit3hash",
-        "parent_hash": "parent3hash",
-        "author_name": "Author One",
-        "author_email": "author1@example.com",
-        "commit_date": "2023-01-03T12:00:00+00:00",
-        "commit_message": "Subject 3",
-        "file_paths": "file4.js",
-        "change_type": "D",
+        "deletions": 0,
+        "change_type": "M"
+      }
+    ]
+  },
+  {
+    "commit_hash": "commit3hash",
+    "parent_hash": "parent3hash",
+    "author_name": "Author One",
+    "author_email": "author1@example.com",
+    "commit_date": "2023-01-03T12:00:00+00:00",
+    "commit_timestamp": 1672772400,
+    "commit_message": "Subject 3",
+    "file_changes": [
+      {
+        "file_path": "file4.js",
         "additions": 0,
-        "deletions": 15
-    },
-    {
-        "commit_hash": "commit3hash",
-        "parent_hash": "parent3hash",
-        "author_name": "Author One",
-        "author_email": "author1@example.com",
-        "commit_date": "2023-01-03T12:00:00+00:00",
-        "commit_message": "Subject 3",
-        "file_paths": "file5.txt",
-        "change_type": "A",
+        "deletions": 15,
+        "change_type": "D"
+      },
+      {
+        "file_path": "file5.txt",
         "additions": 5,
-        "deletions": 0
-    }
+        "deletions": 0,
+        "change_type": "A"
+      }
+    ]
+  }
 ]

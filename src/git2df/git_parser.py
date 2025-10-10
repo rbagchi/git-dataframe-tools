@@ -30,6 +30,7 @@ class GitLogEntry:
     author_name: str
     author_email: str
     commit_date: datetime
+    commit_timestamp: int
     commit_message: str
     file_changes: List[FileChange] = field(default_factory=list)
 
@@ -40,7 +41,7 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
         return None
 
     parts = line.split("@@@FIELD@@@")
-    # Expected format: @@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s
+    # Expected format: @@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@%B
     if len(parts) < 6:
         logger.warning(f"Malformed commit metadata line: '{line}'")
         return None
@@ -51,14 +52,27 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     parent_hash = parts[1] if parts[1] else None
     author_name = parts[2]
     author_email = parts[3]
-    commit_date_str = parts[4]
-    commit_message = parts[5]
+    
+    date_timestamp_str = parts[4]
+    raw_commit_message_part = parts[5]
+
+    # Extract commit message using the new delimiters
+    msg_start_idx = raw_commit_message_part.find("---MSG_START---")
+    msg_end_idx = raw_commit_message_part.find("---MSG_END---")
+
+    if msg_start_idx != -1 and msg_end_idx != -1 and msg_start_idx < msg_end_idx:
+        commit_message = raw_commit_message_part[msg_start_idx + len("---MSG_START---"):msg_end_idx]
+    else:
+        logger.warning(f"Could not find commit message delimiters in: '{raw_commit_message_part}'")
+        commit_message = raw_commit_message_part # Fallback to raw part if delimiters not found
 
     try:
+        commit_date_str, commit_timestamp_str = date_timestamp_str.split('\t')
         commit_date = datetime.fromisoformat(commit_date_str)
+        commit_timestamp = int(commit_timestamp_str)
     except ValueError:
         logger.warning(
-            f"Could not parse commit date: '{commit_date_str}' in line '{line}'"
+            f"Could not parse commit date or timestamp: '{date_timestamp_str}' in line '{line}'"
         )
         return None
 
@@ -68,28 +82,24 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
         "author_name": author_name,
         "author_email": author_email,
         "commit_date": commit_date,
+        "commit_timestamp": commit_timestamp,
         "commit_message": commit_message,
     }
 
 
 def _parse_file_stat_line(line: str) -> Optional[FileChange]:
     """Parses a single file statistics line and returns a FileChange object."""
-    stat_match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(.+)$", line)
+    stat_match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(?:([ADMT])\s+)?(.+)$", line)
     if not stat_match:
         logger.warning(f"Line did not match file stat pattern: '{line}'")
         return None
 
-    added_str, deleted_str, file_path = stat_match.groups()
+    added_str, deleted_str, change_type_match, file_path = stat_match.groups()
+
+    change_type = change_type_match if change_type_match else "M"  # Default to 'M' if not explicitly provided
 
     additions = 0 if added_str == "-" else int(added_str)
     deletions = 0 if deleted_str == "-" else int(deleted_str)
-
-    # Determine change_type (simplified for now, will be refined in a later step)
-    change_type = "M"  # Modified by default
-    if additions > 0 and deletions == 0:
-        change_type = "A"  # Added
-    elif additions == 0 and deletions > 0:
-        change_type = "D"  # Deleted
 
     return FileChange(
         file_path=file_path,
@@ -120,6 +130,7 @@ def _process_raw_commit_block(raw_block: List[str]) -> Optional[GitLogEntry]:
         author_name=commit_metadata_dict["author_name"],
         author_email=commit_metadata_dict["author_email"],
         commit_date=commit_metadata_dict["commit_date"],
+        commit_timestamp=commit_metadata_dict["commit_timestamp"],
         commit_message=commit_metadata_dict["commit_message"],
         file_changes=file_changes,
     )

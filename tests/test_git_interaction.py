@@ -1,11 +1,9 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
 import os
 from git import InvalidGitRepositoryError, GitCommandError
 
-from git_dataframe_tools.config_models import GitAnalysisConfig, print_error
-from git_dataframe_tools.git_utils import check_git_repo, get_current_git_user
-import sys
+from git_dataframe_tools.config_models import GitAnalysisConfig
 
 CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 

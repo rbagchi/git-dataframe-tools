@@ -1,6 +1,5 @@
 import git
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +16,8 @@ def get_current_git_user(repo_path: str) -> tuple[str, str]:
     repo = git.Repo(repo_path)
     reader = repo.config_reader()
     try:
-        name = reader.get_value("user", "name")
-        email = reader.get_value("user", "email")
+        name: str = str(reader.get_value("user", "name")) or "Unknown"
+        email: str = str(reader.get_value("user", "email")) or "unknown@example.com"
         return name, email
     except Exception as e:
         logger.warning(f"Could not retrieve git user info: {e}")

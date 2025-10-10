@@ -49,6 +49,43 @@ class DulwichRemoteBackend:
             return result
         return None
 
+    def _filter_commits_by_date(self, commit: Commit, since_dt: Optional[datetime.datetime], until_dt: Optional[datetime.datetime]) -> bool:
+        commit_datetime = datetime.datetime.fromtimestamp(
+            commit.commit_time, tz=datetime.timezone.utc
+        )
+        if since_dt and commit_datetime < since_dt:
+            return False
+        if until_dt and commit_datetime > until_dt:
+            return False
+        return True
+
+    def _filter_commits_by_author_and_grep(self, commit_metadata: dict, author: Optional[str], grep: Optional[str]) -> bool:
+        # Apply author filter
+        if author and author.lower() not in commit_metadata["author_name"].lower() and \
+           author.lower() not in commit_metadata["author_email"].lower():
+            logger.debug(
+                f"Skipping commit: author '{author}' not found in '{commit_metadata['author_name']} <{commit_metadata['author_email']}>'"
+            )
+            return False
+
+        # Apply grep filter (simplified: check in commit message summary)
+        if grep and grep.lower() not in commit_metadata["commit_message_summary"].lower():
+            logger.debug(
+                f"Skipping commit: grep '{grep}' not found in '{commit_metadata['commit_message_summary']}'"
+            )
+            return False
+        return True
+
+    def _format_commit_line(self, commit_metadata: dict) -> str:
+        return (
+            f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@"
+            f"{commit_metadata['parent_hashes']}@@@FIELD@@@"
+            f"{commit_metadata['author_name']}@@@FIELD@@@"
+            f"{commit_metadata['author_email']}@@@FIELD@@@"
+            f"{commit_metadata['commit_date'].isoformat()}@@@FIELD@@@"
+            f"{commit_metadata['commit_message_summary']}"
+        )
+
     def _extract_commit_metadata(self, commit: Commit) -> dict:
         commit_hash = commit.id.hex()
         parent_hashes = " ".join([p.hex() for p in commit.parents])
@@ -123,13 +160,8 @@ class DulwichRemoteBackend:
         all_commits = []
         for entry in repo.get_walker():
             commit: Commit = entry.commit
-            commit_datetime = datetime.datetime.fromtimestamp(
-                commit.commit_time, tz=datetime.timezone.utc
-            )
 
-            if since_dt and commit_datetime < since_dt:
-                break
-            if until_dt and commit_datetime > until_dt:
+            if not self._filter_commits_by_date(commit, since_dt, until_dt):
                 continue
             all_commits.append(commit)
 
@@ -145,29 +177,14 @@ class DulwichRemoteBackend:
             )  # New debug log
 
             commit_metadata = self._extract_commit_metadata(commit)
-            commit_datetime = commit_metadata["commit_date"] # Get from metadata
             logger.debug(
-                f"Processing commit {commit_metadata['commit_hash']} with date {commit_datetime}"
+                f"Processing commit {commit_metadata['commit_hash']} with date {commit_metadata['commit_date']}"
             )
 
-            # Apply author filter
-            if author and author.lower() not in commit_metadata["author_name"].lower() and \
-               author.lower() not in commit_metadata["author_email"].lower():
-                logger.debug(
-                    f"Skipping commit: author '{author}' not found in '{commit_metadata['author_name']} <{commit_metadata['author_email']}>'"
-                )
+            if not self._filter_commits_by_author_and_grep(commit_metadata, author, grep):
                 continue
 
-            # Apply grep filter (simplified: check in commit message summary)
-            if grep and grep.lower() not in commit_metadata["commit_message_summary"].lower():
-                logger.debug(
-                    f"Skipping commit: grep '{grep}' not found in '{commit_metadata['commit_message_summary']}'"
-                )
-                continue
-
-            output_lines.append(
-                f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@{commit_metadata['parent_hashes']}@@@FIELD@@@{commit_metadata['author_name']}@@@FIELD@@@{commit_metadata['author_email']}@@@FIELD@@@{commit_metadata['commit_date'].isoformat()}@@@FIELD@@@{commit_metadata['commit_message_summary']}"
-            )
+            output_lines.append(self._format_commit_line(commit_metadata))
             logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
             # Extract file changes

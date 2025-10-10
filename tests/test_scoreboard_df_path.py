@@ -1,8 +1,8 @@
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
-import sys
 import pandas as pd
+from typer.testing import CliRunner
 
 # Assuming scoreboard.py is in the parent directory
 from git_dataframe_tools.config_models import GitAnalysisConfig
@@ -12,6 +12,8 @@ from git_dataframe_tools.cli import scoreboard
 
 CONFIG_MODELS_MODULE_PATH = "git_dataframe_tools.config_models"
 SCOREBOARD_MODULE_PATH = "git_dataframe_tools.cli.scoreboard"
+
+runner = CliRunner()
 
 
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.datetime")
@@ -54,29 +56,28 @@ def test_get_date_range_invalid_end_date_format(
         GitAnalysisConfig(_end_date_str="invalid-date")
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "non_existent.parquet"])
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=False)
 @patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_df_path_not_found(mock_logger, mock_exists):
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "non_existent.parquet"])
+    assert result.exit_code == 1
     mock_logger.error.assert_called_with(
         "DataFrame file not found at 'non_existent.parquet'"
     )
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=True)
 @patch("git_dataframe_tools.cli._data_loader.pq.read_table")
 @patch("git_dataframe_tools.cli._data_loader.logger")
 def test_main_df_path_read_error(mock_logger, mock_read_table, mock_exists):
     mock_read_table.side_effect = Exception("Parquet read error")
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet"])
+    assert result.exit_code == 1
     mock_logger.error.assert_called_with(
         "Error loading DataFrame from 'data.parquet': Parquet read error"
     )
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=True)
 @patch("git_dataframe_tools.cli._data_loader.pq.read_table")
 @patch("git_dataframe_tools.cli._data_loader.logger")
@@ -84,17 +85,13 @@ def test_main_df_path_version_mismatch_abort(mock_logger, mock_read_table, mock_
     mock_table = MagicMock()
     mock_table.schema.metadata = {b"data_version": b"2.0"}
     mock_read_table.return_value = mock_table
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet"])
+    assert result.exit_code == 1
     mock_logger.error.assert_called_with(
         "DataFrame version mismatch. Expected '1.0', but found '2.0'. Aborting. Use --force-version-mismatch to proceed anyway."
     )
 
 
-@patch.object(
-    sys,
-    "argv",
-    ["scoreboard.py", "--df-path", "data.parquet", "--force-version-mismatch"],
-)
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=True)
 @patch("git_dataframe_tools.cli._data_loader.pq.read_table")
 @patch("git2df.get_commits_df")
@@ -122,23 +119,19 @@ def test_main_df_path_version_mismatch_force(
     mock_parse_git_log.return_value = {}
     mock_get_ranking.return_value = []
 
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"])
+    assert result.exit_code == 0
     mock_logger.warning.assert_any_call(
         "DataFrame version mismatch. Expected '1.0', but found '2.0'. Proceeding due to --force-version-mismatch."
     )
 
 
-@patch.object(sys, "argv", ["scoreboard.py", "--df-path", "data.parquet"])
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=True)
 @patch("git_dataframe_tools.cli._data_loader.pq.read_table")
 @patch("git_dataframe_tools.cli._data_loader.logger")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
 @patch("git_dataframe_tools.git_stats_pandas.get_ranking")
-@patch("git_dataframe_tools.cli._display_utils.print_header")
-@patch("builtins.print")
 def test_main_df_path_no_version_metadata_abort(
-    mock_print,
-    mock_print_header,
     mock_get_ranking,
     mock_parse_git_log,
     mock_logger,
@@ -148,34 +141,26 @@ def test_main_df_path_no_version_metadata_abort(
     mock_table = MagicMock()
     mock_table.schema.metadata = {}  # No data_version metadata
     mock_read_table.return_value = mock_table
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet"])
+    assert result.exit_code == 1
     mock_logger.error.assert_called_with(
         "No 'data_version' metadata found in the DataFrame file. Aborting. Use --force-version-mismatch to proceed anyway."
     )
 
 
-@patch.object(
-    sys,
-    "argv",
-    ["scoreboard.py", "--df-path", "data.parquet", "--force-version-mismatch"],
-)
 @patch("git_dataframe_tools.cli._data_loader.os.path.exists", return_value=True)
 @patch("git_dataframe_tools.cli._data_loader.pq.read_table")
+@patch("git2df.get_commits_df")
 @patch("git_dataframe_tools.cli._data_loader.logger")
-@patch("git_dataframe_tools.cli.scoreboard.setup_logging")
+@patch("datetime.datetime")
 @patch("git_dataframe_tools.git_stats_pandas.parse_git_log")
 @patch("git_dataframe_tools.git_stats_pandas.get_ranking")
-@patch("git_dataframe_tools.cli._display_utils.print_header")
-@patch("builtins.print")
-@patch("datetime.datetime")
 def test_main_df_path_no_version_metadata_force(
-    mock_datetime,
-    mock_print,
-    mock_print_header,
     mock_get_ranking,
     mock_parse_git_log,
-    mock_setup_logging,
+    mock_datetime,
     mock_logger,
+    mock_get_commits_df,
     mock_read_table,
     mock_exists,
 ):
@@ -190,7 +175,8 @@ def test_main_df_path_no_version_metadata_force(
     mock_parse_git_log.return_value = {}
     mock_get_ranking.return_value = []
 
-    assert scoreboard.main() == 1
+    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"])
+    assert result.exit_code == 0
     mock_logger.warning.assert_any_call(
         "No 'data_version' metadata found in the DataFrame file. Proceeding due to --force-version-mismatch."
     )

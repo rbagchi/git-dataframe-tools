@@ -1,7 +1,7 @@
 import subprocess
 import git
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 

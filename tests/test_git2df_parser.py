@@ -1,8 +1,4 @@
-import pytest
-import json
 from pathlib import Path
-from datetime import datetime
-from git2df.git_parser import _parse_git_data_internal
 
 
 def get_golden_file_pairs():

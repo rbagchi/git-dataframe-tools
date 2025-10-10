@@ -4,10 +4,20 @@ from typing import Optional, List, Union
 
 from git2df.backends import GitCliBackend
 from git2df.dulwich_backend import DulwichRemoteBackend
-from git2df.git_parser import _parse_git_data_internal, _parse_commit_metadata_line, _parse_file_stat_line
+from git2df.git_parser import _parse_git_data_internal
 from git2df.dataframe_builder import build_commits_df
 
 logger = logging.getLogger(__name__)
+
+def _get_git_backend(
+    remote_url: Optional[str],
+    remote_branch: str,
+) -> Union[GitCliBackend, DulwichRemoteBackend]:
+    """Factory function to get the appropriate Git backend."""
+    if remote_url:
+        return DulwichRemoteBackend(remote_url, remote_branch)
+    else:
+        return GitCliBackend()
 
 
 def get_commits_df(
@@ -57,34 +67,19 @@ def get_commits_df(
         # Prepend default args if custom args are provided, ensuring format is always present
         final_log_args = default_log_args + log_args
 
-    backend: Union[GitCliBackend, DulwichRemoteBackend]
+    backend = _get_git_backend(remote_url, remote_branch)
 
-    if remote_url:
-        backend = DulwichRemoteBackend(remote_url, remote_branch)
-        raw_log_output = backend.get_raw_log_output(
-            repo_path=repo_path,  # Pass repo_path
-            log_args=final_log_args,
-            since=since,
-            until=until,
-            author=author,
-            grep=grep,
-            merged_only=merged_only,
-            include_paths=include_paths,
-            exclude_paths=exclude_paths,
-        )
-    else:
-        backend = GitCliBackend()
-        raw_log_output = backend.get_raw_log_output(
-            repo_path=repo_path,
-            log_args=final_log_args,
-            since=since,
-            until=until,
-            author=author,
-            grep=grep,
-            merged_only=merged_only,
-            include_paths=include_paths,
-            exclude_paths=exclude_paths,
-        )
+    raw_log_output = backend.get_raw_log_output(
+        repo_path=repo_path,  # Pass repo_path
+        log_args=final_log_args,
+        since=since,
+        until=until,
+        author=author,
+        grep=grep,
+        merged_only=merged_only,
+        include_paths=include_paths,
+        exclude_paths=exclude_paths,
+    )
 
     # Split raw output into lines for the parser
     logger.debug(f"Raw log output from backend:\n{raw_log_output[:1000]}") # Log first 1000 chars

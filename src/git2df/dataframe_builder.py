@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 from typing import List
-from git2df.git_parser import GitLogEntry, FileChange
+from git2df.git_parser import GitLogEntry
 
 logger = logging.getLogger(__name__)
 

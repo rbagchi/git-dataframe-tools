@@ -1,7 +1,5 @@
 from unittest.mock import patch, MagicMock
 from git2df.backends import GitCliBackend
-from datetime import datetime, timezone
-import subprocess
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")

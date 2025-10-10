@@ -14,10 +14,10 @@ def test_git_df_cli_basic(git_repo, tmp_path):
 
     command = [
         "git-df",
-        "--repo-path",
-        ".",
         "--output",
         str(output_file),
+        "--repo-path",
+        ".",
     ]
     result = subprocess.run(command, capture_output=True, text=True, check=True)
     assert result.returncode == 0
@@ -40,10 +40,10 @@ def test_git_df_cli_author_filter(git_repo, tmp_path):
 
     command = [
         "git-df",
-        "--repo-path",
-        ".",
         "--output",
         str(output_file),
+        "--repo-path",
+        ".",
         "--author",
         "Test User",
     ]
@@ -64,10 +64,10 @@ def test_git_df_cli_no_commits_found(git_repo, tmp_path):
 
     command = [
         "git-df",
-        "--repo-path",
-        ".",
         "--output",
         str(output_file),
+        "--repo-path",
+        ".",
         "--since",
         "1999-01-01",
         "--until",

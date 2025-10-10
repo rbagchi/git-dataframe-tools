@@ -1,6 +1,7 @@
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from git2df import get_commits_df
+from git2df.git_parser import GitLogEntry, FileChange
 from datetime import datetime, timezone
 
 # Mock data for commit-centric output
@@ -49,8 +50,6 @@ MOCKED_PARSED_DATA = [
         "deletions": 0,
     },
 ]
-
-from git2df.git_parser import GitLogEntry, FileChange
 
 MOCKED_GIT_LOG_ENTRIES = [
     GitLogEntry(
@@ -111,13 +110,14 @@ def test_get_commits_df_with_filters(
     mock_git_cli_backend.assert_called_once_with()
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
         repo_path=repo_path,
-                    log_args=[
-                        "--numstat",
-                        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
-                        "--date=iso",
-                    ],
-                    since=since_arg,
-                    until=None,        author=None,
+        log_args=[
+            "--numstat",
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
+            "--date=iso",
+        ],
+        since=since_arg,
+        until=None,
+        author=None,
         grep=grep_arg,
         merged_only=False,
         include_paths=None,

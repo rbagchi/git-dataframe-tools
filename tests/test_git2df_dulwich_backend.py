@@ -109,7 +109,12 @@ def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich
     parent_commit = repo[parent_commit_id]
 
     expected_output = (
-        f"@@@COMMIT@@@{head_commit.id.hex()}@@@FIELD@@@{parent_commit.id.hex()}@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@{commit_time_head.isoformat()}@@@FIELD@@@Subject 1\n"
+        f"@@@COMMIT@@@{head_commit.id.hex()}@@@FIELD@@@"
+        f"{parent_commit.id.hex()}@@@FIELD@@@"
+        f"Author One@@@FIELD@@@"
+        f"author1@example.com@@@FIELD@@@"
+        f"{commit_time_head.isoformat()}\t{int(commit_time_head.timestamp())}@@@FIELD@@@"
+        f"---MSG_START---Subject 1\n\nBody 1---MSG_END---\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output
@@ -160,7 +165,12 @@ def test_get_raw_log_output_initial_commit(
     initial_commit = repo[initial_commit_id]
 
     expected_output = (
-        f"@@@COMMIT@@@{initial_commit.id.hex()}@@@FIELD@@@@@@FIELD@@@Author Initial@@@FIELD@@@initial@example.com@@@FIELD@@@{commit_time.isoformat()}@@@FIELD@@@Initial commit\n"
+        f"@@@COMMIT@@@{initial_commit.id.hex()}@@@FIELD@@@"
+        f"@@@FIELD@@@"
+        f"Author Initial@@@FIELD@@@"
+        f"initial@example.com@@@FIELD@@@"
+        f"{commit_time.isoformat()}\t{int(commit_time.timestamp())}@@@FIELD@@@"
+        f"---MSG_START---Initial commit---MSG_END---\n"
         "1\t0\tfile1.txt"
     )
     assert output == expected_output

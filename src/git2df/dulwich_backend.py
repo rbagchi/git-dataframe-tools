@@ -97,8 +97,8 @@ class DulwichRemoteBackend:
             f"{commit_metadata['parent_hashes']}@@@FIELD@@@"
             f"{commit_metadata['author_name']}@@@FIELD@@@"
             f"{commit_metadata['author_email']}@@@FIELD@@@"
-            f"{commit_metadata['commit_date'].isoformat()}@@@FIELD@@@"
-            f"{commit_metadata['commit_message_summary']}"
+            f"{commit_metadata['commit_date'].isoformat()}\t{commit_metadata['commit_timestamp']}@@@FIELD@@@"
+            f"---MSG_START---{commit_metadata['commit_message']}---MSG_END---"
         )
 
     def _extract_commit_metadata(self, commit: Commit) -> dict:
@@ -109,16 +109,20 @@ class DulwichRemoteBackend:
         commit_datetime = datetime.datetime.fromtimestamp(
             commit.commit_time, tz=datetime.timezone.utc
         )
+        commit_timestamp = commit.commit_time
         commit_message_summary = (
             commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
         )
+        commit_message = commit.message.decode("utf-8")
         return {
             "commit_hash": commit_hash,
             "parent_hashes": parent_hashes,
             "author_name": author_name,
             "author_email": author_email,
             "commit_date": commit_datetime,
+            "commit_timestamp": commit_timestamp,
             "commit_message_summary": commit_message_summary,
+            "commit_message": commit_message,
         }
 
     def _get_path_from_change(self, change) -> Optional[bytes]:

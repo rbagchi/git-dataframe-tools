@@ -30,12 +30,14 @@
     - Split `tests/test_git2df_public_api.py` into multiple, more focused test files.
     - Updated various tests to align with `Typer` CLI structure and new data types.
     - Resolved all `ruff` linting and `mypy` type-checking issues.
+- **Cyclomatic Complexity Reduction:** Significantly reduced cyclomatic complexity in key functions across `src/git_dataframe_tools/cli/_display_utils.py`, `src/git2df/dulwich_backend.py`, `src/git_dataframe_tools/git_stats_pandas.py`, `src/git2df/backends.py`, and `src/git_dataframe_tools/cli/git_df.py` by extracting helper functions and simplifying logic. All functions now have a cyclomatic complexity grade of A or B according to `radon` analysis.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.
 - `uv run ruff check .`: To check for linting issues.
 - `uv run ruff check . --fix`: To automatically fix linting issues.
 - `uv run mypy .`: To check for type-checking issues.
+- `uv run black .`: To format the code.
 - `uv pip install -e .`: To reinstall the project in editable mode after `pyproject.toml` changes.
 
 **Current Blockers/Issues:**

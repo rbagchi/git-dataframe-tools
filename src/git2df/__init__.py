@@ -4,7 +4,7 @@ from typing import Optional, List, Union
 
 from git2df.backends import GitCliBackend
 from git2df.dulwich_backend import DulwichRemoteBackend
-from git2df.git_parser import _parse_git_data_internal
+from git2df.git_parser import _parse_git_data_internal, _parse_commit_metadata_line, _parse_file_stat_line
 from git2df.dataframe_builder import build_commits_df
 
 logger = logging.getLogger(__name__)
@@ -91,10 +91,10 @@ def get_commits_df(
     log_lines = raw_log_output.splitlines()
     logger.debug(f"Received {len(log_lines)} raw log lines from Git.")
 
-    parsed_data = _parse_git_data_internal(log_lines)
-    logger.debug(f"Parsed {len(parsed_data)} commit entries.")
+    parsed_entries = _parse_git_data_internal(log_lines)
+    logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
 
-    df = build_commits_df(parsed_data)
+    df = build_commits_df(parsed_entries)
     logger.info(f"Built DataFrame with {len(df)} rows.")
 
     return df

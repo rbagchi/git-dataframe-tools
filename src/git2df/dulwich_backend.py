@@ -218,16 +218,20 @@ class DulwichRemoteBackend:
                 def dulwich_progress_callback(progress_bytes: bytes) -> None:
                     message = progress_bytes.decode("utf-8", errors="ignore").strip()
                     if message:
-                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
-                        pbar.update(1)
+                        if any(keyword in message for keyword in ["Counting objects", "Compressing objects", "Total"]):
+                            pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
 
                 logger.info(
                     f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
                 )
                 with tqdm(
+                    total=0,
                     unit="obj",
                     desc=f"Fetching {self.remote_branch} from {self.remote_url}",
                     disable=logger.level > logging.INFO,
+                    mininterval=0.5,
+                    leave=True,
+                    dynamic_ncols=True,
                 ) as pbar:
                     fetch_result = client.fetch(
                         self.remote_url,

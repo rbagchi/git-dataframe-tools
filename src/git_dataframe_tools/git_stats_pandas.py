@@ -2,14 +2,28 @@ import pandas as pd
 import math
 
 
-def _calculate_decile_from_rank(rank, n):
-    return min(10, math.ceil(rank * 10 / n))
-
-
 def parse_git_log(git_data: pd.DataFrame) -> list[dict]:
     """Parses git log data (provided as a DataFrame from git2df) and prepares author statistics."""
     author_stats_df = _get_author_stats_dataframe_internal(git_data)
     return author_stats_df.to_dict(orient="records")
+
+
+def _calculate_deciles(
+    df: pd.DataFrame, sort_by_col: str, decile_col_name: str
+) -> pd.DataFrame:
+    df_sorted = df.sort_values(by=sort_by_col, ascending=False).reset_index(drop=True)
+    n = len(df_sorted)
+    if n > 0:
+        current_decile = 1
+        for i in range(n):
+            current_val = df_sorted[sort_by_col].iloc[i]
+            if i > 0 and current_val < df_sorted[sort_by_col].iloc[i - 1]:
+                current_rank = i + 1
+                current_decile = min(10, math.ceil(current_rank * 10 / n))
+            df_sorted.loc[i, decile_col_name] = int(current_decile)
+    else:
+        df_sorted[decile_col_name] = pd.Series(dtype=pd.Int64Dtype())
+    return df_sorted
 
 
 def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
@@ -66,44 +80,12 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # Calculate diff_decile
-    author_stats_diff_sorted = author_stats.sort_values(
-        by="total", ascending=False
-    ).reset_index(drop=True)
-    n_diff = len(author_stats_diff_sorted)
-    if n_diff > 0:
-        current_decile_diff = 1
-        for i in range(n_diff):
-            current_total = author_stats_diff_sorted["total"].iloc[i]
-            previous_total = author_stats_diff_sorted["total"].iloc[i - 1]
-            if i > 0 and current_total < previous_total:
-                current_rank_diff = i + 1
-                current_decile_diff = min(
-                    10, math.ceil(current_rank_diff * 10 / n_diff)
-                )
-            author_stats_diff_sorted.loc[i, "diff_decile"] = int(current_decile_diff)
-    else:
-        author_stats_diff_sorted["diff_decile"] = pd.Series(dtype=pd.Int64Dtype())
+    author_stats_diff_sorted = _calculate_deciles(author_stats, "total", "diff_decile")
 
     # Calculate commit_decile
-    author_stats_commit_sorted = author_stats.sort_values(
-        by="commits", ascending=False
-    ).reset_index(drop=True)
-    n_commit = len(author_stats_commit_sorted)
-    if n_commit > 0:
-        current_decile_commit = 1
-        for i in range(n_commit):
-            current_commits = author_stats_commit_sorted["commits"].iloc[i]
-            previous_commits = author_stats_commit_sorted["commits"].iloc[i - 1]
-            if i > 0 and current_commits < previous_commits:
-                current_rank_commit = i + 1
-                current_decile_commit = min(
-                    10, math.ceil(current_rank_commit * 10 / n_commit)
-                )
-            author_stats_commit_sorted.loc[i, "commit_decile"] = int(
-                current_decile_commit
-            )
-    else:
-        author_stats_commit_sorted["commit_decile"] = pd.Series(dtype=pd.Int64Dtype())
+    author_stats_commit_sorted = _calculate_deciles(
+        author_stats, "commits", "commit_decile"
+    )
 
     # Merge diff_decile back to the original author_stats DataFrame
     author_stats = author_stats.merge(

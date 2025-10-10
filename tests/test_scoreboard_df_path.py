@@ -119,7 +119,9 @@ def test_main_df_path_version_mismatch_force(
     mock_parse_git_log.return_value = {}
     mock_get_ranking.return_value = []
 
-    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"])
+    result = runner.invoke(
+        scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"]
+    )
     assert result.exit_code == 0
     mock_logger.warning.assert_any_call(
         "DataFrame version mismatch. Expected '1.0', but found '2.0'. Proceeding due to --force-version-mismatch."
@@ -175,7 +177,9 @@ def test_main_df_path_no_version_metadata_force(
     mock_parse_git_log.return_value = {}
     mock_get_ranking.return_value = []
 
-    result = runner.invoke(scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"])
+    result = runner.invoke(
+        scoreboard.app, ["--df-path", "data.parquet", "--force-version-mismatch"]
+    )
     assert result.exit_code == 0
     mock_logger.warning.assert_any_call(
         "No 'data_version' metadata found in the DataFrame file. Proceeding due to --force-version-mismatch."

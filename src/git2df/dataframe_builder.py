@@ -17,7 +17,9 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
     Returns:
         A Pandas DataFrame with commit-related information, with one row per file change per commit.
     """
-    logger.debug(f"Building DataFrame from {len(parsed_data)} parsed GitLogEntry objects.")
+    logger.debug(
+        f"Building DataFrame from {len(parsed_data)} parsed GitLogEntry objects."
+    )
     if not parsed_data:
         logger.info("No parsed data entries, returning empty DataFrame.")
         return pd.DataFrame(
@@ -39,32 +41,36 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
     for entry in parsed_data:
         if entry.file_changes:
             for file_change in entry.file_changes:
-                records.append({
+                records.append(
+                    {
+                        "commit_hash": entry.commit_hash,
+                        "parent_hash": entry.parent_hash,
+                        "author_name": entry.author_name,
+                        "author_email": entry.author_email,
+                        "commit_date": entry.commit_date,
+                        "commit_message": entry.commit_message,
+                        "file_paths": file_change.file_path,
+                        "change_type": file_change.change_type,
+                        "additions": file_change.additions,
+                        "deletions": file_change.deletions,
+                    }
+                )
+        else:
+            # Handle commits with no file changes (e.g., merge commits without --numstat output)
+            records.append(
+                {
                     "commit_hash": entry.commit_hash,
                     "parent_hash": entry.parent_hash,
                     "author_name": entry.author_name,
                     "author_email": entry.author_email,
                     "commit_date": entry.commit_date,
                     "commit_message": entry.commit_message,
-                    "file_paths": file_change.file_path,
-                    "change_type": file_change.change_type,
-                    "additions": file_change.additions,
-                    "deletions": file_change.deletions,
-                })
-        else:
-            # Handle commits with no file changes (e.g., merge commits without --numstat output)
-            records.append({
-                "commit_hash": entry.commit_hash,
-                "parent_hash": entry.parent_hash,
-                "author_name": entry.author_name,
-                "author_email": entry.author_email,
-                "commit_date": entry.commit_date,
-                "commit_message": entry.commit_message,
-                "file_paths": None,  # Or an appropriate default
-                "change_type": None, # Or an appropriate default
-                "additions": 0,
-                "deletions": 0,
-            })
+                    "file_paths": None,  # Or an appropriate default
+                    "change_type": None,  # Or an appropriate default
+                    "additions": 0,
+                    "deletions": 0,
+                }
+            )
 
     df = pd.DataFrame(records)
     logger.info(f"Successfully built DataFrame with {len(df)} rows.")

@@ -26,12 +26,15 @@ def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_bra
         "10\t5\tfile1.txt"
     )
     assert output == expected_output
-    mock_subprocess_run.assert_called_once() # Ensure subprocess.run was called
+    mock_subprocess_run.assert_called_once()  # Ensure subprocess.run was called
     # Verify the arguments passed to subprocess.run
     args, kwargs = mock_subprocess_run.call_args
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
-    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert (
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        in args[0]
+    )
     assert "--date=iso" in args[0]
     assert kwargs["cwd"] == repo_path
     assert kwargs["capture_output"] is True
@@ -63,7 +66,10 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     args, kwargs = mock_subprocess_run.call_args
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
-    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert (
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        in args[0]
+    )
     assert "--date=iso" in args[0]
     assert "--since" in args[0]
     assert since in args[0]
@@ -97,7 +103,10 @@ def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_br
     args, kwargs = mock_subprocess_run.call_args
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
-    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert (
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        in args[0]
+    )
     assert "--date=iso" in args[0]
     assert "--merges" in args[0]
     assert f"origin/{mock_get_default_branch.return_value}" in args[0]
@@ -126,7 +135,10 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     args, kwargs = mock_subprocess_run.call_args
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
-    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert (
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        in args[0]
+    )
     assert "--date=iso" in args[0]
     assert "--" in args[0]
     assert include_paths[0] in args[0]
@@ -138,7 +150,9 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
-def test_get_raw_log_output_with_exclude_paths(mock_subprocess_run, mock_get_default_branch):
+def test_get_raw_log_output_with_exclude_paths(
+    mock_subprocess_run, mock_get_default_branch
+):
     # Arrange
     mock_subprocess_run.return_value = MagicMock(
         stdout=(
@@ -168,7 +182,10 @@ def test_get_raw_log_output_with_exclude_paths(mock_subprocess_run, mock_get_def
     args, kwargs = mock_subprocess_run.call_args
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
-    assert "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s" in args[0]
+    assert (
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        in args[0]
+    )
     assert "--date=iso" in args[0]
     assert "--" in args[0]
     assert f":(exclude){exclude_paths[0]}" in args[0]

@@ -33,6 +33,54 @@ class GitCliBackend:
             return "main"  # fallback for now
         return "main"
 
+    def _build_git_log_arguments(
+        self,
+        repo_path: str,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False,
+        include_paths: Optional[List[str]] = None,
+        exclude_paths: Optional[List[str]] = None,
+    ) -> List[str]:
+        cmd = ["git", "log"]
+
+        # Always include --numstat for file changes and the custom pretty format
+        cmd.append("--numstat")
+        cmd.append(
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        )
+        cmd.append("--date=iso")  # Ensure ISO format for consistent date parsing
+
+        if since:
+            cmd.extend(["--since", since])
+        if until:
+            cmd.extend(["--until", until])
+        if author:
+            cmd.extend(["--author", author])
+        if grep:
+            cmd.extend(["--grep", grep])
+        if merged_only:
+            # For merged_only, we need to find the default branch first
+            # This still uses GitPython for _get_default_branch, but the log itself is CLI
+            default_branch = self._get_default_branch(repo_path)
+            cmd.append("--merges")
+            cmd.append(f"origin/{default_branch}")  # Assuming origin is the remote name
+
+        if log_args:
+            cmd.extend(log_args)
+
+        if include_paths:
+            cmd.append("--")  # Separator for paths
+            cmd.extend(include_paths)
+        if exclude_paths:
+            cmd.append("--")  # Separator for paths
+            for p in exclude_paths:
+                cmd.append(f":(exclude){p}")
+        return cmd
+
     def get_raw_log_output(
         self,
         repo_path: str,
@@ -62,40 +110,17 @@ class GitCliBackend:
         Returns:
             The raw stdout from the 'git log' command.
         """
-        cmd = ["git", "log"]
-
-        # Always include --numstat for file changes and the custom pretty format
-        cmd.append("--numstat")
-        cmd.append(
-            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        cmd = self._build_git_log_arguments(
+            repo_path,
+            log_args,
+            since,
+            until,
+            author,
+            grep,
+            merged_only,
+            include_paths,
+            exclude_paths,
         )
-        cmd.append("--date=iso") # Ensure ISO format for consistent date parsing
-
-        if since:
-            cmd.extend(["--since", since])
-        if until:
-            cmd.extend(["--until", until])
-        if author:
-            cmd.extend(["--author", author])
-        if grep:
-            cmd.extend(["--grep", grep])
-        if merged_only:
-            # For merged_only, we need to find the default branch first
-            # This still uses GitPython for _get_default_branch, but the log itself is CLI
-            default_branch = self._get_default_branch(repo_path)
-            cmd.append("--merges")
-            cmd.append(f"origin/{default_branch}") # Assuming origin is the remote name
-
-        if log_args:
-            cmd.extend(log_args)
-
-        if include_paths:
-            cmd.append("--") # Separator for paths
-            cmd.extend(include_paths)
-        if exclude_paths:
-            cmd.append("--") # Separator for paths
-            for p in exclude_paths:
-                cmd.append(f":(exclude){p}")
 
         logger.debug(f"Executing git log command: {' '.join(cmd)}")
         try:

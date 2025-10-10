@@ -19,6 +19,76 @@ app = typer.Typer(
 )
 
 
+def _validate_and_setup_paths(
+    repo_path: str, remote_url: Optional[str], remote_branch: str
+) -> str:
+    if not remote_url and repo_path and not os.path.isdir(repo_path):
+        logger.error(
+            f"Repository path '{repo_path}' does not exist or is not a directory."
+        )
+        raise typer.Exit(1)
+
+    if remote_url:
+        logger.info(
+            f"Extracting commit data from remote '{remote_url}' branch '{remote_branch}'..."
+        )
+        return "."  # Use current directory as a placeholder for remote operations
+    else:
+        logger.info(f"Extracting commit data from local '{repo_path}'...")
+        return repo_path
+
+
+def _handle_empty_dataframe(output: str, repo_path: str) -> None:
+    logger.warning(f"No commits found for the specified criteria in '{repo_path}'.")
+    try:
+        empty_df = pd.DataFrame()
+        table = pa.Table.from_pandas(empty_df)
+        custom_metadata = {
+            "data_version": DATA_VERSION,
+            "description": "Git commit data extracted by git-df CLI",
+        }
+        metadata_bytes = {
+            k.encode(): str(v).encode() for k, v in custom_metadata.items()
+        }
+
+        temp_table = pa.Table.from_pandas(empty_df)
+        new_schema = temp_table.schema.with_metadata(metadata_bytes)
+
+        table = pa.Table.from_pandas(empty_df, schema=new_schema)
+        pq.write_table(table, output)
+        logger.info(
+            f"Created empty Parquet file at '{output}' as no commits were found."
+        )
+    except Exception as e:
+        logger.error(f"Error creating empty Parquet file: {e}")
+        raise typer.Exit(1)
+
+
+def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str) -> None:
+    logger.info(f"Saving {len(commits_df)} commits to '{output}'...")
+    try:
+        table = pa.Table.from_pandas(commits_df)
+
+        custom_metadata = {
+            "data_version": DATA_VERSION,
+            "description": "Git commit data extracted by git-df CLI",
+        }
+
+        metadata_bytes = {
+            k.encode(): str(v).encode() for k, v in custom_metadata.items()
+        }
+        temp_table = pa.Table.from_pandas(commits_df)
+        new_schema = temp_table.schema.with_metadata(metadata_bytes)
+
+        table = pa.Table.from_pandas(commits_df, schema=new_schema)
+
+        pq.write_table(table, output)
+        logger.info(f"Successfully saved commit data to '{output}'.")
+    except Exception as e:
+        logger.error(f"Error saving data to Parquet: {e}")
+        raise typer.Exit(1)
+
+
 @app.command()
 def main(
     output: Annotated[
@@ -104,35 +174,17 @@ def main(
     ] = None,
     verbose: Annotated[
         bool,
-        typer.Option(
-            "-v", "--verbose", help="Enable verbose output (INFO level)"
-        ),
+        typer.Option("-v", "--verbose", help="Enable verbose output (INFO level)"),
     ] = False,
     debug: Annotated[
         bool,
-        typer.Option(
-            "-d", "--debug", help="Enable debug output (DEBUG level)"
-        ),
+        typer.Option("-d", "--debug", help="Enable debug output (DEBUG level)"),
     ] = False,
 ):
     setup_logging(debug=debug, verbose=verbose)
     logger.debug(f"CLI arguments: {locals()}")
 
-    # Ensure the repository path exists if a local repo is used
-    if not remote_url and repo_path and not os.path.isdir(repo_path):
-        logger.error(
-            f"Repository path '{repo_path}' does not exist or is not a directory."
-        )
-        raise typer.Exit(1)
-
-    if remote_url:
-        logger.info(
-            f"Extracting commit data from remote '{remote_url}' branch '{remote_branch}'..."
-        )
-        repo_path_arg = "."  # Use current directory as a placeholder for remote operations
-    else:
-        logger.info(f"Extracting commit data from local '{repo_path}'...")
-        repo_path_arg = repo_path
+    repo_path_arg = _validate_and_setup_paths(repo_path, remote_url, remote_branch)
 
     try:
         commits_df = get_commits_df(
@@ -152,55 +204,10 @@ def main(
         raise typer.Exit(1)
 
     if commits_df.empty:
-        logger.warning(
-            f"No commits found for the specified criteria in '{repo_path}'."
-        )
-        try:
-            empty_df = pd.DataFrame()
-            table = pa.Table.from_pandas(empty_df)
-            custom_metadata = {
-                "data_version": DATA_VERSION,
-                "description": "Git commit data extracted by git-df CLI",
-            }
-            metadata_bytes = {
-                k.encode(): str(v).encode() for k, v in custom_metadata.items()
-            }
-
-            temp_table = pa.Table.from_pandas(empty_df)
-            new_schema = temp_table.schema.with_metadata(metadata_bytes)
-
-            table = pa.Table.from_pandas(empty_df, schema=new_schema)
-            pq.write_table(table, output)
-            logger.info(
-                f"Created empty Parquet file at '{output}' as no commits were found."
-            )
-        except Exception as e:
-            logger.error(f"Error creating empty Parquet file: {e}")
-            raise typer.Exit(1)
+        _handle_empty_dataframe(output, repo_path)
         return
 
-    logger.info(f"Saving {len(commits_df)} commits to '{output}'...")
-    try:
-        table = pa.Table.from_pandas(commits_df)
-
-        custom_metadata = {
-            "data_version": DATA_VERSION,
-            "description": "Git commit data extracted by git-df CLI",
-        }
-
-        metadata_bytes = {
-            k.encode(): str(v).encode() for k, v in custom_metadata.items()
-        }
-        temp_table = pa.Table.from_pandas(commits_df)
-        new_schema = temp_table.schema.with_metadata(metadata_bytes)
-
-        table = pa.Table.from_pandas(commits_df, schema=new_schema)
-
-        pq.write_table(table, output)
-        logger.info(f"Successfully saved commit data to '{output}'.")
-    except Exception as e:
-        logger.error(f"Error saving data to Parquet: {e}")
-        raise typer.Exit(1)
+    _save_dataframe_to_parquet(commits_df, output)
 
 
 if __name__ == "__main__":

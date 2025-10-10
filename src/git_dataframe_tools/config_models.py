@@ -130,7 +130,9 @@ class GitAnalysisConfig:
             print_error("Error: Not in a git repository")
             sys.exit(1)
         try:
-            self.current_user_name, self.current_user_email = get_current_git_user(os.getcwd())
+            self.current_user_name, self.current_user_email = get_current_git_user(
+                os.getcwd()
+            )
         except Exception as e:
             print_error(
                 f"Error: Could not retrieve git user.name or user.email: {e}. Please configure git or run without --me."

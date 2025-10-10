@@ -1,4 +1,3 @@
-
 # Mock data for commit-centric output
 MOCKED_RAW_LOG_OUTPUT = [
     "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1",

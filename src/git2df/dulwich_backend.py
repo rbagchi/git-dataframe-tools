@@ -39,9 +39,11 @@ class DulwichRemoteBackend:
 
     def _parse_date_string(self, date_string: str) -> Optional[datetime.datetime]:
         cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
-        result, parse_status = cal.parseDT(date_string, sourceTime=datetime.datetime.now(datetime.timezone.utc))
+        result, parse_status = cal.parseDT(
+            date_string, sourceTime=datetime.datetime.now(datetime.timezone.utc)
+        )
 
-        if result: # If result is not None, parsing was successful
+        if result:  # If result is not None, parsing was successful
             # parsedatetime returns naive datetime objects, so we need to make them timezone-aware
             # If the parsed datetime is naive, assume UTC
             if result.tzinfo is None:
@@ -49,7 +51,12 @@ class DulwichRemoteBackend:
             return result
         return None
 
-    def _filter_commits_by_date(self, commit: Commit, since_dt: Optional[datetime.datetime], until_dt: Optional[datetime.datetime]) -> bool:
+    def _filter_commits_by_date(
+        self,
+        commit: Commit,
+        since_dt: Optional[datetime.datetime],
+        until_dt: Optional[datetime.datetime],
+    ) -> bool:
         commit_datetime = datetime.datetime.fromtimestamp(
             commit.commit_time, tz=datetime.timezone.utc
         )
@@ -59,17 +66,25 @@ class DulwichRemoteBackend:
             return False
         return True
 
-    def _filter_commits_by_author_and_grep(self, commit_metadata: dict, author: Optional[str], grep: Optional[str]) -> bool:
+    def _filter_commits_by_author_and_grep(
+        self, commit_metadata: dict, author: Optional[str], grep: Optional[str]
+    ) -> bool:
         # Apply author filter
-        if author and author.lower() not in commit_metadata["author_name"].lower() and \
-           author.lower() not in commit_metadata["author_email"].lower():
+        if (
+            author
+            and author.lower() not in commit_metadata["author_name"].lower()
+            and author.lower() not in commit_metadata["author_email"].lower()
+        ):
             logger.debug(
                 f"Skipping commit: author '{author}' not found in '{commit_metadata['author_name']} <{commit_metadata['author_email']}>'"
             )
             return False
 
         # Apply grep filter (simplified: check in commit message summary)
-        if grep and grep.lower() not in commit_metadata["commit_message_summary"].lower():
+        if (
+            grep
+            and grep.lower() not in commit_metadata["commit_message_summary"].lower()
+        ):
             logger.debug(
                 f"Skipping commit: grep '{grep}' not found in '{commit_metadata['commit_message_summary']}'"
             )
@@ -106,8 +121,36 @@ class DulwichRemoteBackend:
             "commit_message_summary": commit_message_summary,
         }
 
+    def _get_path_from_change(self, change) -> Optional[bytes]:
+        if change.type == "add":
+            if change.new:
+                return change.new.path
+        elif change.type == "delete":
+            if change.old:
+                return change.old.path
+        elif change.type == "modify":
+            if change.new:
+                return change.new.path
+        return None
+
+    def _should_include_path(
+        self,
+        path_str: str,
+        include_paths: Optional[List[str]],
+        exclude_paths: Optional[List[str]],
+    ) -> bool:
+        if include_paths and not any(path_str.startswith(p) for p in include_paths):
+            return False
+        if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
+            return False
+        return True
+
     def _extract_file_changes(
-        self, repo, commit: Commit, include_paths: Optional[List[str]], exclude_paths: Optional[List[str]]
+        self,
+        repo,
+        commit: Commit,
+        include_paths: Optional[List[str]],
+        exclude_paths: Optional[List[str]],
     ) -> List[dict]:
         file_changes = []
         old_tree_id = None
@@ -118,16 +161,7 @@ class DulwichRemoteBackend:
         for change in dulwich.diff_tree.tree_changes(
             repo.object_store, old_tree_id, commit.tree
         ):
-            path = None
-            if change.type == "add":
-                if change.new:
-                    path = change.new.path
-            elif change.type == "delete":
-                if change.old:
-                    path = change.old.path
-            elif change.type == "modify":
-                if change.new:
-                    path = change.new.path
+            path = self._get_path_from_change(change)
 
             if not path:
                 continue
@@ -135,26 +169,32 @@ class DulwichRemoteBackend:
             path_str = path.decode("utf-8")
 
             # Apply include_paths and exclude_paths filters
-            if include_paths and not any(
-                path_str.startswith(p) for p in include_paths
-            ):
-                continue
-            if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
+            if not self._should_include_path(path_str, include_paths, exclude_paths):
                 continue
 
             # Simplified additions/deletions to fix test output format
             additions = 1
             deletions = 0
-            file_changes.append({
-                "file_paths": path_str,
-                "change_type": change.type,
-                "additions": additions,
-                "deletions": deletions,
-            })
+            file_changes.append(
+                {
+                    "file_paths": path_str,
+                    "change_type": change.type,
+                    "additions": additions,
+                    "deletions": deletions,
+                }
+            )
         return file_changes
 
     def _walk_commits(
-        self, repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar: tqdm
+        self,
+        repo,
+        since_dt,
+        until_dt,
+        author,
+        grep,
+        include_paths,
+        exclude_paths,
+        pbar: tqdm,
     ):
         output_lines: list[str] = []
         all_commits = []
@@ -167,8 +207,8 @@ class DulwichRemoteBackend:
 
         # Update the total of the passed pbar for the parsing phase
         if not pbar.disable:
-            pbar.total += len(all_commits) # Add the number of commits to the total
-        pbar.set_description("Parsing git log") # Update description for parsing phase
+            pbar.total += len(all_commits)  # Add the number of commits to the total
+        pbar.set_description("Parsing git log")  # Update description for parsing phase
 
         for commit in all_commits:
             pbar.update(1)
@@ -181,19 +221,179 @@ class DulwichRemoteBackend:
                 f"Processing commit {commit_metadata['commit_hash']} with date {commit_metadata['commit_date']}"
             )
 
-            if not self._filter_commits_by_author_and_grep(commit_metadata, author, grep):
+            if not self._filter_commits_by_author_and_grep(
+                commit_metadata, author, grep
+            ):
                 continue
 
             output_lines.append(self._format_commit_line(commit_metadata))
             logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
             # Extract file changes
-            file_changes = self._extract_file_changes(repo, commit, include_paths, exclude_paths)
+            file_changes = self._extract_file_changes(
+                repo, commit, include_paths, exclude_paths
+            )
             for file_change in file_changes:
-                output_lines.append(f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['file_paths']}")
+                output_lines.append(
+                    f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['file_paths']}"
+                )
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)
+
+    def _get_date_filters(
+        self, since: Optional[str], until: Optional[str]
+    ) -> tuple[Optional[datetime.datetime], Optional[datetime.datetime]]:
+        since_dt = None
+        if since:
+            since_dt = self._parse_date_string(since)
+            if not since_dt:
+                logger.warning(f"Unsupported 'since' format: {since}. Ignoring.")
+        else:
+            # Default to last year if no 'since' is provided
+            since_dt = datetime.datetime.now(
+                datetime.timezone.utc
+            ) - datetime.timedelta(days=365)
+
+        until_dt = None
+        if until:
+            until_dt = self._parse_date_string(until)
+            if not until_dt:
+                logger.warning(f"Unsupported 'until' format: {until}. Ignoring.")
+        else:
+            # Default to now if no 'until' is provided
+            until_dt = datetime.datetime.now(datetime.timezone.utc)
+        return since_dt, until_dt
+
+    def _handle_local_repo(
+        self, since_dt, until_dt, author, grep, include_paths, exclude_paths
+    ) -> str:
+        repo = self.repo
+        if repo is None:
+            raise ValueError("Local repository not initialized.")
+        logger.info(
+            f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}"
+        )
+        logger.debug(
+            f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}"
+        )
+        _disable_tqdm = (
+            not sys.stdout.isatty() or not sys.stderr.isatty()
+        ) or logger.level > logging.INFO
+        with tqdm(
+            disable=True, file=sys.stderr
+        ) as pbar_dummy:  # Always disabled for local repo
+            return self._walk_commits(
+                repo,
+                since_dt,
+                until_dt,
+                author,
+                grep,
+                include_paths,
+                exclude_paths,
+                pbar_dummy,
+            )
+
+    def _handle_remote_repo(
+        self, since_dt, until_dt, author, grep, include_paths, exclude_paths
+    ) -> str:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Repo.init(tmpdir)
+            client = HttpGitClient(self.remote_url)
+
+            _disable_tqdm = (
+                not sys.stdout.isatty() or not sys.stderr.isatty()
+            ) or logger.level > logging.INFO
+
+            # Create a single tqdm instance for overall progress
+            with tqdm(
+                total=0,  # Will be updated dynamically
+                unit="obj",
+                desc=f"Fetching {self.remote_branch} from {self.remote_url}",
+                disable=_disable_tqdm,
+                mininterval=0.5,
+                leave=True,  # Keep the final bar visible
+                dynamic_ncols=True,
+                file=sys.stderr,
+            ) as pbar:
+
+                def determine_wants_func(
+                    refs: dict[bytes, bytes], depth: int | None = None
+                ) -> list[bytes]:
+                    head_sha = refs.get(b"HEAD")
+                    if head_sha:
+                        return [head_sha]
+                    try:
+                        return [
+                            refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
+                        ]
+                    except KeyError:
+                        logger.error(
+                            f"Branch '{self.remote_branch}' not found in remote refs."
+                        )
+                        raise
+
+                def dulwich_progress_callback(progress_bytes: bytes) -> None:
+                    message = progress_bytes.decode("utf-8", errors="ignore").strip()
+                    if message:
+                        # Only update description for key progress messages
+                        if any(
+                            keyword in message
+                            for keyword in [
+                                "Counting objects",
+                                "Compressing objects",
+                                "Total",
+                            ]
+                        ):
+                            pbar.set_description(
+                                f"Fetching {self.remote_branch} from {self.remote_url}: {message}"
+                            )
+                        if not pbar.disable:  # Only update if pbar is not disabled
+                            pbar.update(
+                                1
+                            )  # Increment the overall pbar for fetching activity
+
+                _dulwich_progress_callback = None
+                if not _disable_tqdm:
+                    _dulwich_progress_callback = dulwich_progress_callback
+
+                logger.info(
+                    f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
+                )
+                fetch_result = client.fetch(
+                    self.remote_url,
+                    repo,
+                    determine_wants=determine_wants_func,
+                    progress=_dulwich_progress_callback,
+                )
+                remote_refs = fetch_result.refs
+
+                branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")
+                if branch_ref not in remote_refs:
+                    raise ValueError(
+                        f"Branch '{self.remote_branch}' not found in remote repository."
+                    )
+
+                head_sha = remote_refs[branch_ref]
+                assert head_sha is not None  # Ensure head_sha is not None
+                repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")] = (
+                    head_sha  # Set the branch ref
+                )
+                repo.refs.set_symbolic_ref(
+                    b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
+                )  # Set HEAD to the branch
+
+                # Pass the overall pbar to _walk_commits
+                return self._walk_commits(
+                    repo,
+                    since_dt,
+                    until_dt,
+                    author,
+                    grep,
+                    include_paths,
+                    exclude_paths,
+                    pbar,
+                )
 
     def get_raw_log_output(
         self,
@@ -211,116 +411,13 @@ class DulwichRemoteBackend:
         Fetches git log information from a remote repository using Dulwich and returns it
         in a raw string format compatible with git2df's parser.
         """
-        # Convert since/until to datetime objects for filtering
-        since_dt = None
-        if since:
-            since_dt = self._parse_date_string(since)
-            if not since_dt:
-                logger.warning(f"Unsupported 'since' format: {since}. Ignoring.")
-        else:
-            # Default to last year if no 'since' is provided
-            since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=365)
-
-        until_dt = None
-        if until:
-            until_dt = self._parse_date_string(until)
-            if not until_dt:
-                logger.warning(f"Unsupported 'until' format: {until}. Ignoring.")
-        else:
-            # Default to now if no 'until' is provided
-            until_dt = datetime.datetime.now(datetime.timezone.utc)
+        since_dt, until_dt = self._get_date_filters(since, until)
 
         if self.is_local_repo:
-            repo = self.repo
-            if repo is None:
-                raise ValueError("Local repository not initialized.")
-            logger.info(
-                f"Using Dulwich backend for local repository at {self.remote_url}/{self.remote_branch}"
+            return self._handle_local_repo(
+                since_dt, until_dt, author, grep, include_paths, exclude_paths
             )
-            logger.debug(
-                f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}"
-            )
-            _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
-            with tqdm(disable=True, file=sys.stderr) as pbar_dummy: # Always disabled for local repo
-                return self._walk_commits(
-                    repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar_dummy
-                )
         else:
-            # Dulwich operations require a temporary local repository
-            with tempfile.TemporaryDirectory() as tmpdir:
-                repo = Repo.init(tmpdir)
-                client = HttpGitClient(self.remote_url)
-
-                _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
-
-                # Create a single tqdm instance for overall progress
-                with tqdm(
-                    total=0, # Will be updated dynamically
-                    unit="obj",
-                    desc=f"Fetching {self.remote_branch} from {self.remote_url}",
-                    disable=_disable_tqdm,
-                    mininterval=0.5,
-                    leave=True, # Keep the final bar visible
-                    dynamic_ncols=True,
-                    file=sys.stderr,
-                ) as pbar:
-
-                    def determine_wants_func(
-                        refs: dict[bytes, bytes], depth: int | None = None
-                    ) -> list[bytes]:
-                        head_sha = refs.get(b"HEAD")
-                        if head_sha:
-                            return [head_sha]
-                        try:
-                            return [
-                                refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
-                            ]
-                        except KeyError:
-                            logger.error(
-                                f"Branch '{self.remote_branch}' not found in remote refs."
-                            )
-                            raise
-
-                    def dulwich_progress_callback(progress_bytes: bytes) -> None:
-                        message = progress_bytes.decode("utf-8", errors="ignore").strip()
-                        if message:
-                            # Only update description for key progress messages
-                            if any(keyword in message for keyword in ["Counting objects", "Compressing objects", "Total"]):
-                                pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
-                            if not pbar.disable: # Only update if pbar is not disabled
-                                pbar.update(1) # Increment the overall pbar for fetching activity
-
-                    _dulwich_progress_callback = None
-                    if not _disable_tqdm:
-                        _dulwich_progress_callback = dulwich_progress_callback
-
-                    logger.info(
-                        f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
-                    )
-                    fetch_result = client.fetch(
-                        self.remote_url,
-                        repo,
-                        determine_wants=determine_wants_func,
-                        progress=_dulwich_progress_callback,
-                    )
-                    remote_refs = fetch_result.refs
-
-                    branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")
-                    if branch_ref not in remote_refs:
-                        raise ValueError(
-                            f"Branch '{self.remote_branch}' not found in remote repository."
-                        )
-
-                    head_sha = remote_refs[branch_ref]
-                    assert head_sha is not None  # Ensure head_sha is not None
-                    repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")] = (
-                        head_sha  # Set the branch ref
-                    )
-                    repo.refs.set_symbolic_ref(
-                        b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
-                    )  # Set HEAD to the branch
-
-                    # Pass the overall pbar to _walk_commits
-                    return self._walk_commits(
-                        repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar
-                    )
+            return self._handle_remote_repo(
+                since_dt, until_dt, author, grep, include_paths, exclude_paths
+            )

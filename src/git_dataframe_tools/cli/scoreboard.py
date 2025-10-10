@@ -28,9 +28,7 @@ EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(
-    help="Git Author Ranking by Diff Size (Last 3 Months)"
-)
+app = typer.Typer(help="Git Author Ranking by Diff Size (Last 3 Months)")
 
 
 @app.command()
@@ -86,9 +84,7 @@ def main(
     ] = None,
     me: Annotated[
         bool,
-        typer.Option(
-            "--me", help="Filter by your own git user name and email"
-        ),
+        typer.Option("--me", help="Filter by your own git user name and email"),
     ] = False,
     merges: Annotated[
         bool,
@@ -130,15 +126,11 @@ def main(
     ] = False,
     verbose: Annotated[
         bool,
-        typer.Option(
-            "-v", "--verbose", help="Enable verbose output (INFO level)"
-        ),
+        typer.Option("-v", "--verbose", help="Enable verbose output (INFO level)"),
     ] = False,
     debug: Annotated[
         bool,
-        typer.Option(
-            "-d", "--debug", help="Enable debug output (DEBUG level)"
-        ),
+        typer.Option("-d", "--debug", help="Enable debug output (DEBUG level)"),
     ] = False,
 ):
     """Main function"""
@@ -180,7 +172,7 @@ def main(
     # Create a dummy args object for _load_dataframe and _gather_git_data
     # This is a temporary workaround. Ideally, _load_dataframe and _gather_git_data
     # should be refactored to accept individual parameters instead of an 'args' object.
-    class Args: # type: ignore
+    class Args:  # type: ignore
         def __init__(self):
             self.df_path = df_path
             self.repo_path = repo_path

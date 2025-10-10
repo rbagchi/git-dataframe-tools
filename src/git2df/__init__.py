@@ -9,6 +9,7 @@ from git2df.dataframe_builder import build_commits_df
 
 logger = logging.getLogger(__name__)
 
+
 def _get_git_backend(
     remote_url: Optional[str],
     remote_branch: str,
@@ -82,7 +83,9 @@ def get_commits_df(
     )
 
     # Split raw output into lines for the parser
-    logger.debug(f"Raw log output from backend:\n{raw_log_output[:1000]}") # Log first 1000 chars
+    logger.debug(
+        f"Raw log output from backend:\n{raw_log_output[:1000]}"
+    )  # Log first 1000 chars
     log_lines = raw_log_output.splitlines()
     logger.debug(f"Received {len(log_lines)} raw log lines from Git.")
 

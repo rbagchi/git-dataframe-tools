@@ -53,14 +53,22 @@ def test_get_current_git_user_no_email(mock_get_current_git_user, mock_check_git
 
 @pytest.mark.parametrize(
     "raised_exception",
-    [InvalidGitRepositoryError(), GitCommandError("git config", 1, b"", b""), KeyError()],
+    [
+        InvalidGitRepositoryError(),
+        GitCommandError("git config", 1, b"", b""),
+        KeyError(),
+    ],
 )
 @patch("git_dataframe_tools.config_models.print_error")
 @patch("sys.exit")
 @patch("git_dataframe_tools.config_models.check_git_repo")
 @patch("git_dataframe_tools.config_models.get_current_git_user")
 def test_get_current_git_user_failure(
-    mock_get_current_git_user, mock_check_git_repo, mock_exit, mock_print_error, raised_exception
+    mock_get_current_git_user,
+    mock_check_git_repo,
+    mock_exit,
+    mock_print_error,
+    raised_exception,
 ):
     mock_check_git_repo.return_value = True
     mock_get_current_git_user.side_effect = raised_exception

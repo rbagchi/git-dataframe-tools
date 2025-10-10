@@ -57,7 +57,9 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     try:
         commit_date = datetime.fromisoformat(commit_date_str)
     except ValueError:
-        logger.warning(f"Could not parse commit date: '{commit_date_str}' in line '{line}'")
+        logger.warning(
+            f"Could not parse commit date: '{commit_date_str}' in line '{line}'"
+        )
         return None
 
     return {
@@ -68,7 +70,6 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
         "commit_date": commit_date,
         "commit_message": commit_message,
     }
-
 
 
 def _parse_file_stat_line(line: str) -> Optional[FileChange]:
@@ -131,7 +132,11 @@ def _parse_git_data_internal(git_data: list[str]) -> List[GitLogEntry]:
 
     # First pass: collect raw commit blocks
     iterable_git_data_collect = (
-        tqdm(git_data, desc="Collecting raw commit blocks", disable=not sys.stdout.isatty())
+        tqdm(
+            git_data,
+            desc="Collecting raw commit blocks",
+            disable=not sys.stdout.isatty(),
+        )
         if TQDM_AVAILABLE
         else git_data
     )
@@ -153,7 +158,11 @@ def _parse_git_data_internal(git_data: list[str]) -> List[GitLogEntry]:
     # Second pass: process raw commit blocks into GitLogEntry objects
     parsed_entries: List[GitLogEntry] = []
     iterable_git_data_process = (
-        tqdm(raw_commit_blocks, desc="Processing commit blocks", disable=not sys.stdout.isatty())
+        tqdm(
+            raw_commit_blocks,
+            desc="Processing commit blocks",
+            disable=not sys.stdout.isatty(),
+        )
         if TQDM_AVAILABLE
         else raw_commit_blocks
     )

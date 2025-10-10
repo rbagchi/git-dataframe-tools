@@ -15,12 +15,31 @@
 - **TTY Detection:** Implemented logic to disable `tqdm` progress bars when output is not to a TTY (checking `sys.stdout.isatty()`).
 - **Color Output:** Disabled color output when not writing to a TTY.
 - **Date Parsing:** Improved date parsing in `DulwichRemoteBackend` using `parsedatetime`.
-- **Code Refactoring:** Decomposed `_walk_commits` in `dulwich_backend.py` into smaller helper methods (`_extract_commit_metadata`, `_extract_file_changes`).
-- **Robust Git Log Parsing (Initial Step):** Started improving the robustness of `git log` parsing by changing delimiters from `---` to `@@@COMMIT@@@` and `@@@FIELD@@@`.
+- **Refactored `git_parser.py` for Robustness:**
+    - Introduced `FileChange` and `GitLogEntry` dataclasses for structured data representation.
+    - Modularized parsing logic with helper functions (`_parse_commit_metadata_line`, `_parse_file_stat_line`, `_process_raw_commit_block`).
+    - Refactored `_parse_git_data_internal` to use these new helper functions and return `List[GitLogEntry]`.
+- **Updated `dataframe_builder.py`:**
+    - Modified `build_commits_df` to accept `List[GitLogEntry]`.
+- **Migrated CLI to `Typer`:**
+    - Refactored `git_df.py` and `scoreboard.py` from `argparse` to `Typer`.
+    - Updated `pyproject.toml` to reflect the new `Typer` entry points.
+- **Refactored `dulwich_backend.py`:**
+    - Decomposed `_walk_commits` into smaller, more focused helper methods (`_filter_commits_by_date`, `_filter_commits_by_author_and_grep`, `_format_commit_line`).
+- **Updated Tests:**
+    - Split `tests/test_git2df_public_api.py` into multiple, more focused test files.
+    - Updated various tests to align with `Typer` CLI structure and new data types.
+    - Resolved all `ruff` linting and `mypy` type-checking issues.
+
+**Commands Used for Running and Testing Code:**
+- `uv run pytest`: To execute the test suite.
+- `uv run ruff check .`: To check for linting issues.
+- `uv run ruff check . --fix`: To automatically fix linting issues.
+- `uv run mypy .`: To check for type-checking issues.
+- `uv pip install -e .`: To reinstall the project in editable mode after `pyproject.toml` changes.
 
 **Current Blockers/Issues:**
-- **Test Failures due to Delimiter Change:** Many tests are failing because they are still expecting the old `---` delimited `git log` format, or asserting calls with the old format. This needs to be fixed by updating mock data and assertions in tests.
+- None. All tests are passing, and linting/type-checking issues are resolved.
 
 **Next Steps:**
-1.  **Fix Test Failures:** Update mock data and assertions in `tests/test_git2df_parser.py` and `tests/test_git2df_public_api.py` to reflect the new `git log` delimiters.
-2.  **Continue `git_parser.py` robustness:** Further enhance the parsing logic in `_parse_git_data_internal` to be more resilient to `git log` output variations.
+- Refer to `CODE_IMPROVEMENTS.md` for further code quality improvements.

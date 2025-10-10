@@ -50,13 +50,9 @@ class DulwichRemoteBackend:
         return None
 
     def _walk_commits(
-        self, repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
+        self, repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar: tqdm
     ):
         output_lines: list[str] = []
-        logger.info(
-            f"Iterating commits on branch '{self.remote_branch}' since {since_dt.date() if since_dt else 'beginning of time'}:"
-        )
-
         all_commits = []
         for entry in repo.get_walker():
             commit: Commit = entry.commit
@@ -70,88 +66,84 @@ class DulwichRemoteBackend:
                 continue
             all_commits.append(commit)
 
-        with tqdm(
-            total=len(all_commits),
-            unit="commit",
-            desc="Parsing git log",
-            disable=(not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO,
-            leave=True,
-            dynamic_ncols=True,
-            file=sys.stderr,
-        ) as pbar:
-            for commit in all_commits:
-                pbar.update(1)
-                logger.debug(
-                    f"--- Entered walker loop for commit: {commit.id.hex()} ---"
-                )  # New debug log
-                commit_datetime = datetime.datetime.fromtimestamp(
-                    commit.commit_time, tz=datetime.timezone.utc
-                )
-                logger.debug(
-                    f"Processing commit {commit.id.hex()} with date {commit_datetime}"
-                )
+        # Update the total of the passed pbar for the parsing phase
+        if not pbar.disable:
+            pbar.total += len(all_commits) # Add the number of commits to the total
+        pbar.set_description("Parsing git log") # Update description for parsing phase
 
-                # Apply author filter
-                if author and author.lower() not in commit.author.decode("utf-8").lower():
-                    logger.debug(
-                        f"Skipping commit: author '{author}' not found in '{commit.author.decode('utf-8')}'"
-                    )
+        for commit in all_commits:
+            pbar.update(1)
+            logger.debug(
+                f"--- Entered walker loop for commit: {commit.id.hex()} ---"
+            )  # New debug log
+            commit_datetime = datetime.datetime.fromtimestamp(
+                commit.commit_time, tz=datetime.timezone.utc
+            )
+            logger.debug(
+                f"Processing commit {commit.id.hex()} with date {commit_datetime}"
+            )
+
+            # Apply author filter
+            if author and author.lower() not in commit.author.decode("utf-8").lower():
+                logger.debug(
+                    f"Skipping commit: author '{author}' not found in '{commit.author.decode('utf-8')}'"
+                )
+                continue
+
+            # Apply grep filter (simplified: check in commit message summary)
+            if grep and grep.lower() not in commit.message.decode("utf-8").lower():
+                logger.debug(
+                    f"Skipping commit: grep '{grep}' not found in '{commit.message.decode('utf-8')}'"
+                )
+                continue
+
+            commit_hash = commit.id.hex()
+            parent_hashes = " ".join([p.hex() for p in commit.parents])
+            author_name = commit.author.decode("utf-8").split("<")[0].strip()
+            author_email = commit.author.decode("utf-8").split("<")[1].strip(">")
+            commit_message_summary = (
+                commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
+            )
+
+            output_lines.append(
+                f"---{commit_hash}---{parent_hashes}---{author_name}---{author_email}---{commit_datetime.isoformat()}---{commit_message_summary}"
+            )
+            logger.debug(f"Appended commit line for {commit_hash}")
+
+            # Extract file changes
+            old_tree_id = None
+            if commit.parents:  # Not an initial commit
+                parent_commit = repo.get_object(commit.parents[0])
+                old_tree_id = parent_commit.tree
+
+            for change in dulwich.diff_tree.tree_changes(
+                repo.object_store, old_tree_id, commit.tree
+            ):
+                path = None
+                if change.type == "add":
+                    path = change.new.path
+                elif change.type == "delete":
+                    path = change.old.path
+                elif change.type == "modify":
+                    path = change.new.path
+
+                if not path:
                     continue
 
-                # Apply grep filter (simplified: check in commit message summary)
-                if grep and grep.lower() not in commit.message.decode("utf-8").lower():
-                    logger.debug(
-                        f"Skipping commit: grep '{grep}' not found in '{commit.message.decode('utf-8')}'"
-                    )
-                    continue
+                path_str = path.decode("utf-8")
 
-                commit_hash = commit.id.hex()
-                parent_hashes = " ".join([p.hex() for p in commit.parents])
-                author_name = commit.author.decode("utf-8").split("<")[0].strip()
-                author_email = commit.author.decode("utf-8").split("<")[1].strip(">")
-                commit_message_summary = (
-                    commit.message.decode("utf-8").splitlines()[0].replace("--", " ")
-                )
-
-                output_lines.append(
-                    f"---{commit_hash}---{parent_hashes}---{author_name}---{author_email}---{commit_datetime.isoformat()}---{commit_message_summary}"
-                )
-                logger.debug(f"Appended commit line for {commit_hash}")
-
-                # Extract file changes
-                old_tree_id = None
-                if commit.parents:  # Not an initial commit
-                    parent_commit = repo.get_object(commit.parents[0])
-                    old_tree_id = parent_commit.tree
-
-                for change in dulwich.diff_tree.tree_changes(
-                    repo.object_store, old_tree_id, commit.tree
+                # Apply include_paths and exclude_paths filters
+                if include_paths and not any(
+                    path_str.startswith(p) for p in include_paths
                 ):
-                    path = None
-                    if change.type == "add":
-                        path = change.new.path
-                    elif change.type == "delete":
-                        path = change.old.path
-                    elif change.type == "modify":
-                        path = change.new.path
+                    continue
+                if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
+                    continue
 
-                    if not path:
-                        continue
-
-                    path_str = path.decode("utf-8")
-
-                    # Apply include_paths and exclude_paths filters
-                    if include_paths and not any(
-                        path_str.startswith(p) for p in include_paths
-                    ):
-                        continue
-                    if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
-                        continue
-
-                    # Simplified additions/deletions to fix test output format
-                    additions = 1
-                    deletions = 0
-                    output_lines.append(f"{additions}\t{deletions}\t{path_str}")
+                # Simplified additions/deletions to fix test output format
+                additions = 1
+                deletions = 0
+                output_lines.append(f"{additions}\t{deletions}\t{path_str}")
 
         logger.debug(f"Final output_lines: {output_lines}")
         return "\n".join(output_lines)
@@ -201,78 +193,87 @@ class DulwichRemoteBackend:
             logger.debug(
                 f"Inside get_raw_log_output (local repo): repo.head = {repo.head().hex()}"
             )
-            return self._walk_commits(
-                repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
-            )
+            _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
+            with tqdm(disable=True, file=sys.stderr) as pbar_dummy: # Always disabled for local repo
+                return self._walk_commits(
+                    repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar_dummy
+                )
         else:
             # Dulwich operations require a temporary local repository
             with tempfile.TemporaryDirectory() as tmpdir:
                 repo = Repo.init(tmpdir)
                 client = HttpGitClient(self.remote_url)
 
-                def determine_wants_func(
-                    refs: dict[bytes, bytes], depth: int | None = None
-                ) -> list[bytes]:
-                    head_sha = refs.get(b"HEAD")
-                    if head_sha:
-                        return [head_sha]
-                    try:
-                        return [
-                            refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
-                        ]
-                    except KeyError:
-                        logger.error(
-                            f"Branch '{self.remote_branch}' not found in remote refs."
-                        )
-                        raise
+                _disable_tqdm = not sys.stdout.isatty() or logger.level > logging.INFO
 
-                def dulwich_progress_callback(progress_bytes: bytes) -> None:
-                    message = progress_bytes.decode("utf-8", errors="ignore").strip()
-                    if message:
-                        if any(keyword in message for keyword in ["Counting objects", "Compressing objects", "Total"]):
-                            pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
-
-                _disable_tqdm = (not sys.stdout.isatty() or not sys.stderr.isatty()) or logger.level > logging.INFO
-
-                _dulwich_progress_callback = None
-                if not _disable_tqdm:
-                    _dulwich_progress_callback = dulwich_progress_callback
-
-                logger.info(
-                    f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
-                )
+                # Create a single tqdm instance for overall progress
                 with tqdm(
-                    total=0,
+                    total=0, # Will be updated dynamically
                     unit="obj",
                     desc=f"Fetching {self.remote_branch} from {self.remote_url}",
                     disable=_disable_tqdm,
                     mininterval=0.5,
-                    leave=False, # Set to False so it disappears after completion
+                    leave=True, # Keep the final bar visible
                     dynamic_ncols=True,
                     file=sys.stderr,
                 ) as pbar:
+
+                    def determine_wants_func(
+                        refs: dict[bytes, bytes], depth: int | None = None
+                    ) -> list[bytes]:
+                        head_sha = refs.get(b"HEAD")
+                        if head_sha:
+                            return [head_sha]
+                        try:
+                            return [
+                                refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
+                            ]
+                        except KeyError:
+                            logger.error(
+                                f"Branch '{self.remote_branch}' not found in remote refs."
+                            )
+                            raise
+
+                    def dulwich_progress_callback(progress_bytes: bytes) -> None:
+                        message = progress_bytes.decode("utf-8", errors="ignore").strip()
+                        if message:
+                            # Only update description for key progress messages
+                            if any(keyword in message for keyword in ["Counting objects", "Compressing objects", "Total"]):
+                                pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                            if not pbar.disable: # Only update if pbar is not disabled
+                                pbar.update(1) # Increment the overall pbar for fetching activity
+
+                    _dulwich_progress_callback = None
+                    if not _disable_tqdm:
+                        _dulwich_progress_callback = dulwich_progress_callback
+
+                    logger.info(
+                        f"Fetching entire history of branch '{self.remote_branch}' from {self.remote_url}..."
+                    )
                     fetch_result = client.fetch(
                         self.remote_url,
                         repo,
                         determine_wants=determine_wants_func,
                         progress=_dulwich_progress_callback,
                     )
-                remote_refs = fetch_result.refs
+                    remote_refs = fetch_result.refs
 
-                branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")
-                if branch_ref not in remote_refs:
-                    raise ValueError(
-                        f"Branch '{self.remote_branch}' not found in remote repository."
+                    branch_ref = f"refs/heads/{self.remote_branch}".encode("utf-8")
+                    if branch_ref not in remote_refs:
+                        raise ValueError(
+                            f"Branch '{self.remote_branch}' not found in remote repository."
+                        )
+
+                    head_sha = remote_refs[branch_ref]
+                    assert head_sha is not None  # Ensure head_sha is not None
+                    repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")] = (
+                        head_sha  # Set the branch ref
                     )
+                    repo.refs.set_symbolic_ref(
+                        b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
+                    )  # Set HEAD to the branch
 
-                head_sha = remote_refs[branch_ref]
-                assert head_sha is not None  # Ensure head_sha is not None
-                repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")] = (
-                    head_sha  # Set the branch ref
-                )
-                repo.refs.set_symbolic_ref(
-                    b"HEAD", f"refs/heads/{self.remote_branch}".encode("utf-8")
-                )  # Set HEAD to the branch
-                return self._walk_commits(
-                    repo, since_dt, until_dt, author, grep, include_paths, exclude_paths
-                )
+                    # Pass the overall pbar to _walk_commits
+                    return self._walk_commits(
+                        repo, since_dt, until_dt, author, grep, include_paths, exclude_paths, pbar
+                    )

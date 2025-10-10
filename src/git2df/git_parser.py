@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import datetime
 from typing import Any, Optional
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,9 @@ def _parse_git_data_internal(git_data: list[str]) -> list[dict]:
 
     # Wrap iteration with tqdm if available
     iterable_git_data = (
-        tqdm(git_data, desc="Parsing git log") if TQDM_AVAILABLE else git_data
+        tqdm(git_data, desc="Parsing git log", disable=not sys.stderr.isatty())
+        if TQDM_AVAILABLE
+        else git_data
     )
 
     for i, line in enumerate(iterable_git_data):

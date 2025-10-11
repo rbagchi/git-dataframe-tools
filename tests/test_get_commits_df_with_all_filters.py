@@ -6,21 +6,21 @@ from git2df.git_parser import GitLogEntry, FileChange
 
 # Mock data for commit-centric output
 MOCKED_RAW_LOG_OUTPUT = [
-    "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1",
-    "10\t5\tfile1.txt",
+    "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---",
+    "10\\t5\\tfile1.txt",
     "",
-    "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00@@@FIELD@@@Subject 2",
-    "20\t0\tfile2.py",
+    "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---",
+    "20\\t0\\tfile2.py",
 ]
 
 MOCKED_PARSED_DATA_RAW_BLOCKS = [
     [
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1",
-        "10\t5\tfile1.txt",
+        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---",
+        "10\\t5\\tfile1.txt",
     ],
     [
-        "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00@@@FIELD@@@Subject 2",
-        "20\t0\tfile2.py",
+        "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T11:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---",
+        "20\\t0\\tfile2.py",
     ],
 ]
 
@@ -58,6 +58,7 @@ MOCKED_GIT_LOG_ENTRIES = [
         author_name="Author One",
         author_email="author1@example.com",
         commit_date=datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+        commit_timestamp=1672531200, # Dummy timestamp for 2023-01-01 10:00:00 UTC
         commit_message="Subject 1",
         file_changes=[
             FileChange("file1.txt", 10, 5, "M"),
@@ -69,6 +70,7 @@ MOCKED_GIT_LOG_ENTRIES = [
         author_name="Author Two",
         author_email="author2@example.com",
         commit_date=datetime(2023, 1, 2, 11, 0, 0, tzinfo=timezone.utc),
+        commit_timestamp=1672617600, # Dummy timestamp for 2023-01-02 11:00:00 UTC
         commit_message="Subject 2",
         file_changes=[
             FileChange("file2.py", 20, 0, "A"),
@@ -110,15 +112,16 @@ def test_get_commits_df_with_all_filters(
         repo_path, since=since_arg, until=until_arg, author=author_arg, grep=grep_arg
     )
 
+    default_log_args = [
+        "--numstat",
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---",
+        "--date=iso",
+    ]
+
     # Assertions
-    mock_git_cli_backend.assert_called_once_with()
+    mock_git_cli_backend.assert_called_once_with(repo_path)
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
-        repo_path=repo_path,
-        log_args=[
-            "--numstat",
-            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
-            "--date=iso",
-        ],
+        log_args=default_log_args,
         since=since_arg,
         until=until_arg,
         author=author_arg,

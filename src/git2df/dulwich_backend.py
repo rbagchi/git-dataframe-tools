@@ -8,12 +8,10 @@ import sys
 from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
 from dulwich.objects import Commit
-import dulwich.diff_tree
-import dulwich.patch
 from tqdm import tqdm
 import parsedatetime as pdt
-import io
 
+from git2df.dulwich_diff_parser import DulwichDiffParser
 
 logger = logging.getLogger(__name__)
 
@@ -127,151 +125,11 @@ class DulwichRemoteBackend:
             "commit_message": commit_message,
         }
 
-    def _get_path_from_change(self, change) -> Optional[bytes]:
-        if change.type == "add":
-            if change.new:
-                return change.new.path
-        elif change.type == "delete":
-            if change.old:
-                return change.old.path
-        elif change.type == "modify":
-            if change.new:
-                return change.new.path
-        return None
 
-    def _should_include_path(
-        self,
-        path_str: str,
-        include_paths: Optional[List[str]],
-        exclude_paths: Optional[List[str]],
-    ) -> bool:
-        if include_paths and not any(path_str.startswith(p) for p in include_paths):
-            return False
-        if exclude_paths and any(path_str.startswith(p) for p in exclude_paths):
-            return False
-        return True
 
-    def _extract_file_changes(
-        self,
-        repo,
-        commit: Commit,
-        include_paths: Optional[List[str]],
-        exclude_paths: Optional[List[str]],
-    ) -> List[dict]:
-        file_changes = []
-        old_tree_id = None
-        if commit.parents:  # Not an initial commit
-            parent_commit = repo.get_object(commit.parents[0])
-            old_tree_id = parent_commit.tree
 
-        # Use an in-memory stream to capture diff output
-        diff_stream = io.BytesIO()
-        dulwich.patch.write_tree_diff(
-            diff_stream,
-            repo.object_store,
-            old_tree_id,
-            commit.tree,
-        )
-        diff_output = diff_stream.getvalue().decode("utf-8", errors="replace")
 
-        current_file_path = None
-        additions = 0
-        deletions = 0
 
-        for line in diff_output.splitlines():
-            if line.startswith("--- a/"):
-                # Extract old file path
-                pass  # Not directly used for counting, but good for context
-            elif line.startswith("+++ b/"):
-                # Extract new file path
-                current_file_path = line[6:].strip()
-                additions = 0
-                deletions = 0
-            elif line.startswith("-") and not line.startswith("---"):
-                deletions += 1
-            elif line.startswith("+") and not line.startswith("+++"):
-                additions += 1
-            elif line.startswith("diff --git"):
-                # New file diff starts, save previous file's stats if any
-                if current_file_path:
-                    path_str = current_file_path
-                    if self._should_include_path(path_str, include_paths, exclude_paths):
-                        file_changes.append(
-                            {
-                                "file_paths": path_str,
-                                "change_type": "M",  # Assume modify for now, refine later
-                                "additions": additions,
-                                "deletions": deletions,
-                            }
-                        )
-                current_file_path = None  # Reset for next file
-
-        # Add the last file's changes after the loop
-        if current_file_path:
-            path_str = current_file_path
-            if self._should_include_path(path_str, include_paths, exclude_paths):
-                file_changes.append(
-                    {
-                        "file_paths": path_str,
-                        "change_type": "M",  # Assume modify for now, refine later
-                        "additions": additions,
-                        "deletions": deletions,
-                    }
-                )
-
-        # Handle added/deleted files explicitly from tree_changes
-        for change in dulwich.diff_tree.tree_changes(
-            repo.object_store, old_tree_id, commit.tree
-        ):
-            path = self._get_path_from_change(change)
-            if not path:
-                continue
-            path_str = path.decode("utf-8")
-
-            if not self._should_include_path(path_str, include_paths, exclude_paths):
-                continue
-
-            if change.type == "add":
-                # Check if this file was already processed as a 'modify' (e.g., if it was empty before)
-                # If not, add it with its full content as additions
-                if not any(fc['file_paths'] == path_str for fc in file_changes):
-                    blob = repo.get_object(change.new.sha)
-                    additions = len(blob.as_pretty_string().splitlines())
-                    file_changes.append(
-                        {
-                            "file_paths": path_str,
-                            "change_type": "A",
-                            "additions": additions,
-                            "deletions": 0,
-                        }
-                    )
-            elif change.type == "delete":
-                # Check if this file was already processed as a 'modify' (e.g., if it was empty before)
-                # If not, add it with its full content as deletions
-                if not any(fc['file_paths'] == path_str for fc in file_changes):
-                    blob = repo.get_object(change.old.sha)
-                    deletions = len(blob.as_pretty_string().splitlines())
-                    file_changes.append(
-                        {
-                            "file_paths": path_str,
-                            "change_type": "D",
-                            "additions": 0,
-                            "deletions": deletions,
-                        }
-                    )
-            elif change.type == "modify":
-                # If it's a modify, ensure it's in file_changes, if not, add it with 0,0 and let the diff handle it
-                if not any(fc['file_paths'] == path_str for fc in file_changes):
-                    file_changes.append(
-                        {
-                            "file_paths": path_str,
-                            "change_type": "M",
-                            "additions": 0,
-                            "deletions": 0,
-                        }
-                    )
-
-        return file_changes
 
     def _process_single_commit(
         self,
@@ -279,8 +137,7 @@ class DulwichRemoteBackend:
         commit: Commit,
         author: Optional[str],
         grep: Optional[str],
-        include_paths: Optional[List[str]],
-        exclude_paths: Optional[List[str]],
+        diff_parser: DulwichDiffParser,
     ) -> List[str]:
         commit_output_lines: List[str] = []
 
@@ -302,8 +159,13 @@ class DulwichRemoteBackend:
         logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
         # Extract file changes
-        file_changes = self._extract_file_changes(
-            repo, commit, include_paths, exclude_paths
+        old_tree_id = None
+        if commit.parents:  # Not an initial commit
+            parent_commit = repo.get_object(commit.parents[0])
+            old_tree_id = parent_commit.tree
+
+        file_changes = diff_parser.extract_file_changes(
+            repo, commit, old_tree_id
         )
         for file_change in file_changes:
             commit_output_lines.append(
@@ -330,8 +192,7 @@ class DulwichRemoteBackend:
         until_dt,
         author,
         grep,
-        include_paths,
-        exclude_paths,
+        diff_parser: DulwichDiffParser,
         pbar: tqdm,
     ):
         output_lines: list[str] = []
@@ -345,7 +206,7 @@ class DulwichRemoteBackend:
         for commit in all_commits:
             pbar.update(1)
             commit_output = self._process_single_commit(
-                repo, commit, author, grep, include_paths, exclude_paths
+                repo, commit, author, grep, diff_parser
             )
             output_lines.extend(commit_output)
 
@@ -377,7 +238,7 @@ class DulwichRemoteBackend:
         return since_dt, until_dt
 
     def _handle_local_repo(
-        self, since_dt, until_dt, author, grep, include_paths, exclude_paths
+        self, since_dt, until_dt, author, grep, diff_parser: DulwichDiffParser
     ) -> str:
         repo = self.repo
         if repo is None:
@@ -400,13 +261,12 @@ class DulwichRemoteBackend:
                 until_dt,
                 author,
                 grep,
-                include_paths,
-                exclude_paths,
+                diff_parser,
                 pbar_dummy,
             )
 
     def _handle_remote_repo(
-        self, since_dt, until_dt, author, grep, include_paths, exclude_paths
+        self, since_dt, until_dt, author, grep, diff_parser: DulwichDiffParser
     ) -> str:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo = Repo.init(tmpdir)
@@ -501,8 +361,7 @@ class DulwichRemoteBackend:
                     until_dt,
                     author,
                     grep,
-                    include_paths,
-                    exclude_paths,
+                    diff_parser,
                     pbar,
                 )
 
@@ -524,11 +383,13 @@ class DulwichRemoteBackend:
         """
         since_dt, until_dt = self._get_date_filters(since, until)
 
+        diff_parser = DulwichDiffParser(include_paths=include_paths, exclude_paths=exclude_paths)
+
         if self.is_local_repo:
             return self._handle_local_repo(
-                since_dt, until_dt, author, grep, include_paths, exclude_paths
+                since_dt, until_dt, author, grep, diff_parser
             )
         else:
             return self._handle_remote_repo(
-                since_dt, until_dt, author, grep, include_paths, exclude_paths
+                since_dt, until_dt, author, grep, diff_parser
             )

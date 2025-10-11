@@ -19,6 +19,7 @@ def test_build_commits_df_commit_centric():
             author_name="Author One",
             author_email="author1@example.com",
             commit_date=commit1_date,
+            commit_timestamp=1672531200,
             commit_message="Subject 1",
             file_changes=[
                 FileChange("file1.txt", 10, 5, "M"),
@@ -31,6 +32,7 @@ def test_build_commits_df_commit_centric():
             author_name="Author Two",
             author_email="author2@example.com",
             commit_date=commit2_date,
+            commit_timestamp=1672617600,
             commit_message="Subject 2",
             file_changes=[
                 FileChange("file3.md", 20, 0, "A"),
@@ -42,6 +44,7 @@ def test_build_commits_df_commit_centric():
             author_name="Author One",
             author_email="author1@example.com",
             commit_date=commit3_date,
+            commit_timestamp=1672704000,
             commit_message="Subject 3",
             file_changes=[
                 FileChange("file4.js", 0, 15, "D"),

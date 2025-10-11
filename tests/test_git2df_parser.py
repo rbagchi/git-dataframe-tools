@@ -1,4 +1,10 @@
+import pytest
+import json
+from datetime import datetime
 from pathlib import Path
+import dataclasses
+
+from git2df.git_parser import _parse_git_data_internal
 
 
 def get_golden_file_pairs():
@@ -7,13 +13,6 @@ def get_golden_file_pairs():
         json_file = log_file.with_suffix(".json")
         if json_file.exists():
             yield log_file, json_file
-
-
-import pytest
-import json
-from datetime import datetime
-from git2df.git_parser import _parse_git_data_internal
-import dataclasses
 
 
 @pytest.mark.parametrize("log_file, json_file", get_golden_file_pairs())

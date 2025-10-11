@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_git_backend(
+    repo_path: str,
     remote_url: Optional[str],
     remote_branch: str,
 ) -> Union[GitCliBackend, DulwichRemoteBackend]:
@@ -18,7 +19,7 @@ def _get_git_backend(
     if remote_url:
         return DulwichRemoteBackend(remote_url, remote_branch)
     else:
-        return GitCliBackend()
+        return GitCliBackend(repo_path)
 
 
 def get_commits_df(
@@ -58,7 +59,7 @@ def get_commits_df(
 
     default_log_args = [
         "--numstat",
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s",
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---",
         "--date=iso",
     ]
 
@@ -68,10 +69,9 @@ def get_commits_df(
         # Prepend default args if custom args are provided, ensuring format is always present
         final_log_args = default_log_args + log_args
 
-    backend = _get_git_backend(remote_url, remote_branch)
+    backend = _get_git_backend(repo_path, remote_url, remote_branch)
 
     raw_log_output = backend.get_raw_log_output(
-        repo_path=repo_path,  # Pass repo_path
         log_args=final_log_args,
         since=since,
         until=until,

@@ -115,7 +115,7 @@ def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich
         f"author1@example.com@@@FIELD@@@"
         f"{commit_time_head.isoformat()}\t{int(commit_time_head.timestamp())}@@@FIELD@@@"
         f"---MSG_START---Subject 1\n\nBody 1---MSG_END---\n"
-        "3\t0\tM\tfile1.txt"
+        "3\t0\tA\tfile1.txt"
     )
     assert output == expected_output
 
@@ -171,6 +171,6 @@ def test_get_raw_log_output_initial_commit(
         f"initial@example.com@@@FIELD@@@"
         f"{commit_time.isoformat()}\t{int(commit_time.timestamp())}@@@FIELD@@@"
         f"---MSG_START---Initial commit---MSG_END---\n"
-        "1\t0\tM\tfile1.txt"
+        "1\t0\tA\tfile1.txt"
     )
     assert output == expected_output

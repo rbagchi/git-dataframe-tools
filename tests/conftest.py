@@ -13,8 +13,8 @@ import dulwich.porcelain
 
 import logging
 
-logging.getLogger("git2df.dulwich_backend").setLevel(logging.DEBUG)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
 
 sample_commits = [
     {
@@ -86,7 +86,8 @@ def git_repo(request):
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_path = os.path.join(tmpdir, "test_repo")
         os.makedirs(
-            repo_path, exist_ok=True
+            repo_path,
+            exist_ok=True,
         )  # Create the directory before initializing the repo
         try:
             os.chdir(repo_path)  # Change to the repo directory

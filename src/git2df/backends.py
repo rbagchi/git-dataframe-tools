@@ -9,14 +9,15 @@ logger = logging.getLogger(__name__)
 class GitCliBackend:
     """A backend for git2df that interacts with the Git CLI."""
 
-    def __init__(self):
-        logger.info("Using GitPython backend for git operations.")
+    def __init__(self, repo_path: str = "."):
+        self.repo_path = repo_path
+        logger.info(f"Using GitPython backend for git operations on {self.repo_path}.")
 
-    def _get_default_branch(self, repo_path: str) -> str:
+    def _get_default_branch(self) -> str:
         """Determines the default branch (main or master) for a given repository."""
-        logger.debug(f"Checking for default branch in {repo_path}")
+        logger.debug(f"Checking for default branch in {self.repo_path}")
         try:
-            repo = git.Repo(repo_path)
+            repo = git.Repo(self.repo_path)
             if "main" in repo.heads:
                 logger.info("Found 'main' as default branch.")
                 return "main"
@@ -29,13 +30,12 @@ class GitCliBackend:
                 )
                 return "main"
         except git.InvalidGitRepositoryError:
-            logger.error(f"{repo_path} is not a valid git repository.")
+            logger.error(f"{self.repo_path} is not a valid git repository.")
             return "main"  # fallback for now
         return "main"
 
     def _build_git_log_arguments(
         self,
-        repo_path: str,
         log_args: Optional[List[str]] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
@@ -50,7 +50,7 @@ class GitCliBackend:
         # Always include --numstat for file changes and the custom pretty format
         cmd.append("--numstat")
         cmd.append(
-            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         )
         cmd.append("--date=iso")  # Ensure ISO format for consistent date parsing
 
@@ -65,7 +65,7 @@ class GitCliBackend:
         if merged_only:
             # For merged_only, we need to find the default branch first
             # This still uses GitPython for _get_default_branch, but the log itself is CLI
-            default_branch = self._get_default_branch(repo_path)
+            default_branch = self._get_default_branch()
             cmd.append("--merges")
             cmd.append(f"origin/{default_branch}")  # Assuming origin is the remote name
 
@@ -83,7 +83,6 @@ class GitCliBackend:
 
     def get_raw_log_output(
         self,
-        repo_path: str,
         log_args: Optional[List[str]] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
@@ -97,7 +96,6 @@ class GitCliBackend:
         Executes a git log command and returns its raw string output.
 
         Args:
-            repo_path: The path to the git repository.
             log_args: Optional list of arguments to pass to 'git log'.
             since: Optional string for --since argument (e.g., "1.month ago").
             until: Optional string for --until argument (e.g., "yesterday").
@@ -111,7 +109,6 @@ class GitCliBackend:
             The raw stdout from the 'git log' command.
         """
         cmd = self._build_git_log_arguments(
-            repo_path,
             log_args,
             since,
             until,
@@ -126,7 +123,7 @@ class GitCliBackend:
         try:
             result = subprocess.run(
                 cmd,
-                cwd=repo_path,
+                cwd=self.repo_path,
                 capture_output=True,
                 text=True,
                 check=True,

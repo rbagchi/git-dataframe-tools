@@ -9,30 +9,28 @@ def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_bra
     # Mock subprocess.run
     mock_subprocess_run.return_value = MagicMock(
         stdout=(
-            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
-            "10\t5\tfile1.txt"
+            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---\n"
+            "10\\t5\\tfile1.txt"
         )
     )
 
-    backend = GitCliBackend()
     repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
 
     # Act
-    output = backend.get_raw_log_output(repo_path)
+    output = backend.get_raw_log_output()
 
     # Assert
     expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
-        "10\t5\tfile1.txt"
+        "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---\n"
+        "10\\t5\\tfile1.txt"
     )
     assert output == expected_output
     mock_subprocess_run.assert_called_once()  # Ensure subprocess.run was called
     # Verify the arguments passed to subprocess.run
     args, kwargs = mock_subprocess_run.call_args
-    assert args[0][0] == "git"
-    assert "--numstat" in args[0]
     assert (
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         in args[0]
     )
     assert "--date=iso" in args[0]
@@ -49,8 +47,8 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     # Mock subprocess.run
     mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
-    backend = GitCliBackend()
     repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
     since = "2023-01-01"
     until = "2023-01-31"
     author = "test_author"
@@ -58,7 +56,7 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
 
     # Act
     backend.get_raw_log_output(
-        repo_path, since=since, until=until, author=author, grep=grep
+        since=since, until=until, author=author, grep=grep
     )
 
     # Assert
@@ -67,7 +65,7 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
     assert (
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         in args[0]
     )
     assert "--date=iso" in args[0]
@@ -92,11 +90,11 @@ def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_br
     # Mock subprocess.run
     mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
-    backend = GitCliBackend()
     repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
 
     # Act
-    backend.get_raw_log_output(repo_path, merged_only=True)
+    backend.get_raw_log_output(merged_only=True)
 
     # Assert
     mock_subprocess_run.assert_called_once()
@@ -104,7 +102,7 @@ def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_br
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
     assert (
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         in args[0]
     )
     assert "--date=iso" in args[0]
@@ -123,12 +121,12 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     # Mock subprocess.run
     mock_subprocess_run.return_value = MagicMock(stdout=b"")
 
-    backend = GitCliBackend()
     repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
     include_paths = ["src/"]
 
     # Act
-    backend.get_raw_log_output(repo_path, include_paths=include_paths)
+    backend.get_raw_log_output(include_paths=include_paths)
 
     # Assert
     mock_subprocess_run.assert_called_once()
@@ -136,7 +134,7 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
     assert (
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         in args[0]
     )
     assert "--date=iso" in args[0]
@@ -156,26 +154,26 @@ def test_get_raw_log_output_with_exclude_paths(
     # Arrange
     mock_subprocess_run.return_value = MagicMock(
         stdout=(
-            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
-            "10\t0\tsrc/main.py\n"
-            "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00@@@FIELD@@@Subject 2\n"
-            "20\t0\ttests/test_main.py"
+            "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---\n"
+            "10\\t0\\tsrc/main.py\\n"
+            "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---\n"
+            "20\\t0\\ttests/test_main.py"
         )
     )
 
-    backend = GitCliBackend()
     repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
     exclude_paths = ["tests/"]
 
     # Act
-    output = backend.get_raw_log_output(repo_path, exclude_paths=exclude_paths)
+    output = backend.get_raw_log_output(exclude_paths=exclude_paths)
 
     # Assert
     expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00@@@FIELD@@@Subject 1\n"
-        "10\t0\tsrc/main.py\n"
-        "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00@@@FIELD@@@Subject 2\n"
-        "20\t0\ttests/test_main.py"
+        "@@@COMMIT@@@commit1hash@@@FIELD@@@@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---\n"
+        "10\\t0\\tsrc/main.py\\n"
+        "@@@COMMIT@@@commit2hash@@@FIELD@@@@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---\n"
+        "20\\t0\\ttests/test_main.py"
     )
     assert output == expected_output
     mock_subprocess_run.assert_called_once()
@@ -183,7 +181,7 @@ def test_get_raw_log_output_with_exclude_paths(
     assert args[0][0] == "git"
     assert "--numstat" in args[0]
     assert (
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad@@@FIELD@@@%s"
+        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         in args[0]
     )
     assert "--date=iso" in args[0]

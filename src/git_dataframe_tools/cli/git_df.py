@@ -1,14 +1,28 @@
+import logging
 import typer
-from typing import Optional, List
+from typing import Optional
 from typing_extensions import Annotated
 import os
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import logging
 
 from git2df import get_commits_df
 from git_dataframe_tools.logger import setup_logging
+from git_dataframe_tools.cli.common_args import (
+    RepoPath,
+    RemoteUrl,
+    RemoteBranch,
+    Since,
+    Until,
+    Author,
+    Grep,
+    Merges,
+    Path,
+    ExcludePath,
+    Verbose,
+    Debug,
+)
 
 DATA_VERSION = "1.0"  # Major version of the data format
 
@@ -99,87 +113,18 @@ def main(
             help='Output Parquet file path (e.g., "commits.parquet")',
         ),
     ],
-    repo_path: Annotated[
-        str,
-        typer.Option(
-            "--repo-path",
-            help="Path to the Git repository (default: current directory). This cannot be used with --remote-url.",
-        ),
-    ] = ".",
-    remote_url: Annotated[
-        Optional[str],
-        typer.Option(
-            "--remote-url",
-            help="URL of the remote Git repository to analyze (e.g., https://github.com/user/repo). This cannot be used with --repo-path.",
-        ),
-    ] = None,
-    remote_branch: Annotated[
-        str,
-        typer.Option(
-            "--remote-branch",
-            help="Branch of the remote repository to analyze (default: main). Only applicable with --remote-url.",
-        ),
-    ] = "main",
-    since: Annotated[
-        Optional[str],
-        typer.Option(
-            "-S",
-            "--since",
-            help='Start date for analysis (e.g., "2023-01-01", "3 months ago", "1 year ago")',
-        ),
-    ] = None,
-    until: Annotated[
-        Optional[str],
-        typer.Option(
-            "-U", "--until", help='End date for analysis (e.g., "2023-03-31", "now")'
-        ),
-    ] = None,
-    author: Annotated[
-        Optional[str],
-        typer.Option(
-            "-a",
-            "--author",
-            help='Filter by author name or email (e.g., "John Doe", "john@example.com")',
-        ),
-    ] = None,
-    grep: Annotated[
-        Optional[str],
-        typer.Option(
-            "-g", "--grep", help='Filter by commit message (e.g., "fix", "feature")'
-        ),
-    ] = None,
-    merges: Annotated[
-        bool,
-        typer.Option(
-            "-m",
-            "--merges",
-            help="Only include commits that are merged into the current branch (e.g., via pull requests)",
-        ),
-    ] = False,
-    path: Annotated[
-        Optional[List[str]],
-        typer.Option(
-            "-p",
-            "--path",
-            help="Include only changes in specified paths (can be used multiple times)",
-        ),
-    ] = None,
-    exclude_path: Annotated[
-        Optional[List[str]],
-        typer.Option(
-            "-x",
-            "--exclude-path",
-            help="Exclude changes in specified paths (can be used multiple times)",
-        ),
-    ] = None,
-    verbose: Annotated[
-        bool,
-        typer.Option("-v", "--verbose", help="Enable verbose output (INFO level)"),
-    ] = False,
-    debug: Annotated[
-        bool,
-        typer.Option("-d", "--debug", help="Enable debug output (DEBUG level)"),
-    ] = False,
+    repo_path: RepoPath = ".",
+    remote_url: RemoteUrl = None,
+    remote_branch: RemoteBranch = "main",
+    since: Since = None,
+    until: Until = None,
+    author: Author = None,
+    grep: Grep = None,
+    merges: Merges = False,
+    path: Path = None,
+    exclude_path: ExcludePath = None,
+    verbose: Verbose = False,
+    debug: Debug = False,
 ):
     setup_logging(debug=debug, verbose=verbose)
     logger.debug(f"CLI arguments: {locals()}")

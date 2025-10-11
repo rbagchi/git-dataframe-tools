@@ -6,10 +6,10 @@ This script analyzes git history and ranks authors by total lines changed
 
 __version__ = "0.1.0"
 
-import typer
-from typing import Optional, List
-from typing_extensions import Annotated
 import logging
+import typer
+from typing import Optional
+from typing_extensions import Annotated
 import sys
 
 from git_dataframe_tools.config_models import (
@@ -23,6 +23,19 @@ from git_dataframe_tools.cli._display_utils import (
     _display_author_specific_stats,
     _display_full_ranking,
 )
+from git_dataframe_tools.cli.common_args import (
+    RepoPath,
+    RemoteUrl,
+    RemoteBranch,
+    Since,
+    Until,
+    Author,
+    Merges,
+    Path,
+    ExcludePath,
+    Verbose,
+    Debug,
+)
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
@@ -33,19 +46,8 @@ app = typer.Typer(help="Git Author Ranking by Diff Size (Last 3 Months)")
 
 @app.command()
 def main(
-    repo_path: Annotated[
-        Optional[str],
-        typer.Argument(
-            help="Path to the Git repository (default: current directory). Cannot be used with --remote-url or --df-path.",
-        ),
-    ] = ".",
-    remote_url: Annotated[
-        Optional[str],
-        typer.Option(
-            "--remote-url",
-            help="URL of the remote Git repository to analyze (e.g., https://github.com/user/repo). Cannot be used with repo_path or --df-path.",
-        ),
-    ] = None,
+    repo_path: RepoPath = ".",
+    remote_url: RemoteUrl = None,
     df_path: Annotated[
         Optional[str],
         typer.Option(
@@ -53,63 +55,17 @@ def main(
             help="Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df). Cannot be used with repo_path or --remote-url.",
         ),
     ] = None,
-    remote_branch: Annotated[
-        str,
-        typer.Option(
-            "--remote-branch",
-            help="Branch of the remote repository to analyze (default: main). Only applicable with --remote-url.",
-        ),
-    ] = "main",
-    since: Annotated[
-        Optional[str],
-        typer.Option(
-            "-S",
-            "--since",
-            help='Start date for analysis (e.g., "2023-01-01", "3 months ago", "1 year ago")',
-        ),
-    ] = None,
-    until: Annotated[
-        Optional[str],
-        typer.Option(
-            "-U", "--until", help='End date for analysis (e.g., "2023-03-31", "now")'
-        ),
-    ] = None,
-    author: Annotated[
-        Optional[str],
-        typer.Option(
-            "-a",
-            "--author",
-            help='Filter by author name or email (e.g., "John Doe", "john@example.com")',
-        ),
-    ] = None,
+    remote_branch: RemoteBranch = "main",
+    since: Since = None,
+    until: Until = None,
+    author: Author = None,
     me: Annotated[
         bool,
         typer.Option("--me", help="Filter by your own git user name and email"),
     ] = False,
-    merges: Annotated[
-        bool,
-        typer.Option(
-            "-m",
-            "--merges",
-            help="Only include commits that are merged into the current branch (e.g., via pull requests)",
-        ),
-    ] = False,
-    path: Annotated[
-        Optional[List[str]],
-        typer.Option(
-            "-p",
-            "--path",
-            help="Include only changes in specified paths (can be used multiple times)",
-        ),
-    ] = None,
-    exclude_path: Annotated[
-        Optional[List[str]],
-        typer.Option(
-            "-x",
-            "--exclude-path",
-            help="Exclude changes in specified paths (can be used multiple times)",
-        ),
-    ] = None,
+    merges: Merges = False,
+    path: Path = None,
+    exclude_path: ExcludePath = None,
     default_period: Annotated[
         str,
         typer.Option(
@@ -124,14 +80,8 @@ def main(
             help="Proceed with analysis even if the DataFrame version does not match the expected version.",
         ),
     ] = False,
-    verbose: Annotated[
-        bool,
-        typer.Option("-v", "--verbose", help="Enable verbose output (INFO level)"),
-    ] = False,
-    debug: Annotated[
-        bool,
-        typer.Option("-d", "--debug", help="Enable debug output (DEBUG level)"),
-    ] = False,
+    verbose: Verbose = False,
+    debug: Debug = False,
 ):
     """Main function"""
     setup_logging(debug=debug, verbose=verbose)

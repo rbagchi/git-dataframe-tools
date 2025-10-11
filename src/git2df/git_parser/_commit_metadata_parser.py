@@ -1,5 +1,4 @@
 import logging
-import re
 from datetime import datetime
 from typing import Any, Optional, Dict, List
 from dataclasses import dataclass, field
@@ -42,21 +41,18 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     date_timestamp_str = parts[4]
     raw_commit_message_part = parts[5]
 
-    # Use regex to robustly extract commit message from raw_commit_message_part
-    msg_match = re.match(
-        r"---MSG_START---(?P<commit_message>.*?)---MSG_END---",
-        raw_commit_message_part,
-        re.DOTALL,
-    )
-    if msg_match:
-        commit_message = msg_match.group("commit_message")
+    # Use string partitioning to extract commit message
+    before, sep, after = raw_commit_message_part.partition("---MSG_START---")
+    if sep:
+        commit_message, sep, after = after.partition("---MSG_END---")
     else:
+        commit_message = raw_commit_message_part # Fallback if start delimiter not found
+
+    if not commit_message:
         logger.warning(
             f"Could not find commit message delimiters in: '{raw_commit_message_part}'"
         )
-        commit_message = (
-            raw_commit_message_part  # Fallback to raw part if delimiters not found
-        )
+        commit_message = raw_commit_message_part # Fallback to raw part if delimiters not found
 
     try:
         commit_date_str, commit_timestamp_str = date_timestamp_str.split("\t")

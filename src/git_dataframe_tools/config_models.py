@@ -157,17 +157,8 @@ class GitAnalysisConfig:
 
     def get_analysis_description(self) -> str:
         """Returns a description of the current analysis configuration."""
-        # Ensure start_date and end_date are date objects before calling isoformat
-        start_date_str = (
-            self.start_date.isoformat()
-            if isinstance(self.start_date, date)
-            else str(self.start_date)
-        )
-        end_date_str = (
-            self.end_date.isoformat()
-            if isinstance(self.end_date, date)
-            else str(self.end_date)
-        )
+        start_date_str = self.start_date.isoformat() if self.start_date else "N/A"
+        end_date_str = self.end_date.isoformat() if self.end_date else "N/A"
         desc = f"Analysis period: {start_date_str} to {end_date_str}"
         if self.merged_only:
             desc += ", merged commits only"

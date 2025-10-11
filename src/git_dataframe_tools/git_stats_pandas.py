@@ -1,5 +1,6 @@
 import pandas as pd
 import math
+from typing import Optional
 
 
 def parse_git_log(git_data: pd.DataFrame) -> list[dict]:
@@ -130,7 +131,6 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     return author_stats
 
 
-from typing import Optional
 
 def find_author_stats(author_stats: list[dict], author_query: Optional[str]) -> list[dict]:
     """

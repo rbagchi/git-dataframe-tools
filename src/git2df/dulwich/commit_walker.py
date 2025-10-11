@@ -4,8 +4,6 @@ from typing import List, Optional, cast
 
 from dulwich.repo import Repo
 from dulwich.objects import Commit
-from dulwich.objects import Commit
-from dulwich.objects import Commit
 from tqdm import tqdm
 
 from .commit_filters import DulwichCommitFilters

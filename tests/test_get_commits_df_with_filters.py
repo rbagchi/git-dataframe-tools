@@ -1,7 +1,7 @@
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from git2df import get_commits_df
-from git2df.git_parser import GitLogEntry, FileChange, parse_git_log
+from git2df.git_parser import GitLogEntry, FileChange
 from datetime import datetime, timezone
 
 # Mock data for commit-centric output

@@ -41,9 +41,9 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
         return None
 
     parts = line.split("@@@FIELD@@@")
-    # Expected format: @@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@%B
+    # Expected format: @@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---
     if len(parts) < 6:
-        logger.warning(f"Malformed commit metadata line: '{line}'")
+        logger.warning(f"Malformed commit metadata line (too few parts): '{line}'")
         return None
 
     commit_hash_with_marker = parts[0]
@@ -55,14 +55,11 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     
     date_timestamp_str = parts[4]
     raw_commit_message_part = parts[5]
-    logger.debug(f"raw_commit_message_part: '{raw_commit_message_part}'")
 
-    # Extract commit message using the new delimiters
-    msg_start_idx = raw_commit_message_part.find("---MSG_START---")
-    msg_end_idx = raw_commit_message_part.find("---MSG_END---")
-
-    if msg_start_idx != -1 and msg_end_idx != -1 and msg_start_idx < msg_end_idx:
-        commit_message = raw_commit_message_part[msg_start_idx + len("---MSG_START---"):msg_end_idx]
+    # Use regex to robustly extract commit message from raw_commit_message_part
+    msg_match = re.match(r"---MSG_START---(?P<commit_message>.*?)---MSG_END---$", raw_commit_message_part, re.DOTALL)
+    if msg_match:
+        commit_message = msg_match.group("commit_message")
     else:
         logger.warning(f"Could not find commit message delimiters in: '{raw_commit_message_part}'")
         commit_message = raw_commit_message_part # Fallback to raw part if delimiters not found
@@ -91,23 +88,59 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
 
 def _parse_file_stat_line(line: str) -> Optional[FileChange]:
     """Parses a single file statistics line and returns a FileChange object."""
-    stat_match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(?:([ADMT])\s+)?(.+)", line)
-    if not stat_match:
-        logger.warning(f"Line did not match file stat pattern: '{line}'")
+    parts = line.split('\t') # Split by tab
+
+    if len(parts) < 3:
+        logger.warning(f"Line has too few tab-separated parts for file stat pattern: '{line}'")
         return None
 
-    added_str, deleted_str, change_type_match, file_path = stat_match.groups()
+    added_str = parts[0]
+    deleted_str = parts[1]
 
-    change_type = change_type_match if change_type_match else "M"
+    change_type: str
+    file_path: str
 
-    additions = 0 if added_str == "-" else int(added_str)
-    deletions = 0 if deleted_str == "-" else int(deleted_str)
+    if len(parts) == 3:
+        # Format: additions deletions file_path
+        # If the third part is a single char ADMT, it's likely a malformed line
+        # where a change_type was intended but no file_path followed.
+        if len(parts[2]) == 1 and parts[2] in "ADMT":
+            logger.warning(f"Malformed file stat line: '{line}' - change type found but no file path.")
+            return None
+        change_type = "M" # Default to Modified
+        file_path = parts[2]
+    elif len(parts) >= 4:
+        # Format: additions deletions change_type file_path (or more for renames/copies)
+        # For now, assume the 3rd part is change_type and the rest is file_path
+        if len(parts[2]) == 1 and parts[2] in "ADMT": # Heuristic for change type
+            change_type = parts[2]
+            file_path = "\t".join(parts[3:])
+        else:
+            # If 3rd part is not a change type, assume it's part of file_path
+            # and change_type is M (e.g., "10\t5\tfile with spaces.txt")
+            change_type = "M"
+            file_path = "\t".join(parts[2:])
+    else:
+        logger.warning(f"Unexpected number of tab-separated parts: '{line}'")
+        return None
+
+    try:
+        additions = 0 if added_str == "-" else int(added_str)
+        deletions = 0 if deleted_str == "-" else int(deleted_str)
+    except ValueError:
+        logger.warning(f"Could not parse additions/deletions in line: '{line}'")
+        return None
+
+    # Ensure file_path is not empty after stripping
+    if not file_path.strip():
+        logger.warning(f"File path is empty in line: '{line}'")
+        return None
 
     return FileChange(
         file_path=file_path.strip(),
         additions=additions,
         deletions=deletions,
-        change_type=change_type,
+        change_type=change_type.strip(),
     )
 
 

@@ -1,3 +1,4 @@
+import pytest
 from git2df.dulwich.backend import DulwichRemoteBackend
 from git2df import get_commits_df
 import pandas as pd

@@ -58,6 +58,11 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Impact:** 2 (Improves type safety and reduces potential for runtime errors.)
 - **Effort:** 1 (Requires minor adjustments to date assignment and type hints.)
 
+### 14. Prioritize explicit string splitting over complex regex for structured data
+- **Description:** Review existing and future parsing logic to favor explicit string splitting (e.g., `str.split()`, `str.partition()`) over complex regular expressions when dealing with structured input formats (like `git log` output). This improves readability, reduces cognitive load, and makes the code less prone to subtle regex matching errors, especially when delimiters are consistent.
+- **Impact:** 3 (Significantly improves code clarity, maintainability, and reduces potential for parsing bugs.)
+- **Effort:** 2 (Requires careful review of parsing functions and potential refactoring, but often simplifies the logic.)
+
 ## D. Future-proofing & Extensibility
 
 ### 11. Decouple `GitAnalysisConfig` from `GitPython`

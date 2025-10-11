@@ -19,6 +19,11 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Impact:** 4 (Significantly improves CLI definition, maintainability, and user experience.)
 - **Effort:** 4 (Requires rewriting CLI argument parsing for both tools.)
 
+### 15. Decompose `git_parser.py` into a multi-file module
+- **Description:** Break down the `git_parser.py` file into a multi-file module (e.g., `git_parser/__init__.py`, `git_parser/_commit_metadata_parser.py`, `git_parser/_file_stat_parser.py`). This would improve modularity, readability, and testability by separating distinct parsing concerns into their own files.
+- **Impact:** 4 (Significantly improves modularity, readability, and testability of a core parsing component.)
+- **Effort:** 3 (Requires careful refactoring to create a package structure and move existing functions, ensuring all imports and calls are updated.)
+
 ## B. Robustness & Error Handling
 
 ### 4. Refine `dulwich_progress_callback` string matching

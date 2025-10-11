@@ -4,12 +4,9 @@ from datetime import datetime
 from pathlib import Path
 import dataclasses
 
-from git2df.git_parser import (
-    _parse_commit_metadata_line,
-    _parse_file_stat_line,
-    FileChange,
-    parse_git_log,
-)
+from git2df.git_parser._commit_metadata_parser import _parse_commit_metadata_line
+from git2df.git_parser._file_stat_parser import _parse_file_stat_line, FileChange
+from git2df.git_parser import parse_git_log
 
 
 def get_golden_file_pairs():

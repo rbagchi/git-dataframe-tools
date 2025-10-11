@@ -4,7 +4,7 @@ from typing import Optional, List, Union
 
 from git2df.backends import GitCliBackend
 from git2df.dulwich.backend import DulwichRemoteBackend
-from git2df.git_parser import parse_git_log
+from .git_parser import parse_git_log
 from git2df.dataframe_builder import build_commits_df
 
 logger = logging.getLogger(__name__)

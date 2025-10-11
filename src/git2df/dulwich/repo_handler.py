@@ -13,6 +13,7 @@ from .diff_parser import DulwichDiffParser
 
 logger = logging.getLogger(__name__)
 
+
 class DulwichRepoHandler:
     """
     Handles interactions with local and remote Dulwich repositories.

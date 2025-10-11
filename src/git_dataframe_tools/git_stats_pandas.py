@@ -131,8 +131,9 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     return author_stats
 
 
-
-def find_author_stats(author_stats: list[dict], author_query: Optional[str]) -> list[dict]:
+def find_author_stats(
+    author_stats: list[dict], author_query: Optional[str]
+) -> list[dict]:
     """
     Finds and returns stats for a specific author from the author statistics list.
     If author_query is None, returns all author_stats.

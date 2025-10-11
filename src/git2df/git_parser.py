@@ -52,20 +52,28 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     parent_hash = parts[1] if parts[1] else None
     author_name = parts[2]
     author_email = parts[3]
-    
+
     date_timestamp_str = parts[4]
     raw_commit_message_part = parts[5]
 
     # Use regex to robustly extract commit message from raw_commit_message_part
-    msg_match = re.match(r"---MSG_START---(?P<commit_message>.*?)---MSG_END---$", raw_commit_message_part, re.DOTALL)
+    msg_match = re.match(
+        r"---MSG_START---(?P<commit_message>.*?)---MSG_END---$",
+        raw_commit_message_part,
+        re.DOTALL,
+    )
     if msg_match:
         commit_message = msg_match.group("commit_message")
     else:
-        logger.warning(f"Could not find commit message delimiters in: '{raw_commit_message_part}'")
-        commit_message = raw_commit_message_part # Fallback to raw part if delimiters not found
+        logger.warning(
+            f"Could not find commit message delimiters in: '{raw_commit_message_part}'"
+        )
+        commit_message = (
+            raw_commit_message_part  # Fallback to raw part if delimiters not found
+        )
 
     try:
-        commit_date_str, commit_timestamp_str = date_timestamp_str.split('\t')
+        commit_date_str, commit_timestamp_str = date_timestamp_str.split("\t")
         logger.debug(f"date_timestamp_str: '{date_timestamp_str}'")
         commit_date = datetime.fromisoformat(commit_date_str)
         commit_timestamp = int(commit_timestamp_str)
@@ -88,10 +96,12 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
 
 def _parse_file_stat_line(line: str) -> Optional[FileChange]:
     """Parses a single file statistics line and returns a FileChange object."""
-    parts = line.split('\t') # Split by tab
+    parts = line.split("\t")  # Split by tab
 
     if len(parts) < 3:
-        logger.warning(f"Line has too few tab-separated parts for file stat pattern: '{line}'")
+        logger.warning(
+            f"Line has too few tab-separated parts for file stat pattern: '{line}'"
+        )
         return None
 
     added_str = parts[0]
@@ -105,14 +115,16 @@ def _parse_file_stat_line(line: str) -> Optional[FileChange]:
         # If the third part is a single char ADMT, it's likely a malformed line
         # where a change_type was intended but no file_path followed.
         if len(parts[2]) == 1 and parts[2] in "ADMT":
-            logger.warning(f"Malformed file stat line: '{line}' - change type found but no file path.")
+            logger.warning(
+                f"Malformed file stat line: '{line}' - change type found but no file path."
+            )
             return None
-        change_type = "M" # Default to Modified
+        change_type = "M"  # Default to Modified
         file_path = parts[2]
     elif len(parts) >= 4:
         # Format: additions deletions change_type file_path (or more for renames/copies)
         # For now, assume the 3rd part is change_type and the rest is file_path
-        if len(parts[2]) == 1 and parts[2] in "ADMT": # Heuristic for change type
+        if len(parts[2]) == 1 and parts[2] in "ADMT":  # Heuristic for change type
             change_type = parts[2]
             file_path = "\t".join(parts[3:])
         else:
@@ -153,16 +165,18 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
         logger.warning("Could not find end of message marker in chunk.")
         return None
 
-    metadata_and_msg = chunk[:end_of_msg_index + len(msg_end_marker)]
-    
-    commit_metadata_dict = _parse_commit_metadata_line("@@@COMMIT@@@" + metadata_and_msg)
-    
+    metadata_and_msg = chunk[: end_of_msg_index + len(msg_end_marker)]
+
+    commit_metadata_dict = _parse_commit_metadata_line(
+        "@@@COMMIT@@@" + metadata_and_msg
+    )
+
     if not commit_metadata_dict:
         return None
-        
-    file_stats_str = chunk[end_of_msg_index + len(msg_end_marker):]
+
+    file_stats_str = chunk[end_of_msg_index + len(msg_end_marker) :]
     file_changes = []
-    for line in file_stats_str.strip().split('\n'):
+    for line in file_stats_str.strip().split("\n"):
         if line.strip():
             file_change = _parse_file_stat_line(line.strip())
             if file_change:
@@ -189,7 +203,7 @@ def parse_git_log(git_data: str) -> List[GitLogEntry]:
     commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
 
     parsed_entries: List[GitLogEntry] = []
-    
+
     iterable_chunks = (
         tqdm(
             commit_chunks,
@@ -204,6 +218,6 @@ def parse_git_log(git_data: str) -> List[GitLogEntry]:
         entry = _process_commit_chunk(chunk)
         if entry:
             parsed_entries.append(entry)
-            
+
     logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
     return parsed_entries

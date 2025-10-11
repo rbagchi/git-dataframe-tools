@@ -58,7 +58,7 @@ MOCKED_GIT_LOG_ENTRIES = [
         author_name="Author One",
         author_email="author1@example.com",
         commit_date=datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
-        commit_timestamp=1672531200, # Dummy timestamp for 2023-01-01 10:00:00 UTC
+        commit_timestamp=1672531200,  # Dummy timestamp for 2023-01-01 10:00:00 UTC
         commit_message="Subject 1",
         file_changes=[
             FileChange("file1.txt", 10, 5, "M"),
@@ -70,7 +70,7 @@ MOCKED_GIT_LOG_ENTRIES = [
         author_name="Author Two",
         author_email="author2@example.com",
         commit_date=datetime(2023, 1, 2, 11, 0, 0, tzinfo=timezone.utc),
-        commit_timestamp=1672617600, # Dummy timestamp for 2023-01-02 11:00:00 UTC
+        commit_timestamp=1672617600,  # Dummy timestamp for 2023-01-02 11:00:00 UTC
         commit_message="Subject 2",
         file_changes=[
             FileChange("file2.py", 20, 0, "A"),

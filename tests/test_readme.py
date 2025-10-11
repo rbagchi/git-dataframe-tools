@@ -34,7 +34,11 @@ def test_readme_commands(git_repo):
             continue
         try:
             subprocess.run(
-                command.replace("git-scoreboard .", "git-scoreboard --repo-path ."), shell=True, check=True, capture_output=True, text=True
+                command.replace("git-scoreboard .", "git-scoreboard --repo-path ."),
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
             )
         except subprocess.CalledProcessError as e:
             pytest.fail(

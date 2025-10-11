@@ -82,14 +82,14 @@ class DulwichDiffParser:
                     blob = repo.get_object(change.new.sha)
                     additions = len(blob.as_pretty_string().splitlines())
                 except KeyError:
-                    additions = 0 # Or handle as an error
+                    additions = 0  # Or handle as an error
             elif change.type == "delete":
                 assert change.old is not None
                 try:
                     blob = repo.get_object(change.old.sha)
                     deletions = len(blob.as_pretty_string().splitlines())
                 except KeyError:
-                    deletions = 0 # Or handle as an error
+                    deletions = 0  # Or handle as an error
             elif change.type == "modify":
                 if change.old and change.new:
                     # For modifications, we need to calculate the diff
@@ -100,7 +100,9 @@ class DulwichDiffParser:
                         change.old,
                         change.new,
                     )
-                    patch_content = patch_stream.getvalue().decode("utf-8", errors="ignore")
+                    patch_content = patch_stream.getvalue().decode(
+                        "utf-8", errors="ignore"
+                    )
                     for line in patch_content.splitlines():
                         if line.startswith("+") and not line.startswith("+++"):
                             additions += 1
@@ -152,5 +154,3 @@ class DulwichDiffParser:
                 "deletions": current_deletions,
             }
         return line_stats
-
-

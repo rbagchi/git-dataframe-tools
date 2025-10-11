@@ -4,6 +4,7 @@ from dulwich.objects import Commit
 
 logger = logging.getLogger(__name__)
 
+
 class DulwichCommitFormatter:
     """
     Provides methods for extracting and formatting commit metadata from Dulwich Commit objects.
@@ -25,7 +26,9 @@ class DulwichCommitFormatter:
         logger.debug(f"Raw author string: {raw_author}")
         author_name = raw_author.split("<")[0].strip()
         author_email = raw_author.split("<")[1].strip(">")
-        logger.debug(f"Extracted author_name: {author_name}, author_email: {author_email}")
+        logger.debug(
+            f"Extracted author_name: {author_name}, author_email: {author_email}"
+        )
         commit_datetime = datetime.datetime.fromtimestamp(
             commit.commit_time, tz=datetime.timezone.utc
         )

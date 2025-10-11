@@ -2,6 +2,7 @@ import datetime
 import parsedatetime as pdt
 from typing import Optional
 
+
 def parse_date_string(date_string: str) -> Optional[datetime.datetime]:
     cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
     result, parse_status = cal.parseDT(
@@ -16,6 +17,7 @@ def parse_date_string(date_string: str) -> Optional[datetime.datetime]:
         return result
     return None
 
+
 def get_date_filters(
     since: Optional[str], until: Optional[str]
 ) -> tuple[Optional[datetime.datetime], Optional[datetime.datetime]]:
@@ -27,9 +29,9 @@ def get_date_filters(
             pass
     else:
         # Default to last year if no 'since' is provided
-        since_dt = datetime.datetime.now(
-            datetime.timezone.utc
-        ) - datetime.timedelta(days=365)
+        since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            days=365
+        )
 
     until_dt = None
     if until:

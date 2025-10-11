@@ -11,7 +11,9 @@ runner = CliRunner()
 
 
 def test_main_author_and_me_mutually_exclusive():
-    result = runner.invoke(scoreboard.app, ["--repo-path", ".", "--author", "test", "--me"])
+    result = runner.invoke(
+        scoreboard.app, ["--repo-path", ".", "--author", "test", "--me"]
+    )
     assert result.exit_code == 1
     assert "Error: Cannot use both --author and --me options together" in result.stdout
 
@@ -36,7 +38,9 @@ def test_scoreboard_cli_author_filter(git_repo):
     """Test the git-scoreboard CLI with an author filter."""
     os.chdir(git_repo)
 
-    result = runner.invoke(scoreboard.app, ["--repo-path", ".", "--author", "Test User"])
+    result = runner.invoke(
+        scoreboard.app, ["--repo-path", ".", "--author", "Test User"]
+    )
     assert result.exit_code == 0
     assert "Author Stats for 'Test User'" in result.stdout
     assert "Test User" in result.stdout

@@ -46,6 +46,7 @@ dev = [
     "radon",
     "ruff",
     "black",
+    "pytest-mock",
 ]
 
 [tool.pytest.ini_options]

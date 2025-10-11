@@ -50,6 +50,7 @@ def mock_commit():
     commit.tree = b"new_tree_sha"
     return commit
 
+
 def test_extract_file_changes_modification(mock_repo, mock_commit):
     # Arrange
     old_tree_id = b"old_tree_sha"
@@ -68,8 +69,10 @@ def test_extract_file_changes_modification(mock_repo, mock_commit):
     ).decode("utf-8")
 
     with patch("dulwich.patch.write_object_diff") as mock_write_object_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_object_diff.side_effect = side_effect
 
         # Mock dulwich.diff_tree.tree_changes to return a modify change
@@ -80,7 +83,9 @@ def test_extract_file_changes_modification(mock_repo, mock_commit):
             mock_tree_changes.return_value = [mock_tree_change]
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 1
@@ -88,6 +93,7 @@ def test_extract_file_changes_modification(mock_repo, mock_commit):
             assert file_changes[0]["change_type"] == "M"
             assert file_changes[0]["additions"] == 2
             assert file_changes[0]["deletions"] == 1
+
 
 def test_extract_file_changes_addition(mock_repo, mock_commit):
     # Arrange
@@ -106,21 +112,27 @@ def test_extract_file_changes_addition(mock_repo, mock_commit):
     ).decode("utf-8")
 
     with patch("dulwich.patch.write_tree_diff") as mock_write_tree_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_tree_diff.side_effect = side_effect
 
         # Mock dulwich.diff_tree.tree_changes to return an add change
         mock_tree_change = create_mock_tree_change(
             type="add", new_path=b"new_file.txt", new_sha=b"new_blob_sha"
         )
-        mock_repo.get_object.return_value = create_mock_blob(b"new_blob_sha", "line1\nline2")
+        mock_repo.get_object.return_value = create_mock_blob(
+            b"new_blob_sha", "line1\nline2"
+        )
 
         with patch("dulwich.diff_tree.tree_changes") as mock_tree_changes:
             mock_tree_changes.return_value = [mock_tree_change]
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 1
@@ -128,6 +140,7 @@ def test_extract_file_changes_addition(mock_repo, mock_commit):
             assert file_changes[0]["change_type"] == "A"
             assert file_changes[0]["additions"] == 2
             assert file_changes[0]["deletions"] == 0
+
 
 def test_extract_file_changes_deletion(mock_repo, mock_commit):
     # Arrange
@@ -146,21 +159,27 @@ def test_extract_file_changes_deletion(mock_repo, mock_commit):
     ).decode("utf-8")
 
     with patch("dulwich.patch.write_tree_diff") as mock_write_tree_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_tree_diff.side_effect = side_effect
 
         # Mock dulwich.diff_tree.tree_changes to return a delete change
         mock_tree_change = create_mock_tree_change(
             type="delete", old_path=b"old_file.txt", old_sha=b"old_blob_sha"
         )
-        mock_repo.get_object.return_value = create_mock_blob(b"old_blob_sha", "line1\nline2")
+        mock_repo.get_object.return_value = create_mock_blob(
+            b"old_blob_sha", "line1\nline2"
+        )
 
         with patch("dulwich.diff_tree.tree_changes") as mock_tree_changes:
             mock_tree_changes.return_value = [mock_tree_change]
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 1
@@ -168,6 +187,7 @@ def test_extract_file_changes_deletion(mock_repo, mock_commit):
             assert file_changes[0]["change_type"] == "D"
             assert file_changes[0]["additions"] == 0
             assert file_changes[0]["deletions"] == 2
+
 
 def test_extract_file_changes_with_path_include_filter(mock_repo, mock_commit):
     # Arrange
@@ -184,19 +204,27 @@ def test_extract_file_changes_with_path_include_filter(mock_repo, mock_commit):
     ).decode("utf-8")
 
     with patch("dulwich.patch.write_object_diff") as mock_write_object_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_object_diff.side_effect = side_effect
 
         mock_tree_changes_list = [
-            create_mock_tree_change(type="modify", old_path=b"src/file1.txt", new_path=b"src/file1.txt"),
-            create_mock_tree_change(type="modify", old_path=b"test/file2.txt", new_path=b"test/file2.txt"),
+            create_mock_tree_change(
+                type="modify", old_path=b"src/file1.txt", new_path=b"src/file1.txt"
+            ),
+            create_mock_tree_change(
+                type="modify", old_path=b"test/file2.txt", new_path=b"test/file2.txt"
+            ),
         ]
         with patch("dulwich.diff_tree.tree_changes") as mock_tree_changes:
             mock_tree_changes.return_value = mock_tree_changes_list
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 1
@@ -204,6 +232,7 @@ def test_extract_file_changes_with_path_include_filter(mock_repo, mock_commit):
             assert file_changes[0]["change_type"] == "M"
             assert file_changes[0]["additions"] == 1
             assert file_changes[0]["deletions"] == 1
+
 
 def test_extract_file_changes_with_path_exclude_filter(mock_repo, mock_commit):
     # Arrange
@@ -220,19 +249,27 @@ def test_extract_file_changes_with_path_exclude_filter(mock_repo, mock_commit):
     ).decode("utf-8")
 
     with patch("dulwich.patch.write_object_diff") as mock_write_object_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_object_diff.side_effect = side_effect
 
         mock_tree_changes_list = [
-            create_mock_tree_change(type="modify", old_path=b"src/file1.txt", new_path=b"src/file1.txt"),
-            create_mock_tree_change(type="modify", old_path=b"test/file2.txt", new_path=b"test/file2.txt"),
+            create_mock_tree_change(
+                type="modify", old_path=b"src/file1.txt", new_path=b"src/file1.txt"
+            ),
+            create_mock_tree_change(
+                type="modify", old_path=b"test/file2.txt", new_path=b"test/file2.txt"
+            ),
         ]
         with patch("dulwich.diff_tree.tree_changes") as mock_tree_changes:
             mock_tree_changes.return_value = mock_tree_changes_list
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 1
@@ -240,6 +277,7 @@ def test_extract_file_changes_with_path_exclude_filter(mock_repo, mock_commit):
             assert file_changes[0]["change_type"] == "M"
             assert file_changes[0]["additions"] == 1
             assert file_changes[0]["deletions"] == 1
+
 
 def test_extract_file_changes_empty_diff(mock_repo, mock_commit):
     # Arrange
@@ -249,15 +287,19 @@ def test_extract_file_changes_empty_diff(mock_repo, mock_commit):
     mock_diff_output = b"".decode("utf-8")
 
     with patch("dulwich.patch.write_tree_diff") as mock_write_tree_diff:
+
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
+
         mock_write_tree_diff.side_effect = side_effect
 
         with patch("dulwich.diff_tree.tree_changes") as mock_tree_changes:
             mock_tree_changes.return_value = []
 
             # Act
-            file_changes = parser.extract_file_changes(mock_repo, mock_commit, old_tree_id)
+            file_changes = parser.extract_file_changes(
+                mock_repo, mock_commit, old_tree_id
+            )
 
             # Assert
             assert len(file_changes) == 0

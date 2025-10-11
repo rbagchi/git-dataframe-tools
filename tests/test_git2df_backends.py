@@ -55,9 +55,7 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     grep = "test_grep"
 
     # Act
-    backend.get_raw_log_output(
-        since=since, until=until, author=author, grep=grep
-    )
+    backend.get_raw_log_output(since=since, until=until, author=author, grep=grep)
 
     # Assert
     mock_subprocess_run.assert_called_once()

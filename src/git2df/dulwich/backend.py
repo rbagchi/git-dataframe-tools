@@ -48,10 +48,6 @@ class DulwichRemoteBackend:
             self.commit_walker,
         )
 
-
-
-
-
     def get_raw_log_output(
         self,
         repo_path: Optional[str] = None,  # Added for compatibility
@@ -70,7 +66,9 @@ class DulwichRemoteBackend:
         """
         since_dt, until_dt = get_date_filters(since, until)
 
-        diff_parser = DulwichDiffParser(include_paths=include_paths, exclude_paths=exclude_paths)
+        diff_parser = DulwichDiffParser(
+            include_paths=include_paths, exclude_paths=exclude_paths
+        )
 
         if self.is_local_repo:
             return self.repo_handler.handle_local_repo(

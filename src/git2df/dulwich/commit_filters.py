@@ -1,6 +1,7 @@
 import datetime
 from typing import Optional
 
+
 class DulwichCommitFilters:
     """
     Provides methods for filtering Dulwich commits based on various criteria.

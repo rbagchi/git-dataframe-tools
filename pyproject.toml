@@ -29,6 +29,7 @@ dependencies = [
     "pytest>=7.4.4",
     "dulwich>=0.21.7",
     "tqdm",
+    "tabulate",
 ]
 
 [tool.setuptools.packages.find]
@@ -47,6 +48,7 @@ dev = [
     "ruff",
     "black",
     "pytest-mock",
+    "types-tabulate",
 ]
 
 [tool.pytest.ini_options]

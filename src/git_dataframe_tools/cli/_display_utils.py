@@ -1,9 +1,15 @@
 import logging
 from typing import Any, Dict, List
+from tabulate import tabulate
 
 from git_dataframe_tools.config_models import GitAnalysisConfig, print_header
 
 logger = logging.getLogger(__name__)
+
+
+def _format_table_with_tabulate(headers: List[str], data: List[List[Any]]) -> str:
+    """Formats data into a table string using the tabulate library."""
+    return tabulate(data, headers=headers, tablefmt="grid")
 
 
 def _get_matching_authors(
@@ -79,35 +85,47 @@ def _display_author_specific_stats(
     return 0
 
 
-def _print_ranking_header(config: GitAnalysisConfig) -> None:
+def _display_ranking_table(
+    config: GitAnalysisConfig, author_list: List[Dict[str, Any]]
+) -> None:
     print()
     print_header("Git Author Ranking by Diff Size")
     print_header(config.get_analysis_description())
     print()
 
-    # Print table header
-    print(
-        f"{'Rank':>4} {'Author':<45} {'Lines Added':>11} {'Lines Deleted':>12} {'Total Diff':>11} {'Commits':>7} {'Diff D':>6} {'Comm D':>6}"
-    )
-    print(
-        f"{'-'*4:>4} {'-'*45:<45} {'-'*11:>11} {'-'*12:>12} {'-'*11:>11} {'-'*7:>7} {'-'*6:>6} {'-'*6:>6}"
-    )
-
-
-def _print_author_rows(author_list: List[Dict[str, Any]]) -> None:
-    # Print results
+    headers = [
+        "Rank",
+        "Author",
+        "Lines Added",
+        "Lines Deleted",
+        "Total Diff",
+        "Commits",
+        "Diff D",
+        "Comm D",
+    ]
+    table_data = []
     for author in author_list:
         author_display = f"{author['author_name']} <{author['author_email']}>"
-        # Truncate author display if too long
         if len(author_display) > 45:
             author_display = author_display[:42] + "..."
 
         added_str = str(author["added"]) if author["added"] > 0 else "-"
         deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
 
-        print(
-            f"{author['rank']:>4} {author_display:<45} {added_str:>11} {deleted_str:>12} {author['total']:>11} {author['commits']:>7} {author['diff_decile']:>6} {author['commit_decile']:>6}"
+        table_data.append(
+            [
+                author["rank"],
+                author_display,
+                added_str,
+                deleted_str,
+                author["total"],
+                author["commits"],
+                author["diff_decile"],
+                author["commit_decile"],
+            ]
         )
+
+    print(_format_table_with_tabulate(headers, table_data))
 
 
 def _get_min_max_values(
@@ -126,8 +144,8 @@ def _print_single_decile_distribution(
     title: str, range_label: str, decile_key: str, author_list: List[Dict[str, Any]]
 ) -> None:
     print(f"\n{title}:")
-    print(f"{'Decile':>6} {range_label:>25} {'Authors':>8}")
-    print(f"{'-'*6:>6} {'-'*25:>25} {'-'*8:>8}")
+    headers = ["Decile", range_label, "Authors"]
+    table_data = []
 
     for decile in range(1, 11):
         filtered_authors = [a for a in author_list if a[decile_key] == decile]
@@ -136,7 +154,9 @@ def _print_single_decile_distribution(
             range_str = (
                 f"{min_val:,}-{max_val:,}" if min_val != max_val else f"{min_val:,}"
             )
-            print(f"{decile:>6} {range_str:>25} {len(filtered_authors):>8}")
+            table_data.append([decile, range_str, len(filtered_authors)])
+
+    print(_format_table_with_tabulate(headers, table_data))
 
 
 def _print_decile_distribution(author_list: List[Dict[str, Any]]) -> None:
@@ -172,8 +192,7 @@ def _display_full_ranking(
         )
         return 1
 
-    _print_ranking_header(config)
-    _print_author_rows(author_list)
+    _display_ranking_table(config, author_list)
     _print_decile_distribution(author_list)
     _print_summary(config, author_list)
     return 0

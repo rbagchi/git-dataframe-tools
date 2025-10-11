@@ -7,16 +7,11 @@ This script analyzes git history and ranks authors by total lines changed
 __version__ = "0.1.0"
 
 import logging
-import typer
-from typing import Optional
-from typing_extensions import Annotated
 import sys
+from typing import Optional
 
-from git_dataframe_tools.config_models import (
-    GitAnalysisConfig,
-)
-import git_dataframe_tools.git_stats_pandas as stats_module
-from git_dataframe_tools.logger import setup_logging
+import typer
+from typing_extensions import Annotated
 
 from git_dataframe_tools.cli._data_loader import _load_dataframe, _gather_git_data
 from git_dataframe_tools.cli._display_utils import (
@@ -24,23 +19,26 @@ from git_dataframe_tools.cli._display_utils import (
     _display_full_ranking,
 )
 from git_dataframe_tools.cli.common_args import (
-    RepoPath,
-    RemoteUrl,
-    RemoteBranch,
-    Since,
-    Until,
     Author,
+    Debug,
+    ExcludePath,
     Merges,
     Path,
-    ExcludePath,
+    RemoteBranch,
+    RemoteUrl,
+    RepoPath,
+    Since,
+    Until,
     Verbose,
-    Debug,
 )
+from git_dataframe_tools.config_models import GitAnalysisConfig, OutputFormat
+import git_dataframe_tools.git_stats_pandas as stats_module
+from git_dataframe_tools.logger import setup_logging
+
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
 logger = logging.getLogger(__name__)
-
 app = typer.Typer(help="Git Author Ranking by Diff Size (Last 3 Months)")
 
 
@@ -82,6 +80,13 @@ def main(
     ] = False,
     verbose: Verbose = False,
     debug: Debug = False,
+    format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            help="Output format for the scoreboard.",
+        ),
+    ] = OutputFormat.TABLE,
 ):
     """Main function"""
     setup_logging(debug=debug, verbose=verbose)
@@ -157,7 +162,7 @@ def main(
             parsed_git_log_data, None
         )
         author_list = stats_module.get_ranking(all_author_stats_list)
-        return _display_full_ranking(config, author_list)
+        return _display_full_ranking(config, author_list, format)
 
 
 if __name__ == "__main__":

@@ -6,8 +6,14 @@ from typing import Optional, Union
 from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
+from enum import Enum
 
 from git_dataframe_tools.git_utils import check_git_repo, get_current_git_user
+
+
+class OutputFormat(str, Enum):
+    TABLE = "table"
+    MARKDOWN = "markdown"
 
 
 class Colors:

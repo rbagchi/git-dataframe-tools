@@ -19,6 +19,28 @@ Before executing any refactoring command, it is crucial to:
 3.  **Formulate the Command:** Construct the `pytug` command with the correct subcommand and arguments.
 4.  **Verify (Optional but Recommended):** After executing a refactoring, you can use `read_file` again to verify that the changes were applied as expected.
 
+## Handling Git Commits with Detailed Messages
+
+When performing `git commit` operations with detailed, multi-line messages, directly embedding the message into the `run_shell_command` can lead to escaping issues due to the shell's interpretation of special characters (like backticks, quotes, and newlines). To ensure robust and meaningful commit messages, use a temporary file.
+
+**LLM Action:**
+1.  **Prepare the Commit Message:** Construct the full, detailed commit message as a multi-line string.
+2.  **Create a Temporary File:** Use the `write_file` tool to create a temporary file (e.g., `temp_commit_message.txt`) in the project's root directory and write the commit message content into it.
+3.  **Execute the Commit:** Use the `run_shell_command` tool to execute `git commit -F temp_commit_message.txt`.
+4.  **Clean Up:** Use the `run_shell_command` tool to delete the temporary file (e.g., `rm temp_commit_message.txt`).
+
+**Example Commit Message Content (for `temp_commit_message.txt`):**
+```
+feat(feature_name): Short summary of the feature
+
+This is a more detailed explanation of the feature.
+It can span multiple lines and include bullet points:
+- Point 1
+- Point 2
+
+This commit addresses issue #123.
+```
+
 ## Refactoring Commands and Prompts
 
 Here are specific instructions and example prompts for each `pytug` refactoring command.

@@ -124,6 +124,13 @@ git-scoreboard . --since "6 months ago"
 *   `--default-period`: Default period if `--since` or `--until` are not specified (e.g., "3 months").
 *   `-v, --verbose`: Enable verbose output (INFO level).
 *   `-d, --debug`: Enable debug output (DEBUG level).
+*   `--format`: Output format for the scoreboard (choices: `table`, `markdown`; default: `table`).
+
+**Example:** Generate scoreboard output in Markdown format.
+
+```bash
+git-scoreboard . --since "6 months ago" --format markdown
+```
 
 ## DataFrame Structure
 

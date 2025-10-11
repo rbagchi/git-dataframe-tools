@@ -1,10 +1,15 @@
 import logging
 from typing import Any, Dict, List
 from tabulate import tabulate
+import pandas as pd
 
-from git_dataframe_tools.config_models import GitAnalysisConfig, print_header
+from git_dataframe_tools.config_models import GitAnalysisConfig, print_header, OutputFormat
 
 logger = logging.getLogger(__name__)
+
+def format_as_markdown_table(df: pd.DataFrame) -> str:
+    """Formats a Pandas DataFrame into a Markdown table string."""
+    return df.to_markdown(index=False)
 
 
 def _format_table_with_tabulate(headers: List[str], data: List[List[Any]]) -> str:
@@ -182,7 +187,7 @@ def _print_summary(
 
 
 def _display_full_ranking(
-    config: GitAnalysisConfig, author_list: List[Dict[str, Any]]
+    config: GitAnalysisConfig, author_list: List[Dict[str, Any]], output_format: OutputFormat
 ) -> int:
     if not author_list:
         start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
@@ -192,7 +197,41 @@ def _display_full_ranking(
         )
         return 1
 
-    _display_ranking_table(config, author_list)
-    _print_decile_distribution(author_list)
-    _print_summary(config, author_list)
+    if output_format == OutputFormat.MARKDOWN:
+        # Prepare data for Markdown table
+        headers = [
+            "Rank",
+            "Author",
+            "Lines Added",
+            "Lines Deleted",
+            "Total Diff",
+            "Commits",
+            "Diff D",
+            "Comm D",
+        ]
+        table_data = []
+        for author in author_list:
+            author_display = f"{author['author_name']} <{author['author_email']}>"
+            added_str = str(author["added"]) if author["added"] > 0 else "-"
+            deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
+
+            table_data.append(
+                {
+                    "Rank": author["rank"],
+                    "Author": author_display,
+                    "Lines Added": added_str,
+                    "Lines Deleted": deleted_str,
+                    "Total Diff": author["total"],
+                    "Commits": author["commits"],
+                    "Diff D": author["diff_decile"],
+                    "Comm D": author["commit_decile"],
+                }
+            )
+        df = pd.DataFrame(table_data, columns=headers)
+        print(format_as_markdown_table(df))
+
+    else: # Default to TABLE format
+        _display_ranking_table(config, author_list)
+        _print_decile_distribution(author_list)
+        _print_summary(config, author_list)
     return 0

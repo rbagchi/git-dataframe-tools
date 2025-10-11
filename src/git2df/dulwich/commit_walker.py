@@ -36,24 +36,21 @@ class DulwichCommitWalker:
     ) -> List[str]:
         commit_output_lines: List[str] = []
 
-        logger.debug(f"--- Entered walker loop for commit: {commit.id.hex()} ---")
-
         commit_metadata = self.commit_formatter.extract_commit_metadata(commit)
         logger.debug(
-            f"Processing commit {commit_metadata['commit_hash']} with date {commit_metadata['commit_date']}"
+            f"Processing commit {commit.id.hex()} (hash: {commit_metadata['commit_hash']}, date: {commit_metadata['commit_date']})"
         )
 
         if not self.commit_filters.filter_commits_by_author_and_grep(
             commit_metadata, author, grep
         ):
+            logger.debug(f"Commit {commit.id.hex()} filtered out by author/grep.")
             return []
 
         commit_output_lines.append(
             self.commit_formatter.format_commit_line(commit_metadata)
         )
-        logger.debug(f"Appended commit line for {commit_metadata['commit_hash']}")
 
-        # Extract file changes
         old_tree_id = None
         if commit.parents:  # Not an initial commit
 
@@ -62,7 +59,7 @@ class DulwichCommitWalker:
 
         file_changes = diff_parser.extract_file_changes(repo, commit, old_tree_id)
         logger.debug(
-            f"Extracted file_changes for commit {commit.id.hex()}: {file_changes}"
+            f"Extracted {len(file_changes)} file changes for commit {commit.id.hex()}."
         )
         for file_change in file_changes:
             commit_output_lines.append(
@@ -119,17 +116,18 @@ class DulwichCommitWalker:
         logger.debug(f"Starting commit collection for repo: {repo.path}")
         for entry in repo.get_walker():
             commit: Commit = entry.commit
-            logger.debug(f"Processing commit {commit.id.hex()} for date filtering.")
-
             commit_datetime = datetime.datetime.fromtimestamp(
                 commit.commit_time, tz=datetime.timezone.utc
             )
+
             if not self.commit_filters.filter_commits_by_date(
                 commit_datetime, since_dt, until_dt
             ):
-                logger.debug(f"Commit {commit.id.hex()} filtered out by date.")
+                logger.debug(
+                    f"Commit {commit.id.hex()} (date: {commit_datetime}) filtered out by date."
+                )
                 continue
-            logger.debug(f"Commit {commit.id.hex()} passed date filter.")
+
             all_commits.append(commit)
         logger.debug(
             f"Finished commit collection. Found {len(all_commits)} commits after date filtering."

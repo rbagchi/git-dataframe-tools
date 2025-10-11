@@ -52,6 +52,7 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Description:** While useful for debugging, the sheer number of `logger.debug` statements can make the code harder to read. Consider consolidating them or making them more concise.
 - **Impact:** 2 (Improves code clarity for developers.)
 - **Effort:** 1 (Relatively easy to adjust logging levels or consolidate messages.)
+- **Status:** Completed
 
 ### 9. Use a table formatting library
 - **Description:** In `_display_utils.py`, replace manual string formatting for tables with a library like `tabulate`. This would improve readability, simplify code, and make table rendering more flexible.

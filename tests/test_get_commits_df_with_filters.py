@@ -107,7 +107,7 @@ def test_get_commits_df_with_filters(
     df = get_commits_df(repo_path, since=since_arg, grep=grep_arg)
 
     # Assertions
-    mock_git_cli_backend.assert_called_once_with(repo_path)
+    mock_git_cli_backend.assert_called_once_with(repo_path, repo_info_provider=None)
     mock_backend_instance.get_raw_log_output.assert_called_once_with(
         log_args=None,
         since=since_arg,

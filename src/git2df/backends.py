@@ -3,14 +3,17 @@ import git
 import logging
 from typing import List, Optional
 
+from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
+
 logger = logging.getLogger(__name__)
 
 
 class GitCliBackend:
     """A backend for git2df that interacts with the Git CLI."""
 
-    def __init__(self, repo_path: str = "."):
+    def __init__(self, repo_path: str = ".", repo_info_provider: Optional[GitRepoInfoProvider] = None):
         self.repo_path = repo_path
+        self.repo_info_provider = repo_info_provider
         logger.info(f"Using GitPython backend for git operations on {self.repo_path}.")
 
     def _get_default_branch(self) -> str:

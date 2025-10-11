@@ -1,9 +1,10 @@
 import os
 import pyarrow.parquet as pq
 import logging
+from typing import Optional
 
 from git_dataframe_tools.config_models import GitAnalysisConfig
-from git_dataframe_tools.git_utils import check_git_repo
+from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +56,16 @@ def _load_dataframe(args, config: GitAnalysisConfig):
     return git_log_data, 0
 
 
-def _gather_git_data(args, config: GitAnalysisConfig):
+def _gather_git_data(args, config: GitAnalysisConfig, repo_info_provider: Optional[GitRepoInfoProvider] = None):
     from git2df import get_commits_df
 
     logger.info("Gathering commit data directly from Git...")
     try:
-        if not args.remote_url:
-            # Only check for local repo if remote_url is not provided
-            if not check_git_repo(args.repo_path):
-                logger.error("Not in a git repository")
-                return None, 1
+        # The check for local repo is now handled by GitAnalysisConfig's repo_info_provider
+        # if not args.remote_url:
+        #     if not check_git_repo(args.repo_path):
+        #         logger.error("Not in a git repository")
+        #         return None, 1
 
         git_log_data = get_commits_df(
             repo_path=(

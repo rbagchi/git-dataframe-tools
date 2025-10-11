@@ -1,6 +1,6 @@
 import sys
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, date
 from typing import Optional, Union
 from parsedatetime import Calendar, parsedatetime
@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 import re
 from enum import Enum
 
-from git_dataframe_tools.git_utils import check_git_repo, get_current_git_user
+from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
 
 class OutputFormat(str, Enum):
@@ -90,8 +90,14 @@ class GitAnalysisConfig:
     default_period: Optional[str] = None
     current_user_name: Optional[str] = None
     current_user_email: Optional[str] = None
+    repo_info_provider: GitRepoInfoProvider = field(compare=False, default=None) # type: ignore
 
     def __post_init__(self):
+        if self.repo_info_provider is None:
+            # Defer import to avoid circular dependency and allow for mocking
+            from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
+            self.repo_info_provider = GitPythonRepoInfoProvider()
+
         self._set_date_range()
         if self.use_current_user:
             self._set_current_git_user()
@@ -132,11 +138,11 @@ class GitAnalysisConfig:
             raise ValueError("Start date cannot be after end date.")
 
     def _set_current_git_user(self):
-        if not check_git_repo(os.getcwd()):
+        if not self.repo_info_provider.is_git_repo(os.getcwd()):
             print_error("Error: Not in a git repository")
             sys.exit(1)
         try:
-            self.current_user_name, self.current_user_email = get_current_git_user(
+            self.current_user_name, self.current_user_email = self.repo_info_provider.get_current_user_info(
                 os.getcwd()
             )
         except Exception as e:

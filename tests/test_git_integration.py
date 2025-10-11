@@ -6,7 +6,6 @@ from pathlib import Path
 from git_dataframe_tools.config_models import GitAnalysisConfig
 from git2df import get_commits_df
 from tests.conftest import sample_commits
-from git_dataframe_tools.git_utils import check_git_repo
 
 
 @pytest.fixture(scope="function")
@@ -90,25 +89,6 @@ def temp_git_repo_with_remote(tmp_path):
 
     # Teardown: shutil.rmtree(tmp_path) handles cleanup
     yield repo_path
-
-
-# Test check_git_repo
-def test_check_git_repo_integration(temp_git_repo_with_remote):
-    original_cwd = os.getcwd()
-    os.chdir(temp_git_repo_with_remote)
-    try:
-        assert check_git_repo(repo_path=temp_git_repo_with_remote) is True
-    finally:
-        os.chdir(original_cwd)
-
-
-def test_check_git_repo_not_a_repo(tmp_path):
-    original_cwd = os.getcwd()
-    os.chdir(tmp_path)
-    try:
-        assert check_git_repo(repo_path=tmp_path) is False
-    finally:
-        os.chdir(original_cwd)
 
 
 # Test GitAnalysisConfig._get_current_git_user

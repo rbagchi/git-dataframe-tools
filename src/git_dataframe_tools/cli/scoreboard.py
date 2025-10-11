@@ -34,6 +34,7 @@ from git_dataframe_tools.cli.common_args import (
 from git_dataframe_tools.config_models import GitAnalysisConfig, OutputFormat
 import git_dataframe_tools.git_stats_pandas as stats_module
 from git_dataframe_tools.logger import setup_logging
+from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
 
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
@@ -113,6 +114,7 @@ def main(
         raise typer.Exit(1)
 
     # Create configuration object
+    repo_info_provider = GitPythonRepoInfoProvider()
     config = GitAnalysisConfig(
         _start_date_str=since,
         _end_date_str=until,
@@ -122,6 +124,7 @@ def main(
         include_paths=path,
         exclude_paths=exclude_path,
         default_period=default_period,
+        repo_info_provider=repo_info_provider,
     )
 
     # Create a dummy args object for _load_dataframe and _gather_git_data

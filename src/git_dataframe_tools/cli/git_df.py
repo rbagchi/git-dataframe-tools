@@ -1,28 +1,30 @@
 import logging
-import typer
-from typing import Optional
-from typing_extensions import Annotated
 import os
+from typing import Optional
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import typer
+from typing_extensions import Annotated
 
 from git2df import get_commits_df
-from git_dataframe_tools.logger import setup_logging
 from git_dataframe_tools.cli.common_args import (
-    RepoPath,
-    RemoteUrl,
-    RemoteBranch,
-    Since,
-    Until,
     Author,
+    Debug,
+    ExcludePath,
     Grep,
     Merges,
     Path,
-    ExcludePath,
+    RemoteBranch,
+    RemoteUrl,
+    RepoPath,
+    Since,
+    Until,
     Verbose,
-    Debug,
 )
+from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
+from git_dataframe_tools.logger import setup_logging
 
 DATA_VERSION = "1.0"  # Major version of the data format
 
@@ -132,6 +134,7 @@ def main(
     repo_path_arg = _validate_and_setup_paths(repo_path, remote_url, remote_branch)
 
     try:
+        repo_info_provider = GitPythonRepoInfoProvider()
         commits_df = get_commits_df(
             repo_path=repo_path_arg,
             remote_url=remote_url,
@@ -143,6 +146,7 @@ def main(
             merged_only=merges,
             include_paths=path,
             exclude_paths=exclude_path,
+            repo_info_provider=repo_info_provider,
         )
     except Exception as e:
         logger.error(f"Error fetching git log data: {e}")

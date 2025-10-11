@@ -1,19 +1,10 @@
 import logging
-import sys
-from typing import Optional, List
-from tqdm import tqdm
+from typing import Optional
 
 from ._commit_metadata_parser import GitLogEntry, _parse_commit_metadata_line
 from ._file_stat_parser import _parse_file_stat_line
 
 logger = logging.getLogger(__name__)
-
-try:
-    from tqdm import tqdm
-
-    TQDM_AVAILABLE = True
-except ImportError:
-    TQDM_AVAILABLE = False
 
 
 def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
@@ -52,32 +43,3 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
         commit_message=commit_metadata_dict["commit_message"],
         file_changes=file_changes,
     )
-
-
-def parse_git_log(git_data: str) -> List[GitLogEntry]:
-    """Parses raw git log string into GitLogEntry objects."""
-    if not git_data.strip():
-        return []
-
-    commit_chunks = git_data.split("@@@COMMIT@@@")
-    commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
-
-    parsed_entries: List[GitLogEntry] = []
-
-    iterable_chunks = (
-        tqdm(
-            commit_chunks,
-            desc="Processing commit chunks",
-            disable=not sys.stdout.isatty(),
-        )
-        if TQDM_AVAILABLE
-        else commit_chunks
-    )
-
-    for chunk in iterable_chunks:
-        entry = _process_commit_chunk(chunk)
-        if entry:
-            parsed_entries.append(entry)
-
-    logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
-    return parsed_entries

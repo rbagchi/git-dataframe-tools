@@ -3,8 +3,8 @@ import pandas as pd
 from typing import Optional, List, Union
 
 from git2df.backends import GitCliBackend
-from git2df.dulwich_backend import DulwichRemoteBackend
-from git2df.git_parser import _parse_git_data_internal
+from git2df.dulwich.backend import DulwichRemoteBackend
+from git2df.git_parser import parse_git_log
 from git2df.dataframe_builder import build_commits_df
 
 logger = logging.getLogger(__name__)
@@ -57,22 +57,10 @@ def get_commits_df(
         f"get_commits_df called with: repo_path={repo_path}, remote_url={remote_url}, remote_branch={remote_branch}, since={since}, until={until}, author={author}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}"
     )
 
-    default_log_args = [
-        "--numstat",
-        "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---",
-        "--date=iso",
-    ]
-
-    if log_args is None:
-        final_log_args = default_log_args
-    else:
-        # Prepend default args if custom args are provided, ensuring format is always present
-        final_log_args = default_log_args + log_args
-
     backend = _get_git_backend(repo_path, remote_url, remote_branch)
 
     raw_log_output = backend.get_raw_log_output(
-        log_args=final_log_args,
+        log_args=log_args,
         since=since,
         until=until,
         author=author,
@@ -82,14 +70,7 @@ def get_commits_df(
         exclude_paths=exclude_paths,
     )
 
-    # Split raw output into lines for the parser
-    logger.debug(
-        f"Raw log output from backend:\n{raw_log_output[:1000]}"
-    )  # Log first 1000 chars
-    log_lines = raw_log_output.splitlines()
-    logger.debug(f"Received {len(log_lines)} raw log lines from Git.")
-
-    parsed_entries = _parse_git_data_internal(log_lines)
+    parsed_entries = parse_git_log(raw_log_output)
     logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
 
     df = build_commits_df(parsed_entries)

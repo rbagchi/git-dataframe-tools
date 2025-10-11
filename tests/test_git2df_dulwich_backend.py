@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List
 import logging
 
-from git2df.dulwich_backend import DulwichRemoteBackend
+from git2df.dulwich.backend import DulwichRemoteBackend
 from dulwich.objects import Commit, Tree, Blob
 from dulwich.repo import Repo
 from .conftest import _create_dulwich_commit
@@ -54,26 +54,42 @@ def create_mock_blob(sha: str, content: str) -> MagicMock:
 # Helper to create a mock TreeChange object (formerly create_mock_change)
 
 
-@patch("git2df.dulwich_backend.datetime")  # Patch datetime module
+@patch("git2df.dulwich.commit_formatter.datetime")  # Patch datetime module in commit_formatter
+@patch("git2df.dulwich.commit_filters.datetime")  # Patch datetime module in commit_filters
+@patch("git2df.dulwich.date_utils.datetime")  # Patch datetime module in date_utils
 @patch("time.time")  # Patch time.time
-def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich_repo):
+def test_get_raw_log_output_basic_fetch(mock_time, mock_date_utils_datetime_module, mock_commit_filters_datetime_module, mock_commit_formatter_datetime_module, dulwich_repo, caplog):
+    caplog.set_level(logging.DEBUG)
     # Arrange
     remote_branch = "main"
 
     # Mock datetime.datetime.now() to a fixed point in time
     fixed_now = datetime(2024, 10, 11, 12, 0, 0, tzinfo=timezone.utc)
-    mock_datetime_module.datetime = MagicMock(
-        spec=datetime
-    )  # Mock datetime.datetime class
-    mock_datetime_module.datetime.now.return_value = fixed_now
+
+    # Apply mocks to commit_formatter's datetime
+    mock_commit_formatter_datetime_module.datetime = MagicMock(spec=datetime)
+    mock_commit_formatter_datetime_module.datetime.now.return_value = fixed_now
+    mock_commit_formatter_datetime_module.datetime.fromtimestamp = datetime.fromtimestamp
+    mock_commit_formatter_datetime_module.timedelta = timedelta
+    mock_commit_formatter_datetime_module.timezone = timezone
+
+    # Apply mocks to date_utils' datetime
+    mock_date_utils_datetime_module.datetime = MagicMock(spec=datetime)
+    mock_date_utils_datetime_module.datetime.now.return_value = fixed_now
+    mock_date_utils_datetime_module.datetime.fromtimestamp = datetime.fromtimestamp
+    mock_date_utils_datetime_module.timedelta = timedelta
+    mock_date_utils_datetime_module.timezone = timezone
+
+    # Apply mocks to commit_filters' datetime
+    mock_commit_filters_datetime_module.datetime = MagicMock(spec=datetime)
+    mock_commit_filters_datetime_module.datetime.now.return_value = fixed_now
+    mock_commit_filters_datetime_module.datetime.fromtimestamp = datetime.fromtimestamp
+    mock_commit_filters_datetime_module.timedelta = timedelta
+    mock_commit_filters_datetime_module.timezone = timezone
+
     mock_time.return_value = (
         fixed_now.timestamp()
     )  # Make time.time return the fixed timestamp
-    mock_datetime_module.datetime.fromtimestamp = (
-        datetime.fromtimestamp
-    )  # Ensure original fromtimestamp is used
-    mock_datetime_module.timedelta = timedelta  # Ensure original timedelta is used
-    mock_datetime_module.timezone = timezone  # Ensure original timezone is used
 
     repo = Repo(dulwich_repo)
 
@@ -83,27 +99,26 @@ def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich
     # Create parent commit
     parent_commit_id = _create_dulwich_commit(
         repo,
-        {},  # No files for parent commit
+        {"file1.txt": "initial content"},
         "Subject 0",
         "Author Zero",
         "author0@example.com",
-        int(commit_time_parent.timestamp()),
-    )
-
+                int(commit_time_parent.timestamp()),
+            )
+    
     # Create head commit
     head_commit_id = _create_dulwich_commit(
-        repo,
-        {"file1.txt": "line1\nline2\nline3"},
-        "Subject 1\n\nBody 1",
-        "Author One",
-        "author1@example.com",
-        int(commit_time_head.timestamp()),
-    )
-
+                repo,
+                {"file1.txt": "modified content"},
+                "Subject 1\n\nBody 1",
+                "Author One",
+                "author1@example.com",
+                int(commit_time_head.timestamp()),
+            )
+    
     backend = DulwichRemoteBackend(repo.path, remote_branch)
-
     # Act
-    output = backend.get_raw_log_output(since="2 days ago")  # Changed since
+    output = backend.get_raw_log_output(since="3 days ago")  # Changed since
     # Assert
     head_commit = repo[head_commit_id]
     parent_commit = repo[parent_commit_id]
@@ -115,62 +130,13 @@ def test_get_raw_log_output_basic_fetch(mock_time, mock_datetime_module, dulwich
         f"author1@example.com@@@FIELD@@@"
         f"{commit_time_head.isoformat()}\t{int(commit_time_head.timestamp())}@@@FIELD@@@"
         f"---MSG_START---Subject 1\n\nBody 1---MSG_END---\n"
-        "3\t0\tA\tfile1.txt"
-    )
-    assert output == expected_output
-
-
-@patch("git2df.dulwich_backend.datetime")  # Patch datetime module
-@patch("time.time")  # Patch time.time
-def test_get_raw_log_output_initial_commit(
-    mock_time,
-    mock_datetime_module,
-    dulwich_repo,
-):  # Arrange
-    remote_branch = "main"
-
-    # Mock datetime.datetime.now() to a fixed point in time
-    fixed_now = datetime(2024, 10, 11, 12, 0, 0, tzinfo=timezone.utc)
-    mock_datetime_module.datetime = MagicMock(
-        spec=datetime
-    )  # Mock datetime.datetime class
-    mock_datetime_module.datetime.now.return_value = fixed_now
-    mock_time.return_value = (
-        fixed_now.timestamp()
-    )  # Make time.time return the fixed timestamp
-    mock_datetime_module.datetime.fromtimestamp = (
-        datetime.fromtimestamp
-    )  # Ensure original fromtimestamp is used
-    mock_datetime_module.timedelta = timedelta  # Ensure original timedelta is used
-    mock_datetime_module.timezone = timezone  # Ensure original timezone is used
-
-    repo = Repo(dulwich_repo)
-
-    commit_time = datetime(2024, 10, 10, 10, 0, 0, tzinfo=timezone.utc)
-    initial_commit_id = _create_dulwich_commit(
-        repo,
-        {"file1.txt": "content of file1"},
-        "Initial commit",
-        "Author Initial",
-        "initial@example.com",
-        int(commit_time.timestamp()),
-    )
-
-    backend = DulwichRemoteBackend(repo.path, remote_branch)
-
-    # Act
-    output = backend.get_raw_log_output(since="2 days ago")  # Changed since
-
-    # Assert
-    initial_commit = repo[initial_commit_id]
-
-    expected_output = (
-        f"@@@COMMIT@@@{initial_commit.id.hex()}@@@FIELD@@@"
+        f"1\t1\tM\tfile1.txt\n"
+        f"@@@COMMIT@@@{parent_commit.id.hex()}@@@FIELD@@@"
         f"@@@FIELD@@@"
-        f"Author Initial@@@FIELD@@@"
-        f"initial@example.com@@@FIELD@@@"
-        f"{commit_time.isoformat()}\t{int(commit_time.timestamp())}@@@FIELD@@@"
-        f"---MSG_START---Initial commit---MSG_END---\n"
-        "1\t0\tA\tfile1.txt"
+        f"Author Zero@@@FIELD@@@"
+        f"author0@example.com@@@FIELD@@@"
+        f"{commit_time_parent.isoformat()}\t{int(commit_time_parent.timestamp())}@@@FIELD@@@"
+        f"---MSG_START---Subject 0---MSG_END---\n"
+        f"1\t0\tA\tfile1.txt"
     )
     assert output == expected_output

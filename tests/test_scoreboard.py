@@ -13,7 +13,7 @@ runner = CliRunner()
 def test_main_author_and_me_mutually_exclusive():
     result = runner.invoke(scoreboard.app, ["--repo-path", ".", "--author", "test", "--me"])
     assert result.exit_code == 1
-    assert "Error: Cannot use both --author and --me options together" in result.stderr
+    assert "Error: Cannot use both --author and --me options together" in result.stdout
 
 
 # --- Integration tests for CLI ---

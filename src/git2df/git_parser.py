@@ -55,6 +55,7 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     
     date_timestamp_str = parts[4]
     raw_commit_message_part = parts[5]
+    logger.debug(f"raw_commit_message_part: '{raw_commit_message_part}'")
 
     # Extract commit message using the new delimiters
     msg_start_idx = raw_commit_message_part.find("---MSG_START---")
@@ -68,6 +69,7 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
 
     try:
         commit_date_str, commit_timestamp_str = date_timestamp_str.split('\t')
+        logger.debug(f"date_timestamp_str: '{date_timestamp_str}'")
         commit_date = datetime.fromisoformat(commit_date_str)
         commit_timestamp = int(commit_timestamp_str)
     except ValueError:
@@ -83,46 +85,55 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
         "author_email": author_email,
         "commit_date": commit_date,
         "commit_timestamp": commit_timestamp,
-        "commit_message": commit_message,
+        "commit_message": commit_message.strip(),
     }
 
 
 def _parse_file_stat_line(line: str) -> Optional[FileChange]:
     """Parses a single file statistics line and returns a FileChange object."""
-    stat_match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(?:([ADMT])\s+)?(.+)$", line)
+    stat_match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(?:([ADMT])\s+)?(.+)", line)
     if not stat_match:
         logger.warning(f"Line did not match file stat pattern: '{line}'")
         return None
 
     added_str, deleted_str, change_type_match, file_path = stat_match.groups()
 
-    change_type = change_type_match if change_type_match else "M"  # Default to 'M' if not explicitly provided
+    change_type = change_type_match if change_type_match else "M"
 
     additions = 0 if added_str == "-" else int(added_str)
     deletions = 0 if deleted_str == "-" else int(deleted_str)
 
     return FileChange(
-        file_path=file_path,
+        file_path=file_path.strip(),
         additions=additions,
         deletions=deletions,
         change_type=change_type,
     )
 
 
-def _process_raw_commit_block(raw_block: List[str]) -> Optional[GitLogEntry]:
-    """Processes a single raw commit block (list of strings) into a GitLogEntry object."""
-    if not raw_block:
+def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
+    """Processes a single commit chunk string."""
+    msg_end_marker = "---MSG_END---"
+    end_of_msg_index = chunk.find(msg_end_marker)
+
+    if end_of_msg_index == -1:
+        logger.warning("Could not find end of message marker in chunk.")
         return None
 
-    commit_metadata_dict = _parse_commit_metadata_line(raw_block[0])
+    metadata_and_msg = chunk[:end_of_msg_index + len(msg_end_marker)]
+    
+    commit_metadata_dict = _parse_commit_metadata_line("@@@COMMIT@@@" + metadata_and_msg)
+    
     if not commit_metadata_dict:
         return None
-
-    file_changes: List[FileChange] = []
-    for line in raw_block[1:]:
-        file_change = _parse_file_stat_line(line)
-        if file_change:
-            file_changes.append(file_change)
+        
+    file_stats_str = chunk[end_of_msg_index + len(msg_end_marker):]
+    file_changes = []
+    for line in file_stats_str.strip().split('\n'):
+        if line.strip():
+            file_change = _parse_file_stat_line(line.strip())
+            if file_change:
+                file_changes.append(file_change)
 
     return GitLogEntry(
         commit_hash=commit_metadata_dict["commit_hash"],
@@ -136,52 +147,30 @@ def _process_raw_commit_block(raw_block: List[str]) -> Optional[GitLogEntry]:
     )
 
 
-def _parse_git_data_internal(git_data: list[str]) -> List[GitLogEntry]:
-    """Parses raw git log data into GitLogEntry objects."""
-    raw_commit_blocks: List[List[str]] = []
-    current_block: List[str] = []
+def parse_git_log(git_data: str) -> List[GitLogEntry]:
+    """Parses raw git log string into GitLogEntry objects."""
+    if not git_data.strip():
+        return []
 
-    # First pass: collect raw commit blocks
-    iterable_git_data_collect = (
-        tqdm(
-            git_data,
-            desc="Collecting raw commit blocks",
-            disable=not sys.stdout.isatty(),
-        )
-        if TQDM_AVAILABLE
-        else git_data
-    )
+    commit_chunks = git_data.split("@@@COMMIT@@@")
+    commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
 
-    for line in iterable_git_data_collect:
-        line = line.strip()
-        if line.startswith("@@@COMMIT@@@"):
-            if current_block:
-                raw_commit_blocks.append(current_block)
-            current_block = [line]
-        elif line:
-            current_block.append(line)
-
-    if current_block:
-        raw_commit_blocks.append(current_block)
-
-    logger.debug(f"Collected {len(raw_commit_blocks)} raw commit blocks.")
-
-    # Second pass: process raw commit blocks into GitLogEntry objects
     parsed_entries: List[GitLogEntry] = []
-    iterable_git_data_process = (
+    
+    iterable_chunks = (
         tqdm(
-            raw_commit_blocks,
-            desc="Processing commit blocks",
+            commit_chunks,
+            desc="Processing commit chunks",
             disable=not sys.stdout.isatty(),
         )
         if TQDM_AVAILABLE
-        else raw_commit_blocks
+        else commit_chunks
     )
 
-    for block in iterable_git_data_process:
-        entry = _process_raw_commit_block(block)
+    for chunk in iterable_chunks:
+        entry = _process_commit_chunk(chunk)
         if entry:
             parsed_entries.append(entry)
-
+            
     logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
     return parsed_entries

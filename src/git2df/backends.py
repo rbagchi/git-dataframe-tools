@@ -52,7 +52,7 @@ class GitCliBackend:
         cmd.append(
             "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
         )
-        cmd.append("--date=iso")  # Ensure ISO format for consistent date parsing
+        cmd.append("--date=iso-strict")  # Ensure ISO format for consistent date parsing
 
         if since:
             cmd.extend(["--since", since])
@@ -129,6 +129,7 @@ class GitCliBackend:
                 check=True,
                 encoding="utf-8",
             )
+            logger.debug(f"Raw log output from backend:\n{result.stdout}")
             return result.stdout
         except subprocess.CalledProcessError as e:
             logger.error(f"Git command failed with error: {e.stderr}")

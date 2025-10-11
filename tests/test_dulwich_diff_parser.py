@@ -6,7 +6,7 @@ from dulwich.objects import Commit, Blob, TreeEntry
 from dulwich.repo import Repo
 from dulwich.diff_tree import TreeChange
 
-from git2df.dulwich_diff_parser import DulwichDiffParser
+from git2df.dulwich.diff_parser import DulwichDiffParser
 
 
 # Helper to create a mock blob object

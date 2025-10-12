@@ -114,7 +114,10 @@ def main(
         raise typer.Exit(1)
 
     # Create configuration object
-    repo_info_provider = GitPythonRepoInfoProvider()
+    repo_info_provider = None
+    if me:
+        repo_info_provider = GitPythonRepoInfoProvider()
+
     config = GitAnalysisConfig(
         _start_date_str=since,
         _end_date_str=until,

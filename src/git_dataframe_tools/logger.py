@@ -1,28 +1,31 @@
-import logging
 import sys
-
+from loguru import logger
 
 def setup_logging(debug: bool = False, verbose: bool = False):
     """
-    Sets up logging for the application.
+    Sets up logging for the application using Loguru.
 
     Args:
         debug: If True, set log level to DEBUG.
         verbose: If True, set log level to INFO.
     """
-    level = logging.WARNING
-    if verbose:
-        level = logging.INFO
-    if debug:
-        level = logging.DEBUG
+    # Remove default handler to prevent duplicate messages
+    logger.remove()
 
-    # Configure the root logger
-    logging.basicConfig(
+    level = "WARNING"
+    if verbose:
+        level = "INFO"
+    if debug:
+        level = "DEBUG"
+
+    # Add a sink for console output
+    logger.add(
+        sys.stderr,  # Use stderr for logs by default
         level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+        colorize=True,
+        diagnose=debug, # Show variables in traceback for debug mode
     )
 
-    # Set specific log levels for potentially chatty libraries if needed
-    # logging.getLogger('git2df').setLevel(level)
-    # logging.getLogger('git_dataframe_tools').setLevel(level)
+    # Optionally, disable propagation to root logger if other libraries are still using it
+    # logging.getLogger().handlers = [LoguruHandler()]

@@ -1,0 +1,236 @@
+Okay, I'll implement B4: "Refine dulwich_progress_callback string matching" (Impact 3, Effort 3) in 5 easy steps, ensuring tests pass after 
+  each.
+
+  Plan:
+   1. Locate `dulwich_progress_callback` and identify current string matching logic: Read src/git2df/dulwich/repo_handler.py to understand the 
+      existing implementation. (Easy, read-only)
+   2. Add debug logging to `dulwich_progress_callback`: Insert logger.debug statements to log raw progress_bytes. (Easy, log statements)
+   3. Run relevant tests and capture `progress_bytes` samples: Execute tests/test_dulwich_remote.py and collect debug output. (Easy, run tests)
+   4. Analyze `progress_bytes` samples and design a more robust parsing strategy: Identify patterns and design a less fragile parsing method. 
+      (Easy, analysis/design)
+   5. Implement the new parsing strategy in `dulwich_progress_callback`: Modify the function with the new parsing logic. (Easy, implementation)
+
+  Starting with Step 1: reading src/git2df/dulwich/repo_handler.py.
+ ╭─────────────────────────────────────────────────╮
+ │ ✓  ReadFile src/git2df/dulwich/repo_handler.py  │
+ ╰─────────────────────────────────────────────────╯
+✦ I've located dulwich_progress_callback in src/git2df/dulwich/repo_handler.py and identified its fragile keyword-based matching. My next step 
+  is to add debug logging to dulwich_progress_callback to capture raw progress_bytes. I'll use a replace call for this.
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ ✓  Edit src/git2df/dulwich/repo_handler.py:                 def dulwich_pr... =>                 def dulwich_pr...                 │
+ │                                                                                                                                    │
+ │    111           raise                                                                                                             │
+ │    112                                                                                                                             │
+ │    113   def dulwich_progress_callback(progress_bytes: bytes) -> None:                                                             │
+ │    114 +     logger.debug(f"Raw Dulwich progress_bytes: {progress_bytes!r}")                                                       │
+ │    115       message = progress_bytes.decode("utf-8", errors="ignore").strip()                                                     │
+ │    116       if message:                                                                                                           │
+ │    117           # Only update description for key progress messages                                                               │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ repo_handler.py updated. Running ruff, mypy, pytest. Starting with ruff.
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ ✓  Shell uv run ruff check . --fix (Apply ruff auto-formatting and linting fixes.)                                                 │
+ │                                                                                                                                    │
+ │    All checks passed!                                                                                                              │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ ruff is clean. Now, mypy.
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ ✓  Shell uv run mypy . (Run mypy to check for type-checking issues.)                                                               │
+ │                                                                                                                                    │
+ │    Success: no issues found in 55 source files                                                                                     │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ mypy passed. Rerunning tests.
+ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ ✓  Shell uv run pytest (Run all unit tests to verify the changes.)                                                                 │
+ │                                                                                                                                    │
+ │    ============================= test session starts ==============================                                                │
+ │    platform darwin -- Python 3.9.24, pytest-8.4.2, pluggy-1.6.0                                                                    │
+ │    rootdir: /Users/ranjan/project/git-dataframe-tools                                                                              │
+ │    configfile: pyproject.toml                                                                                                      │
+ │    plugins: mock-3.15.1, cov-7.0.0                                                                                                 │
+ │    collected 102 items                                                                                                             │
+ │                                                                                                                                    │
+ │    tests/test_config_models_date_range.py .....                             [  4%]                                                 │
+ │    tests/test_config_models_period_parsing.py .....                         [  9%]                                                 │
+ │    tests/test_dulwich_diff_parser.py ......                                 [ 15%]                                                 │
+ │    tests/test_dulwich_remote.py ..                                          [ 17%]                                                 │
+ │    tests/test_failing_case.py .                                             [ 18%]                                                 │
+ │    tests/test_get_commits_df_with_all_filters.py .                          [ 19%]                                                 │
+ │    tests/test_get_commits_df_with_all_filters_and_paths.py .                [ 20%]                                                 │
+ │    tests/test_get_commits_df_with_filters.py .                              [ 21%]                                                 │
+ │    tests/test_git2df_backends.py .....                                      [ 26%]                                                 │
+ │    tests/test_git2df_dataframe_builder.py ..                                [ 28%]                                                 │
+ │    tests/test_git2df_dulwich_backend.py ....                                [ 32%]                                                 │
+ │    tests/test_git2df_parser.py ..................                           [ 50%]                                                 │
+ │    tests/test_git_df.py .....                                               [ 54%]                                                 │
+ │    tests/test_git_df_cli.py ...                                             [ 57%]                                                 │
+ │    tests/test_git_integration.py ......                                     [ 63%]                                                 │
+ │    tests/test_git_interaction.py ......                                     [ 69%]                                                 │
+ │    tests/test_git_stats_pandas.py ...........                               [ 80%]                                                 │
+ │    tests/test_readme.py .                                                   [ 81%]                                                 │
+ │    tests/test_runbook.py .s.....                                            [ 88%]                                                 │
+ │    tests/test_scoreboard.py ....                                            [ 92%]                                                 │
+ │    tests/test_scoreboard_df_path.py ........                                [100%]                                                 │
+ │                                                                                                                                    │
+ │    ======================= 101 passed, 1 skipped in 26.65s ========================                                                │
+ ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+✦ Tests passed after adding debug logging. Now, I'll run pytest on tests/test_dulwich_remote.py with verbose logging to capture progress_bytes 
+  samples for Step 3.
+ ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+ │ ✓  Shell uv run pytest -s -k test_dulwich_remote tests/test_dulwich_remote.py (Run specific Dulwich remote tests with verbose output to cap… │
+ │                                                                                                                                              │
+ │    ... first 10772 lines hidden ...                                                                                                          │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-12T13:22:22+00:00	1749734542'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-12T13:19:59+00:00	1749734399'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-12T10:31:39+00:00	1749724299'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-11T15:30:01+00:00	1749655801'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-11T14:08:30+00:00	1749650910'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-11T14:08:12+00:00	1749650892'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T16:27:34+00:00	1749572854'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T16:24:13+00:00	1749572653'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T16:10:04+00:00	1749571804'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T16:09:11+00:00	1749571751'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T15:27:40+00:00	1749569260'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T11:18:04+00:00	1749554284'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-10T10:57:12+00:00	1749553032'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-08T12:58:15+00:00	1749387495'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-08T12:06:14+00:00	1749384374'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-08T00:14:43+00:00	1749341683'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-06T14:14:58+00:00	1749219298'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-06T13:50:53+00:00	1749217853'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T17:06:21+00:00	1749143181'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:50:03+00:00	1749142203'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:49:05+00:00	1749142145'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:48:31+00:00	1749142111'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:47:33+00:00	1749142053'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:47:22+00:00	1749142042'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T16:00:31+00:00	1749139231'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T14:54:57+00:00	1749135297'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-05T13:34:03+00:00	1749130443'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-04T11:56:11+00:00	1749038171'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T12:05:43+00:00	1748952343'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T11:58:19+00:00	1748951899'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T09:54:55+00:00	1748944495'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T09:48:44+00:00	1748944124'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T09:39:08+00:00	1748943548'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-03T09:34:14+00:00	1748943254'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-02T21:49:25+00:00	1748900965'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-06-01T10:15:19+00:00	1748772919'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-31T15:12:42+00:00	1748704362'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T16:02:28+00:00	1748448148'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T14:17:34+00:00	1748441854'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T14:16:08+00:00	1748441768'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T13:30:04+00:00	1748439004'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T10:36:21+00:00	1748428581'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T09:25:55+00:00	1748424355'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T09:20:55+00:00	1748424055'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-28T08:00:11+00:00	1748419211'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:36:24+00:00	1748370984'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:34:31+00:00	1748370871'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:33:13+00:00	1748370793'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:30:23+00:00	1748370623'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:26:02+00:00	1748370362'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T18:16:26+00:00	1748369786'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T15:32:20+00:00	1748359940'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T15:27:19+00:00	1748359639'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T15:20:18+00:00	1748359218'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T14:55:47+00:00	1748357747'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T14:55:17+00:00	1748357717'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T13:53:57+00:00	1748354037'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T11:24:59+00:00	1748345099'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T11:23:39+00:00	1748345019'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T09:24:35+00:00	1748337875'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T09:12:39+00:00	1748337159'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T09:07:57+00:00	1748336877'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T09:06:58+00:00	1748336818'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T08:34:37+00:00	1748334877'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T08:28:02+00:00	1748334482'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T08:24:20+00:00	1748334260'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-27T08:19:39+00:00	1748333979'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-26T19:00:06+00:00	1748286006'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T15:18:35+00:00	1748013515'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T15:03:47+00:00	1748012627'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T14:43:06+00:00	1748011386'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T14:17:30+00:00	1748009850'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T14:05:01+00:00	1748009101'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-23T13:34:41+00:00	1748007281'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T19:26:39+00:00	1747941999'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T15:42:25+00:00	1747928545'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T14:00:30+00:00	1747922430'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T13:53:12+00:00	1747921992'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T12:21:20+00:00	1747916480'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T12:01:21+00:00	1747915281'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-22T11:59:31+00:00	1747915171'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-21T12:11:32+00:00	1747829492'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-21T11:10:42+00:00	1747825842'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-20T16:38:37+00:00	1747759117'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-20T12:54:20+00:00	1747745660'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-20T12:32:02+00:00	1747744322'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-20T12:12:29+00:00	1747743149'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-20T12:09:50+00:00	1747742990'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-19T14:02:32+00:00	1747663352'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-19T07:56:28+00:00	1747641388'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-14T08:30:48+00:00	1747211448'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-14T08:30:34+00:00	1747211434'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-13T14:02:51+00:00	1747144971'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-13T12:18:30+00:00	1747138710'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-13T11:33:35+00:00	1747136015'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-13T08:52:31+00:00	1747126351'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-13T08:15:47+00:00	1747124147'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-12T10:47:09+00:00	1747046829'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-12T10:45:53+00:00	1747046753'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-05T15:51:12+00:00	1746460272'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-02T16:55:09+00:00	1746204909'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-02T16:48:04+00:00	1746204484'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-02T16:47:04+00:00	1746204424'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-02T16:44:55+00:00	1746204295'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-02T16:42:49+00:00	1746204169'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T22:46:13+00:00	1746139573'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T22:30:58+00:00	1746138658'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T22:14:48+00:00	1746137688'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T21:53:42+00:00	1746136422'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T21:22:39+00:00	1746134559'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T21:00:15+00:00	1746133215'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T20:37:44+00:00	1746131864'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T20:07:00+00:00	1746130020'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T20:01:02+00:00	1746129662'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T19:52:39+00:00	1746129159'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T19:41:04+00:00	1746128464'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T19:23:14+00:00	1746127394'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-05-01T18:56:37+00:00	1746125797'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-30T09:18:08+00:00	1746004688'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-28T13:55:22+00:00	1745848522'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-25T11:39:17+00:00	1745581157'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-25T11:10:01+00:00	1745579401'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-24T13:49:01+00:00	1745502541'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-24T13:01:44+00:00	1745499704'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-24T12:59:48+00:00	1745499588'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-24T10:04:12+00:00	1745489052'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-17T10:48:48+00:00	1744886928'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-16T21:15:10+00:00	1744838110'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-16T16:47:11+00:00	1744822031'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T13:31:14+00:00	1744723874'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T13:30:13+00:00	1744723813'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T11:45:32+00:00	1744717532'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T10:44:25+00:00	1744713865'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T10:00:52+00:00	1744711252'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T09:50:06+00:00	1744710606'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T08:58:00+00:00	1744707480'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-15T08:55:23+00:00	1744707323'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T20:26:04+00:00	1744662364'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T16:29:12+00:00	1744648152'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T14:23:09+00:00	1744640589'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T14:20:54+00:00	1744640454'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T13:16:02+00:00	1744636562'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T13:12:27+00:00	1744636347'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T11:53:44+00:00	1744631624'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T11:38:19+00:00	1744630699'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T11:12:05+00:00	1744629125'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T10:36:40+00:00	1744627000'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T10:18:12+00:00	1744625892'                                │
+ │    DEBUG:git2df.git_parser._commit_metadata_parser:date_timestamp_str: '2025-04-14T10:12:08+00:00	1744625528'                                │
+ │    DEBUG:git2df.git_parser:Parsed 311 GitLogEntry objects.                                                                                   │
+ │    DEBUG:git2df:Parsed 311 GitLogEntry objects.                                                                                              │
+ │    DEBUG:git2df.dataframe_builder:Building DataFrame from 311 parsed GitLogEntry objects.                                                    │
+ │    INFO:git2df.dataframe_builder:Successfully built DataFrame with 1873 rows.                                                                │
+ │    INFO:git2df:Built DataFrame with 1873 rows.                                                                                               │

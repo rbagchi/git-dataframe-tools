@@ -6,7 +6,6 @@ This script analyzes git history and ranks authors by total lines changed
 
 __version__ = "0.1.0"
 
-import logging
 import sys
 from typing import Optional
 
@@ -35,11 +34,11 @@ from git_dataframe_tools.config_models import GitAnalysisConfig, OutputFormat
 import git_dataframe_tools.git_stats_pandas as stats_module
 from git_dataframe_tools.logger import setup_logging
 from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
+from loguru import logger
 
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
-logger = logging.getLogger(__name__)
 app = typer.Typer(help="Git Author Ranking by Diff Size (Last 3 Months)")
 
 
@@ -91,7 +90,7 @@ def main(
 ):
     """Main function"""
     setup_logging(debug=debug, verbose=verbose)
-    logger.debug(f"CLI arguments: {locals()}")
+    logger.bind(name="scoreboard").debug(f"CLI arguments: {locals()}")
 
     # Typer handles mutual exclusivity, but we still need to validate combinations
     # that Typer's mutually_exclusive_group doesn't cover (e.g., --author and --me)

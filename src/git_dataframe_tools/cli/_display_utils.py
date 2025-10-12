@@ -1,11 +1,9 @@
-import logging
 from typing import Any, Dict, List
 from tabulate import tabulate
 import pandas as pd
+from loguru import logger
 
-from git_dataframe_tools.config_models import GitAnalysisConfig, print_header, OutputFormat
-
-logger = logging.getLogger(__name__)
+from git_dataframe_tools.config_models import GitAnalysisConfig, OutputFormat
 
 def format_as_markdown_table(df: pd.DataFrame) -> str:
     """Formats a Pandas DataFrame into a Markdown table string."""
@@ -75,10 +73,10 @@ def _display_author_specific_stats(
 
     print()
     analysis_type = "merged commits" if config.merged_only else "commits"
-    print_header(f"Author Stats for '{config.author_query}' ({analysis_type})")
+    print(f"Author Stats for '{config.author_query}' ({analysis_type})")
     start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
     end_date_str = config.end_date.isoformat() if config.end_date else "N/A"
-    print_header(f"Analysis period: {start_date_str} to {end_date_str}")
+    print(f"Analysis period: {start_date_str} to {end_date_str}")
     print()
 
     if len(author_matches) > 1:
@@ -94,8 +92,8 @@ def _display_ranking_table(
     config: GitAnalysisConfig, author_list: List[Dict[str, Any]]
 ) -> None:
     print()
-    print_header("Git Author Ranking by Diff Size")
-    print_header(config.get_analysis_description())
+    print("Git Author Ranking by Diff Size")
+    print(config.get_analysis_description())
     print()
 
     headers = [

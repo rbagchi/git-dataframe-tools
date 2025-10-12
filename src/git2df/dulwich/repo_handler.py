@@ -3,6 +3,7 @@ import tempfile
 import datetime
 from typing import Optional
 import sys
+import re
 
 from dulwich.repo import Repo
 from dulwich.client import HttpGitClient
@@ -112,23 +113,33 @@ class DulwichRepoHandler:
 
                 def dulwich_progress_callback(progress_bytes: bytes) -> None:
                     message = progress_bytes.decode("utf-8", errors="ignore").strip()
-                    if message:
-                        # Only update description for key progress messages
-                        if any(
-                            keyword in message
-                            for keyword in [
-                                "Counting objects",
-                                "Compressing objects",
-                                "Total",
-                            ]
-                        ):
-                            pbar.set_description(
-                                f"Fetching {self.remote_branch} from {self.remote_url}: {message}"
-                            )
-                        if not pbar.disable:  # Only update if pbar is not disabled
-                            pbar.update(
-                                1
-                            )  # Increment the overall pbar for fetching activity
+                    if not message:
+                        return
+
+                    # Regex to capture progress for "Receiving objects", "Compressing objects", "Counting objects"
+                    match_progress = re.match(r".*\s+(\d+)%\s+\((\d+)/(\d+)\)", message)
+                    if match_progress:
+                        current, total = int(match_progress.group(2)), int(match_progress.group(3))
+                        if pbar.total == 0:
+                            pbar.total = total
+                        pbar.n = current
+                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                        pbar.refresh()
+                        return
+
+                    # Regex to capture total objects from "Total" message
+                    match_total = re.match(r"Total (\d+)", message)
+                    if match_total:
+                        total_objects = int(match_total.group(1))
+                        if pbar.total == 0:
+                            pbar.total = total_objects
+                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                        pbar.refresh()
+                        return
+
+                    # Fallback for other messages, just update description
+                    pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                    pbar.refresh()
 
                 _dulwich_progress_callback = None
                 if not _disable_tqdm:

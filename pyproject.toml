@@ -30,6 +30,7 @@ dependencies = [
     "dulwich>=0.21.7",
     "tqdm",
     "tabulate",
+    "loguru",
 ]
 
 [tool.setuptools.packages.find]

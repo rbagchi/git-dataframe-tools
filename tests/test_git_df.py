@@ -269,4 +269,4 @@ def test_git_extract_commits_no_commits_found(temp_git_repo_with_remote, tmp_pat
         metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
     )
 
-    assert "No commits found" in result.stdout  # Check for warning message
+    assert "No commits found" in result.stderr  # Check for warning message

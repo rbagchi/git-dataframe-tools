@@ -1,4 +1,3 @@
-import sys
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, date
@@ -7,6 +6,8 @@ from parsedatetime import Calendar, parsedatetime
 from dateutil.relativedelta import relativedelta
 import re
 from enum import Enum
+from loguru import logger
+import sys
 
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
@@ -14,39 +15,6 @@ from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 class OutputFormat(str, Enum):
     TABLE = "table"
     MARKDOWN = "markdown"
-
-
-class Colors:
-    RED = "\033[0;31m"
-    GREEN = "\033[0;32m"
-    YELLOW = "\033[1;33m"
-    BLUE = "\033[0;34m"
-    BOLD = "\033[1m"
-    NC = "\033[0m"  # No Color
-
-
-def print_colored(text, color):
-    """Print colored text"""
-    if sys.stdout.isatty():
-        print(f"{color}{text}{Colors.NC}")
-    else:
-        print(text)
-
-
-def print_header(text):
-    print_colored(text, Colors.BOLD + Colors.BLUE)
-
-
-def print_success(text):
-    print_colored(text, Colors.GREEN)
-
-
-def print_warning(text):
-    print_colored(text, Colors.YELLOW)
-
-
-def print_error(text):
-    print_colored(text, Colors.RED)
 
 
 def _parse_period_string(period_str: str) -> Union[timedelta, relativedelta]:
@@ -134,17 +102,17 @@ class GitAnalysisConfig:
 
     def _set_current_git_user(self):
         if self.use_current_user and self.repo_info_provider is None:
-            print_error("Error: GitRepoInfoProvider must be provided when use_current_user is True.")
+            logger.error("Error: GitRepoInfoProvider must be provided when use_current_user is True.")
             sys.exit(1)
         if not self.repo_info_provider.is_git_repo(os.getcwd()):
-            print_error("Error: Not in a git repository")
+            logger.error("Error: Not in a git repository")
             sys.exit(1)
         try:
             self.current_user_name, self.current_user_email = self.repo_info_provider.get_current_user_info(
                 os.getcwd()
             )
         except Exception as e:
-            print_error(
+            logger.error(
                 f"Error: Could not retrieve git user.name or user.email: {e}. Please configure git or run without --me."
             )
             sys.exit(1)

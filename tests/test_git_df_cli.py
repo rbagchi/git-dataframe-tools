@@ -79,4 +79,4 @@ def test_git_df_cli_no_commits_found(git_repo, tmp_path):
 
     df = pq.read_table(output_file).to_pandas()
     assert df.empty
-    assert "No commits found" in result.stdout
+    assert "No commits found" in result.stderr

@@ -61,7 +61,7 @@ def test_get_current_git_user_no_email(mock_repo_info_provider, mock_set_date_ra
         KeyError(),
     ],
 )
-@patch(f"{CONFIG_MODELS_MODULE_PATH}.print_error")
+@patch("loguru.logger.error")
 @patch("sys.exit")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig._set_date_range")
 @patch(f"{CONFIG_MODELS_MODULE_PATH}.GitAnalysisConfig.repo_info_provider", new_callable=MagicMock)

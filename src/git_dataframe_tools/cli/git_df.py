@@ -1,4 +1,3 @@
-import logging
 import os
 from typing import Optional
 
@@ -25,10 +24,9 @@ from git_dataframe_tools.cli.common_args import (
 )
 from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
 from git_dataframe_tools.logger import setup_logging
+from loguru import logger
 
 DATA_VERSION = "1.0"  # Major version of the data format
-
-logger = logging.getLogger(__name__)
 
 app = typer.Typer(
     help="Extracts filtered Git commit data and saves it to a Parquet file as a Pandas DataFrame."
@@ -129,7 +127,7 @@ def main(
     debug: Debug = False,
 ):
     setup_logging(debug=debug, verbose=verbose)
-    logger.debug(f"CLI arguments: {locals()}")
+    logger.bind(name="git-df").debug(f"CLI arguments: {locals()}")
 
     repo_path_arg = _validate_and_setup_paths(repo_path, remote_url, remote_branch)
 

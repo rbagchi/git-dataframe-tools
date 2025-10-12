@@ -74,5 +74,6 @@ def test_scoreboard_cli_markdown_output(git_repo):
     # Check for author names within the Markdown table content
     assert "Test User" in result.stdout
     assert "Dev User" in result.stdout
-    assert "Default User" in result.stdout  # Check for the default user from the initial commit
-
+    assert (
+        "Default User" in result.stdout
+    )  # Check for the default user from the initial commit

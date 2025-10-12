@@ -5,6 +5,7 @@ from loguru import logger
 
 from git_dataframe_tools.config_models import GitAnalysisConfig, OutputFormat
 
+
 def format_as_markdown_table(df: pd.DataFrame) -> str:
     """Formats a Pandas DataFrame into a Markdown table string."""
     return df.to_markdown(index=False)
@@ -185,7 +186,9 @@ def _print_summary(
 
 
 def _display_full_ranking(
-    config: GitAnalysisConfig, author_list: List[Dict[str, Any]], output_format: OutputFormat
+    config: GitAnalysisConfig,
+    author_list: List[Dict[str, Any]],
+    output_format: OutputFormat,
 ) -> int:
     if not author_list:
         start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
@@ -228,7 +231,7 @@ def _display_full_ranking(
         df = pd.DataFrame(table_data, columns=headers)
         print(format_as_markdown_table(df))
 
-    else: # Default to TABLE format
+    else:  # Default to TABLE format
         _display_ranking_table(config, author_list)
         _print_decile_distribution(author_list)
         _print_summary(config, author_list)

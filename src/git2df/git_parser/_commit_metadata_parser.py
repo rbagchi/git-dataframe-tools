@@ -46,13 +46,17 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     if sep:
         commit_message, sep, after = after.partition("---MSG_END---")
     else:
-        commit_message = raw_commit_message_part # Fallback if start delimiter not found
+        commit_message = (
+            raw_commit_message_part  # Fallback if start delimiter not found
+        )
 
     if not commit_message:
         logger.warning(
             f"Could not find commit message delimiters in: '{raw_commit_message_part}'"
         )
-        commit_message = raw_commit_message_part # Fallback to raw part if delimiters not found
+        commit_message = (
+            raw_commit_message_part  # Fallback to raw part if delimiters not found
+        )
 
     try:
         commit_date_str, commit_timestamp_str = date_timestamp_str.split("\t")

@@ -13,63 +13,67 @@ class FileChange:
     change_type: str
 
 
-def _parse_file_stat_line(line: str) -> Optional[FileChange]:
-    """Parses a single file statistics line and returns a FileChange object."""
+def _parse_numstat_line(line: str) -> Optional[FileChange]:
+    """Parses a single --numstat line and returns a FileChange object."""
     parts = line.split("\t")  # Split by tab
 
     if len(parts) < 3:
         logger.warning(
-            f"Line has too few tab-separated parts for file stat pattern: '{line}'"
+            f"Line has too few tab-separated parts for numstat pattern: '{line}'"
         )
         return None
 
     added_str = parts[0]
     deleted_str = parts[1]
-
-    change_type: str
-    file_path: str
-
-    if len(parts) == 3:
-        # Format: additions deletions file_path
-        # If the third part is a single char ADMT, it's likely a malformed line
-        # where a change_type was intended but no file_path followed.
-        if len(parts[2]) == 1 and parts[2] in "ADMT":
-            logger.warning(
-                f"Malformed file stat line: '{line}' - change type found but no file path."
-            )
-            return None
-        change_type = "M"  # Default to Modified
-        file_path = parts[2]
-    elif len(parts) >= 4:
-        # Format: additions deletions change_type file_path (or more for renames/copies)
-        # For now, assume the 3rd part is change_type and the rest is file_path
-        if len(parts[2]) == 1 and parts[2] in "ADMT":  # Heuristic for change type
-            change_type = parts[2]
-            file_path = "\t".join(parts[3:])
-        else:
-            # If 3rd part is not a change type, assume it's part of file_path
-            # and change_type is M (e.g., "10\t5\tfile with spaces.txt")
-            change_type = "M"
-            file_path = "\t".join(parts[2:])
-    else:
-        logger.warning(f"Unexpected number of tab-separated parts: '{line}'")
-        return None
+    file_path = "\t".join(parts[2:])
 
     try:
         additions = 0 if added_str == "-" else int(added_str)
         deletions = 0 if deleted_str == "-" else int(deleted_str)
     except ValueError:
-        logger.warning(f"Could not parse additions/deletions in line: '{line}'")
+        logger.warning(f"Could not parse additions/deletions in numstat line: '{line}'")
         return None
 
-    # Ensure file_path is not empty after stripping
     if not file_path.strip():
-        logger.warning(f"File path is empty in line: '{line}'")
+        logger.warning(f"File path is empty in numstat line: '{line}'")
         return None
 
     return FileChange(
         file_path=file_path.strip(),
         additions=additions,
         deletions=deletions,
+        change_type="",  # Will be filled by name-status
+    )
+
+
+def _parse_name_status_line(line: str) -> Optional[FileChange]:
+    """Parses a single --name-status line and returns a FileChange object."""
+    parts = line.split("\t")  # Split by tab
+
+    if not parts:
+        logger.warning(f"Empty line for name-status pattern: '{line}'")
+        return None
+
+    change_type = parts[0]
+    file_path = "\t".join(parts[1:])
+
+    if not change_type.strip():
+        logger.warning(f"Change type is empty in name-status line: '{line}'")
+        return None
+    if not file_path.strip():
+        logger.warning(f"File path is empty in name-status line: '{line}'")
+        return None
+
+    # Handle renames/copies: R100\told_name.txt\tnew_name.txt or C100\told_name.txt\tnew_name.txt
+    if (change_type.startswith("R") or change_type.startswith("C")) and len(parts) >= 3:
+        # For renames/copies, the new path is the last part
+        file_path = parts[-1]
+    else:
+        file_path = "\t".join(parts[1:])
+
+    return FileChange(
+        file_path=file_path.strip(),
+        additions=0,  # Will be filled by numstat
+        deletions=0,  # Will be filled by numstat
         change_type=change_type.strip(),
     )

@@ -163,21 +163,25 @@ def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_p
 
 def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "path_commits.parquet"
-    command = [
-        sys.executable,
-        "-m",
-        "src.git_dataframe_tools.cli.git_df",
-        "--output",
-        str(output_file),
-        "--repo-path",
-        str(temp_git_repo_with_remote),
-        "--path",
-        "src/",
-    ]
-    result = subprocess.run(command, capture_output=True, text=True, check=True)
-    assert result.returncode == 0
-    assert output_file.exists()
+    from src.git_dataframe_tools.cli.git_df import app as git_df_app
+    from typer.testing import CliRunner
 
+    runner = CliRunner()
+    result = runner.invoke(
+        git_df_app,
+        [
+            "--output",
+            str(output_file),
+            "--repo-path",
+            str(temp_git_repo_with_remote),
+            "--path",
+            "src/",
+            "--debug",
+        ],
+    )
+    print(f"CLI output: {result.stdout}")
+    assert result.exit_code == 0
+    assert output_file.exists()
     table = pq.read_table(output_file)
     df = table.to_pandas()
     assert not df.empty

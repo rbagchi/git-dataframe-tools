@@ -33,6 +33,7 @@ def test_parse_period_string_invalid_format():
     with pytest.raises(ValueError, match="Invalid period format"):
         _parse_period_string("month")
 
+
 def test_parse_period_string_with_articles():
     assert _parse_period_string("a day") == timedelta(days=1)
     assert _parse_period_string("a week") == timedelta(weeks=1)

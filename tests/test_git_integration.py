@@ -6,13 +6,8 @@ from git_dataframe_tools.config_models import GitAnalysisConfig
 from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
 
 
-
-
-
 @pytest.fixture(scope="function")
-
 def temp_git_repo_with_remote(tmp_path):
-
     """Fixture to create a temporary git repository with a bare remote for integration tests."""
 
     print(f"DEBUG: tmp_path: {tmp_path}")
@@ -23,15 +18,11 @@ def temp_git_repo_with_remote(tmp_path):
 
     print(f"DEBUG: remote_path: {remote_path}, repo_path: {repo_path}")
 
-
-
     # Create bare remote repository
 
     subprocess.run(["git", "init", "--bare", str(remote_path)], check=True)
 
     print("DEBUG: Remote repo initialized.")
-
-
 
     # Initialize local git repo
 
@@ -41,37 +32,25 @@ def temp_git_repo_with_remote(tmp_path):
 
     print("DEBUG: Local repo initialized.")
 
-
-
     # Set up a dummy user for commits
 
     subprocess.run(
-
         ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
-
     )
 
     subprocess.run(
-
         ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
-
     )
 
     print("DEBUG: Test User configured.")
 
-
-
     # Add remote
 
     subprocess.run(
-
         ["git", "remote", "add", "origin", str(remote_path)], cwd=repo_path, check=True
-
     )
 
     print("DEBUG: Remote added.")
-
-
 
     # Create some commits on master and push to remote
 
@@ -85,8 +64,6 @@ def temp_git_repo_with_remote(tmp_path):
 
     print("DEBUG: Initial commit pushed.")
 
-
-
     (repo_path / "file2.txt").write_text("another file")
 
     subprocess.run(["git", "add", "file2.txt"], cwd=repo_path, check=True)
@@ -97,41 +74,29 @@ def temp_git_repo_with_remote(tmp_path):
 
     print("DEBUG: Second commit pushed.")
 
-
-
     # Simulate a different author
 
     subprocess.run(
-
         ["git", "config", "user.email", "dev@example.com"], cwd=repo_path, check=True
-
     )
 
     subprocess.run(
-
         ["git", "config", "user.name", "Dev User"], cwd=repo_path, check=True
-
     )
 
     print("DEBUG: Dev User configured.")
-
-
 
     (repo_path / "file1.txt").write_text("hello world again")
 
     subprocess.run(["git", "add", "file1.txt"], cwd=repo_path, check=True)
 
     subprocess.run(
-
         ["git", "commit", "-m", "Third commit by Dev User"], cwd=repo_path, check=True
-
     )
 
     subprocess.run(["git", "push", "origin", "master"], cwd=repo_path, check=True)
 
     print("DEBUG: Third commit pushed.")
-
-
 
     # Commit for include/exclude path testing
 
@@ -149,8 +114,6 @@ def temp_git_repo_with_remote(tmp_path):
 
     print("DEBUG: Feature commit pushed.")
 
-
-
     docs_dir = repo_path / "docs"
 
     docs_dir.mkdir(parents=True, exist_ok=True)
@@ -165,17 +128,13 @@ def temp_git_repo_with_remote(tmp_path):
 
     print("DEBUG: Docs commit pushed.")
 
-
-
     # Teardown: shutil.rmtree(tmp_path) handles cleanup
 
     yield repo_path
 
 
-
-
-
 # Test GitAnalysisConfig._get_current_git_user
+
 
 def test_get_current_git_user_integration(temp_git_repo_with_remote):
 
@@ -187,7 +146,9 @@ def test_get_current_git_user_integration(temp_git_repo_with_remote):
 
         repo_info_provider = GitPythonRepoInfoProvider()
 
-        config = GitAnalysisConfig(use_current_user=True, repo_info_provider=repo_info_provider)
+        config = GitAnalysisConfig(
+            use_current_user=True, repo_info_provider=repo_info_provider
+        )
 
         # The last user configured in the fixture is 'Dev User'
 

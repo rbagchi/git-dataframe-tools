@@ -63,7 +63,9 @@ class GitAnalysisConfig:
     default_period: Optional[str] = None
     current_user_name: Optional[str] = None
     current_user_email: Optional[str] = None
-    repo_info_provider: Optional[GitRepoInfoProvider] = field(compare=False, default=None)
+    repo_info_provider: Optional[GitRepoInfoProvider] = field(
+        compare=False, default=None
+    )
 
     def __post_init__(self):
         self._set_date_range()
@@ -107,14 +109,16 @@ class GitAnalysisConfig:
 
     def _set_current_git_user(self):
         if self.use_current_user and self.repo_info_provider is None:
-            logger.error("Error: GitRepoInfoProvider must be provided when use_current_user is True.")
+            logger.error(
+                "Error: GitRepoInfoProvider must be provided when use_current_user is True."
+            )
             sys.exit(1)
         if not self.repo_info_provider.is_git_repo(os.getcwd()):
             logger.error("Error: Not in a git repository")
             sys.exit(1)
         try:
-            self.current_user_name, self.current_user_email = self.repo_info_provider.get_current_user_info(
-                os.getcwd()
+            self.current_user_name, self.current_user_email = (
+                self.repo_info_provider.get_current_user_info(os.getcwd())
             )
         except Exception as e:
             logger.error(

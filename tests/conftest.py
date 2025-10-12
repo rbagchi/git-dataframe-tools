@@ -11,8 +11,6 @@ import dulwich.index
 import dulwich.porcelain
 
 
-
-
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -98,7 +96,10 @@ def git_repo(request):
             (Path(repo_path) / "initial_file.txt").write_text("initial content")
             dulwich.porcelain.add(repo_obj, ["initial_file.txt"])
             initial_commit = dulwich.porcelain.commit(
-                repo_obj, message="Initial commit", author="Default User <default@example.com>", committer="Default User <default@example.com>"
+                repo_obj,
+                message="Initial commit",
+                author="Default User <default@example.com>",
+                committer="Default User <default@example.com>",
             )
 
             repo_obj.refs[b"HEAD"] = initial_commit

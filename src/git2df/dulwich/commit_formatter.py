@@ -58,11 +58,12 @@ class DulwichCommitFormatter:
         Returns:
             A formatted string representing the commit.
         """
-        return (
-            f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@"
-            f"{commit_metadata['parent_hashes']}@@@FIELD@@@"
-            f"{commit_metadata['author_name']}@@@FIELD@@@"
-            f"{commit_metadata['author_email']}@@@FIELD@@@"
-            f"{commit_metadata['commit_date'].isoformat()}\t{commit_metadata['commit_timestamp']}@@@FIELD@@@"
+        formatted_string = f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@"
+        formatted_string += f"{commit_metadata['parent_hashes']}@@@FIELD@@@"
+        formatted_string += f"{commit_metadata['author_name']}@@@FIELD@@@"
+        formatted_string += f"{commit_metadata['author_email']}@@@FIELD@@@"
+        formatted_string += f"{commit_metadata['commit_date'].isoformat()}\t{commit_metadata['commit_timestamp']}@@@FIELD@@@"
+        formatted_string += (
             f"---MSG_START---{commit_metadata['commit_message']}---MSG_END---"
         )
+        return formatted_string

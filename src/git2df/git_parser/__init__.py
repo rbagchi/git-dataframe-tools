@@ -1,5 +1,6 @@
 import logging
 import sys
+
 from typing import List
 
 # Conditional import for tqdm

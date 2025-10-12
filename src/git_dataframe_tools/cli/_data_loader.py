@@ -56,7 +56,11 @@ def _load_dataframe(args, config: GitAnalysisConfig):
     return git_log_data, 0
 
 
-def _gather_git_data(args, config: GitAnalysisConfig, repo_info_provider: Optional[GitRepoInfoProvider] = None):
+def _gather_git_data(
+    args,
+    config: GitAnalysisConfig,
+    repo_info_provider: Optional[GitRepoInfoProvider] = None,
+):
     from git2df import get_commits_df
 
     logger.info("Gathering commit data directly from Git...")

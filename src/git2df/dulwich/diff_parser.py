@@ -53,6 +53,43 @@ class DulwichDiffParser:
             return "M"
         return "U"  # Unknown
 
+    def _calculate_additions_deletions(
+        self, repo: Repo, change: TreeChange
+    ) -> tuple[int, int]:
+        additions = 0
+        deletions = 0
+
+        if change.type == "add":
+            assert change.new is not None
+            try:
+                blob = repo.get_object(change.new.sha)
+                additions = len(blob.as_pretty_string().splitlines())
+            except KeyError:
+                additions = 0
+        elif change.type == "delete":
+            assert change.old is not None
+            try:
+                blob = repo.get_object(change.old.sha)
+                deletions = len(blob.as_pretty_string().splitlines())
+            except KeyError:
+                deletions = 0
+        elif change.type == "modify":
+            if change.old and change.new:
+                patch_stream = io.BytesIO()
+                dulwich.patch.write_object_diff(
+                    patch_stream,
+                    repo.object_store,
+                    change.old,
+                    change.new,
+                )
+                patch_content = patch_stream.getvalue().decode("utf-8", errors="ignore")
+                for line in patch_content.splitlines():
+                    if line.startswith("+") and not line.startswith("+++"):
+                        additions += 1
+                    elif line.startswith("-") and not line.startswith("---"):
+                        deletions += 1
+        return additions, deletions
+
     def extract_file_changes(
         self,
         repo: Repo,
@@ -72,43 +109,7 @@ class DulwichDiffParser:
             if not self._should_include_path(path_str):
                 continue
 
-            additions = 0
-            deletions = 0
-            change_type_char = self._get_change_type_char(change.type)
-
-            if change.type == "add":
-                assert change.new is not None
-                try:
-                    blob = repo.get_object(change.new.sha)
-                    additions = len(blob.as_pretty_string().splitlines())
-                except KeyError:
-                    additions = 0  # Or handle as an error
-            elif change.type == "delete":
-                assert change.old is not None
-                try:
-                    blob = repo.get_object(change.old.sha)
-                    deletions = len(blob.as_pretty_string().splitlines())
-                except KeyError:
-                    deletions = 0  # Or handle as an error
-            elif change.type == "modify":
-                if change.old and change.new:
-                    # For modifications, we need to calculate the diff
-                    patch_stream = io.BytesIO()
-                    dulwich.patch.write_object_diff(
-                        patch_stream,
-                        repo.object_store,
-                        change.old,
-                        change.new,
-                    )
-                    patch_content = patch_stream.getvalue().decode(
-                        "utf-8", errors="ignore"
-                    )
-                    for line in patch_content.splitlines():
-                        if line.startswith("+") and not line.startswith("+++"):
-                            additions += 1
-                        elif line.startswith("-") and not line.startswith("---"):
-                            deletions += 1
-
+            additions, deletions = self._calculate_additions_deletions(repo, change)
             change_type_char = self._get_change_type_char(change.type)
 
             file_changes.append(

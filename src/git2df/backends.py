@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 class GitCliBackend:
     """A backend for git2df that interacts with the Git CLI."""
 
-    def __init__(self, repo_path: str = ".", repo_info_provider: Optional[GitRepoInfoProvider] = None):
+    def __init__(
+        self,
+        repo_path: str = ".",
+        repo_info_provider: Optional[GitRepoInfoProvider] = None,
+    ):
         self.repo_path = repo_path
         self.repo_info_provider = repo_info_provider
         logger.info(f"Using GitPython backend for git operations on {self.repo_path}.")
@@ -49,13 +53,8 @@ class GitCliBackend:
         exclude_paths: Optional[List[str]] = None,
     ) -> List[str]:
         cmd = ["git", "log"]
-
-        # Always include --numstat for file changes and the custom pretty format
-        cmd.append("--numstat")
-        cmd.append(
-            "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---"
-        )
-        cmd.append("--date=iso-strict")  # Ensure ISO format for consistent date parsing
+        # Removed --pretty=format and --date=iso-strict from here.
+        # These will be added by the caller (get_raw_log_output) for the metadata command.
 
         if since:
             cmd.extend(["--since", since])
@@ -75,14 +74,26 @@ class GitCliBackend:
         if log_args:
             cmd.extend(log_args)
 
-        if include_paths:
-            cmd.append("--")  # Separator for paths
-            cmd.extend(include_paths)
-        if exclude_paths:
-            cmd.append("--")  # Separator for paths
-            for p in exclude_paths:
-                cmd.append(f":(exclude){p}")
+        # Path filters will be handled by the caller (get_raw_log_output)
         return cmd
+
+    def _run_git_command(self, cmd: List[str]) -> str:
+        logger.debug(f"Executing git command: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(
+                cmd,
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                check=True,
+                encoding="utf-8",
+            )
+            logger.debug(f"Git command stdout: {result.stdout!r}")
+            logger.debug(f"Git command stderr: {result.stderr!r}")
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Git command failed with error: {e.stderr}")
+            raise
 
     def get_raw_log_output(
         self,
@@ -95,45 +106,135 @@ class GitCliBackend:
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
     ) -> str:
-        """
-        Executes a git log command and returns its raw string output.
-
-        Args:
-            log_args: Optional list of arguments to pass to 'git log'.
-            since: Optional string for --since argument (e.g., "1.month ago").
-            until: Optional string for --until argument (e.g., "yesterday").
-            author: Optional string to filter by author (e.g., "John Doe").
-            grep: Optional string to filter by commit message (e.g., "fix").
-            merged_only: If True, only include merged commits.
-            include_paths: Optional list of paths to include.
-            exclude_paths: Optional list of paths to exclude.
-
-        Returns:
-            The raw stdout from the 'git log' command.
-        """
-        cmd = self._build_git_log_arguments(
+        # Build base arguments without pretty format or path filters
+        base_args_no_pretty_no_paths = self._build_git_log_arguments(
             log_args,
             since,
             until,
             author,
             grep,
             merged_only,
-            include_paths,
-            exclude_paths,
+            None,  # include_paths handled separately
+            None,  # exclude_paths handled separately
         )
 
-        logger.debug(f"Executing git log command: {' '.join(cmd)}")
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True,
-                check=True,
-                encoding="utf-8",
+        # Construct path filters
+        path_filters = []
+        if include_paths:
+            path_filters.append("--")
+            path_filters.extend(include_paths)
+        if exclude_paths:
+            if not path_filters:  # Add -- only if not already added by include_paths
+                path_filters.append("--")
+            for p in exclude_paths:
+                path_filters.append(f":(exclude){p}")
+
+        # 1. Get commit hashes that match the filters
+        rev_list_cmd = (
+            ["git", "rev-list", "--all"]
+            + base_args_no_pretty_no_paths[2:]
+            + path_filters
+        )
+        commit_hashes_output = self._run_git_command(rev_list_cmd)
+        commit_hashes = [
+            h.strip() for h in commit_hashes_output.strip().splitlines() if h.strip()
+        ]
+
+        if not commit_hashes:
+            return ""
+
+        combined_output_lines = []
+
+        for commit_hash in commit_hashes:
+            # Get metadata for the current commit
+            metadata_cmd = (
+                ["git", "show", commit_hash]
+                + [
+                    "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---",
+                    "--date=iso-strict",
+                ]
+                + path_filters
             )
-            logger.debug(f"Raw log output from backend:\n{result.stdout}")
-            return result.stdout
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Git command failed with error: {e.stderr}")
-            raise
+            metadata_output = self._run_git_command(metadata_cmd)
+
+            # Get numstat for the current commit
+            numstat_cmd = ["git", "show", commit_hash, "--numstat"] + path_filters
+            numstat_output = self._run_git_command(numstat_cmd)
+
+            # Get name-status for the current commit
+            name_status_cmd = [
+                "git",
+                "show",
+                commit_hash,
+                "--name-status",
+            ] + path_filters
+            name_status_output = self._run_git_command(name_status_cmd)
+
+            # Combine outputs for this commit
+            combined_output_lines.append(
+                metadata_output.strip()
+            )  # metadata_output already has @@@COMMIT@@@ and ends with \n
+
+            numstat_changes = {}
+            for line in numstat_output.strip().splitlines():
+                if line.strip():
+                    parts = line.split("\t")
+                    if len(parts) == 3:  # additions\tdeletions\tfile_path
+                        additions = parts[0]
+                        deletions = parts[1]
+                        file_path = parts[2].strip()
+                        numstat_changes[file_path] = {
+                            "additions": additions,
+                            "deletions": deletions,
+                        }
+                    elif len(parts) == 4:  # Rename/Copy format: A\tB\told\tnew
+                        additions = parts[0]
+                        deletions = parts[1]
+                        file_path = parts[3].strip()  # Use new path as key
+                        numstat_changes[file_path] = {
+                            "additions": additions,
+                            "deletions": deletions,
+                        }
+                    else:
+                        logger.warning(f"Unexpected numstat line format: '{line}'")
+
+            name_status_changes: dict[str, dict[str, str]] = {}
+            for line in name_status_output.strip().splitlines():
+                if line.strip():
+                    parts = line.split("\t")
+                    if len(parts) == 2:  # change_type\tfile_path
+                        change_type = parts[0]
+                        file_path = parts[1].strip()
+                        if file_path in name_status_changes:
+                            name_status_changes[file_path]["change_type"] = change_type
+                        else:
+                            name_status_changes[file_path] = {
+                                "change_type": change_type
+                            }
+                    elif len(parts) == 3:  # Rename/Copy format: RXXX\told\tnew
+                        change_type = parts[0]
+                        file_path = parts[2].strip()  # Use new path as key
+                        if file_path in name_status_changes:
+                            name_status_changes[file_path]["change_type"] = change_type
+                        else:
+                            name_status_changes[file_path] = {
+                                "change_type": change_type
+                            }
+                    else:
+                        logger.warning(f"Unexpected name-status line format: '{line}'")
+
+            # Combine and format file changes
+            all_file_paths = set(numstat_changes.keys()).union(
+                name_status_changes.keys()
+            )
+            for file_path in all_file_paths:
+                additions = numstat_changes.get(file_path, {}).get("additions", "0")
+                deletions = numstat_changes.get(file_path, {}).get("deletions", "0")
+                change_type = name_status_changes.get(file_path, {}).get(
+                    "change_type", "U"
+                )
+                combined_output_lines.append(
+                    f"{additions}\t{deletions}\t{change_type}\t{file_path}"
+                )
+
+        return "\n".join(combined_output_lines)

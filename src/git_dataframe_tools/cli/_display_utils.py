@@ -58,6 +58,18 @@ def _print_author_stats_detail(author: Dict[str, Any], total_authors: int) -> No
     print()
 
 
+def _print_author_stats_header(config: GitAnalysisConfig) -> None:
+    analysis_type = "merged commits" if config.merged_only else "commits"
+    print(f"Author Stats for '{config.author_query}' ({analysis_type})")
+    start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
+    end_date_str = config.end_date.isoformat() if config.end_date else "N/A"
+    print(f"Analysis period: {start_date_str} to {end_date_str}")
+    print()
+
+def _print_multiple_author_warning(num_matches: int) -> None:
+    logger.warning(f"Found {num_matches} matching authors:")
+    print()
+
 def _display_author_specific_stats(
     config: GitAnalysisConfig, author_stats: List[Dict[str, Any]]
 ) -> int:
@@ -73,16 +85,10 @@ def _display_author_specific_stats(
         return 1
 
     print()
-    analysis_type = "merged commits" if config.merged_only else "commits"
-    print(f"Author Stats for '{config.author_query}' ({analysis_type})")
-    start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
-    end_date_str = config.end_date.isoformat() if config.end_date else "N/A"
-    print(f"Analysis period: {start_date_str} to {end_date_str}")
-    print()
+    _print_author_stats_header(config)
 
     if len(author_matches) > 1:
-        logger.warning(f"Found {len(author_matches)} matching authors:")
-        print()
+        _print_multiple_author_warning(len(author_matches))
 
     for author in author_matches:
         _print_author_stats_detail(author, len(author_matches))
@@ -196,7 +202,7 @@ def _display_full_ranking(
         logger.warning(
             f"No commits found in the specified time period: {start_date_str} to {end_date_str}."
         )
-        return 1
+        return 0 # Return 0 even if no authors, as it's a successful empty result
 
     if output_format == OutputFormat.MARKDOWN:
         # Prepare data for Markdown table

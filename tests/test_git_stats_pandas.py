@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from typing import Optional
 
 from git_dataframe_tools.git_stats_pandas import (
     parse_git_log,
@@ -8,45 +9,44 @@ from git_dataframe_tools.git_stats_pandas import (
 )
 
 
+def _parse_mock_commit_info_line(line: str) -> dict:
+    parts = line.split("--")
+    if len(parts) >= 5:
+        return {
+            "commit_hash": parts[1],
+            "author_name": parts[2],
+            "author_email": parts[3],
+            "commit_message": parts[4],
+        }
+    return {}
+
+
+def _parse_mock_stat_line(line: str) -> Optional[dict]:
+    stat_match = re.match(r"^(\d+|-)\t(\d+|-)\t(.+)$", line)
+    if stat_match:
+        added_str, deleted_str, filepath = stat_match.groups()
+        added = 0 if added_str == "-" else int(added_str)
+        deleted = 0 if deleted_str == "-" else int(deleted_str)
+        return {"additions": added, "deletions": deleted, "file_paths": filepath}
+    return None
+
+
 def _mock_git_data_to_df(mock_git_data_str: list[str]) -> pd.DataFrame:
     """Helper to convert mock git log string to a DataFrame similar to git2df output."""
-    lines = mock_git_data_str
     data = []
     current_commit_info = {}
 
-    for line in lines:
+    for line in mock_git_data_str:
         line = line.strip()
         if not line:
             continue
 
         if line.startswith("--"):
-            parts = line.split("--")
-            if len(parts) >= 5:
-                current_commit_info = {
-                    "commit_hash": parts[1],
-                    "author_name": parts[2],
-                    "author_email": parts[3],
-                    "commit_message": parts[4],
-                }
+            current_commit_info = _parse_mock_commit_info_line(line)
         else:
-            stat_match = re.match(r"^(\d+|-)\t(\d+|-)\t(.+)$", line)
-            if stat_match and current_commit_info:
-                added_str, deleted_str, filepath = stat_match.groups()
-
-                added = 0 if added_str == "-" else int(added_str)
-                deleted = 0 if deleted_str == "-" else int(deleted_str)
-
-                data.append(
-                    {
-                        "commit_hash": current_commit_info["commit_hash"],
-                        "author_name": current_commit_info["author_name"],
-                        "author_email": current_commit_info["author_email"],
-                        "commit_message": current_commit_info["commit_message"],
-                        "additions": added,
-                        "deletions": deleted,
-                        "file_paths": filepath,
-                    }
-                )
+            stat_info = _parse_mock_stat_line(line)
+            if stat_info and current_commit_info:
+                data.append({**current_commit_info, **stat_info})
 
     if not data:
         return pd.DataFrame(
@@ -74,6 +74,24 @@ def test_parse_git_log_empty_input():
     assert author_stats == []
 
 
+def _assert_single_author_stats(
+    author_stats: list[dict],
+    expected_email: str,
+    expected_name: str,
+    expected_added: int,
+    expected_deleted: int,
+    expected_total: int,
+    expected_commits: int,
+):
+    assert len(author_stats) == 1
+    assert author_stats[0]["author_email"] == expected_email
+    assert author_stats[0]["author_name"] == expected_name
+    assert author_stats[0]["added"] == expected_added
+    assert author_stats[0]["deleted"] == expected_deleted
+    assert author_stats[0]["total"] == expected_total
+    assert author_stats[0]["commits"] == expected_commits
+
+
 def test_parse_git_log_single_commit_single_file():
     git_data_str = [
         "--commit_hash1--Author Name--author@example.com--Commit message 1",
@@ -81,13 +99,24 @@ def test_parse_git_log_single_commit_single_file():
     ]
     git_data_df = _mock_git_data_to_df(git_data_str)
     author_stats = parse_git_log(git_data_df)
-    assert len(author_stats) == 1
-    assert author_stats[0]["author_email"] == "author@example.com"
-    assert author_stats[0]["author_name"] == "Author Name"
-    assert author_stats[0]["added"] == 10
-    assert author_stats[0]["deleted"] == 5
-    assert author_stats[0]["total"] == 15
-    assert author_stats[0]["commits"] == 1
+    _assert_single_author_stats(
+        author_stats, "author@example.com", "Author Name", 10, 5, 15, 1
+    )
+
+
+def _assert_author_stats_entry(
+    author_entry: dict,
+    expected_name: str,
+    expected_added: int,
+    expected_deleted: int,
+    expected_total: int,
+    expected_commits: int,
+):
+    assert author_entry["author_name"] == expected_name
+    assert author_entry["added"] == expected_added
+    assert author_entry["deleted"] == expected_deleted
+    assert author_entry["total"] == expected_total
+    assert author_entry["commits"] == expected_commits
 
 
 def test_parse_git_log_multiple_commits_multiple_files():
@@ -104,18 +133,10 @@ def test_parse_git_log_multiple_commits_multiple_files():
     assert len(author_stats) == 2
 
     author_one = next(a for a in author_stats if a["author_email"] == "one@example.com")
-    assert author_one["author_name"] == "Author One"
-    assert author_one["added"] == 12
-    assert author_one["deleted"] == 6
-    assert author_one["total"] == 18
-    assert author_one["commits"] == 1
+    _assert_author_stats_entry(author_one, "Author One", 12, 6, 18, 1)
 
     author_two = next(a for a in author_stats if a["author_email"] == "two@example.com")
-    assert author_two["author_name"] == "Author Two"
-    assert author_two["added"] == 1
-    assert author_two["deleted"] == 1
-    assert author_two["total"] == 2
-    assert author_two["commits"] == 1
+    _assert_author_stats_entry(author_two, "Author Two", 1, 1, 2, 1)
 
 
 def test_parse_git_log_binary_files():
@@ -154,18 +175,23 @@ def test_get_author_stats_basic():
     assert len(author_stats) == 2
 
     author_a = next(a for a in author_stats if a["author_email"] == "a@example.com")
-    assert author_a["author_name"] == "Author A"
-    assert author_a["added"] == 15
-    assert author_a["deleted"] == 7
-    assert author_a["total"] == 22
-    assert author_a["commits"] == 2
+    _assert_author_stats_entry(author_a, "Author A", 15, 7, 22, 2)
 
     author_b = next(a for a in author_stats if a["author_email"] == "b@example.com")
-    assert author_b["author_name"] == "Author B"
-    assert author_b["added"] == 20
-    assert author_b["deleted"] == 10
-    assert author_b["total"] == 30
-    assert author_b["commits"] == 1
+    _assert_author_stats_entry(author_b, "Author B", 20, 10, 30, 1)
+
+
+def _assert_author_decile_stats(
+    author_entry: dict,
+    expected_email: str,
+    expected_rank: int,
+    expected_diff_decile: int,
+    expected_commit_decile: int,
+):
+    assert author_entry["author_email"] == expected_email
+    assert author_entry["rank"] == expected_rank
+    assert author_entry["diff_decile"] == expected_diff_decile
+    assert author_entry["commit_decile"] == expected_commit_decile
 
 
 def test_get_author_stats_ranks_deciles():
@@ -188,30 +214,10 @@ def test_get_author_stats_ranks_deciles():
     # Sort by total for easier assertion
     author_stats.sort(key=lambda x: x["total"], reverse=True)
 
-    # C: total 200, commits 1
-    assert author_stats[0]["author_email"] == "c@example.com"
-    assert author_stats[0]["rank"] == 1
-    assert author_stats[0]["diff_decile"] == 1
-    assert (
-        author_stats[0]["commit_decile"] == 1
-    )  # All have 1 commit, so all are in decile 1
-
-    # A: total 100, commits 1
-    assert author_stats[1]["author_email"] == "a@example.com"
-    assert author_stats[1]["rank"] == 2
-    assert author_stats[1]["diff_decile"] == 5
-    assert author_stats[1]["commit_decile"] == 1
-    # B: total 50, commits 1
-    assert author_stats[2]["author_email"] == "b@example.com"
-    assert author_stats[2]["rank"] == 3
-    assert author_stats[2]["diff_decile"] == 8
-    assert author_stats[2]["commit_decile"] == 1
-
-    # D: total 10, commits 1
-    assert author_stats[3]["author_email"] == "d@example.com"
-    assert author_stats[3]["rank"] == 4
-    assert author_stats[3]["diff_decile"] == 10
-    assert author_stats[3]["commit_decile"] == 1
+    _assert_author_decile_stats(author_stats[0], "c@example.com", 1, 1, 1)
+    _assert_author_decile_stats(author_stats[1], "a@example.com", 2, 5, 1)
+    _assert_author_decile_stats(author_stats[2], "b@example.com", 3, 8, 1)
+    _assert_author_decile_stats(author_stats[3], "d@example.com", 4, 10, 1)
 
 
 def test_find_author_stats_found():

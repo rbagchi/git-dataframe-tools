@@ -5,6 +5,20 @@ from pathlib import Path
 from tests.conftest import extract_code_blocks
 
 
+def _run_and_assert_command(command: str, project_root: Path) -> None:
+    try:
+        subprocess.run(
+            command.replace("git-scoreboard .", "git-scoreboard --repo-path ."),
+            shell=True,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        pytest.fail(
+            f"Command failed: {command}\nStdout: {e.stdout}\nStderr: {e.stderr}"
+        )
+
 def test_readme_commands(git_repo):
     project_root = Path(__file__).parent.parent
     readme_path = project_root / "README.md"
@@ -32,15 +46,4 @@ def test_readme_commands(git_repo):
     for command in commands_from_readme:
         if not command.strip():
             continue
-        try:
-            subprocess.run(
-                command.replace("git-scoreboard .", "git-scoreboard --repo-path ."),
-                shell=True,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-        except subprocess.CalledProcessError as e:
-            pytest.fail(
-                f"Command failed: {command}\nStdout: {e.stdout}\nStderr: {e.stderr}"
-            )
+        _run_and_assert_command(command, project_root)

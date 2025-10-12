@@ -27,6 +27,36 @@ def _calculate_deciles(
     return df_sorted
 
 
+def _calculate_and_merge_deciles(author_stats: pd.DataFrame) -> pd.DataFrame:
+    # Calculate diff_decile
+    author_stats_diff_sorted = _calculate_deciles(author_stats, "total", "diff_decile")
+
+    # Calculate commit_decile
+    author_stats_commit_sorted = _calculate_deciles(
+        author_stats, "commits", "commit_decile"
+    )
+
+    # Merge diff_decile back to the original author_stats DataFrame
+    author_stats = author_stats.merge(
+        author_stats_diff_sorted[["author_email", "diff_decile"]],
+        on="author_email",
+        how="left",
+    )
+
+    # Merge commit_decile back to the original author_stats DataFrame
+    author_stats = author_stats.merge(
+        author_stats_commit_sorted[["author_email", "commit_decile"]],
+        on="author_email",
+        how="left",
+    )
+
+    # Ensure decile columns are of Int64Dtype after merge
+    author_stats["diff_decile"] = author_stats["diff_decile"].astype(pd.Int64Dtype())
+    author_stats["commit_decile"] = author_stats["commit_decile"].astype(
+        pd.Int64Dtype()
+    )
+    return author_stats
+
 def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates author statistics (added, deleted, total, commits, ranks, deciles)
@@ -80,56 +110,24 @@ def _get_author_stats_dataframe_internal(df: pd.DataFrame) -> pd.DataFrame:
         author_stats["total"].rank(method="min", ascending=False).astype(int)
     )
 
-    # Calculate diff_decile
-    author_stats_diff_sorted = _calculate_deciles(author_stats, "total", "diff_decile")
-
-    # Calculate commit_decile
-    author_stats_commit_sorted = _calculate_deciles(
-        author_stats, "commits", "commit_decile"
-    )
-
-    # Merge diff_decile back to the original author_stats DataFrame
-    author_stats = author_stats.merge(
-        author_stats_diff_sorted[["author_email", "diff_decile"]],
-        on="author_email",
-        how="left",
-    )
-
-    # Merge commit_decile back to the original author_stats DataFrame
-    author_stats = author_stats.merge(
-        author_stats_commit_sorted[["author_email", "commit_decile"]],
-        on="author_email",
-        how="left",
-    )
-
-    # Ensure decile columns are of Int64Dtype after merge
-    author_stats["diff_decile"] = author_stats["diff_decile"].astype(pd.Int64Dtype())
-    author_stats["commit_decile"] = author_stats["commit_decile"].astype(
-        pd.Int64Dtype()
-    )
+    author_stats = _calculate_and_merge_deciles(author_stats)
 
     # Sort by total diff size (descending) for consistent output order
     author_stats = author_stats.sort_values(by="total", ascending=False).reset_index(
         drop=True
     )
 
-    if author_stats.empty:
-        return pd.DataFrame(
-            columns=[
-                "author_name",
-                "author_email",
-                "added",
-                "deleted",
-                "total",
-                "commits",
-                "rank",
-                "diff_decile",
-                "commit_decile",
-            ]
-        )
-
     return author_stats
 
+
+def _author_matches_query(author: dict, query_parts: list[str]) -> bool:
+    for part in query_parts:
+        if (
+            part in author["author_name"].lower()
+            or part in author["author_email"].lower()
+        ):
+            return True
+    return False
 
 def find_author_stats(
     author_stats: list[dict], author_query: Optional[str]
@@ -147,13 +145,8 @@ def find_author_stats(
     query_parts = [p.strip().lower() for p in author_query.split("|")]
     matches = []
     for author in author_stats:
-        for part in query_parts:
-            if (
-                part in author["author_name"].lower()
-                or part in author["author_email"].lower()
-            ):
-                matches.append(author)
-                break  # Match found for this author, move to next author
+        if _author_matches_query(author, query_parts):
+            matches.append(author)
     return matches
 
 

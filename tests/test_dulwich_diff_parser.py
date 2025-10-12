@@ -51,12 +51,20 @@ def mock_commit():
     return commit
 
 
+def _assert_file_changes(file_changes, expected_len, expected_file_paths, expected_change_type, expected_additions, expected_deletions):
+    assert len(file_changes) == expected_len
+    if expected_len > 0:
+        assert file_changes[0]["file_paths"] == expected_file_paths
+        assert file_changes[0]["change_type"] == expected_change_type
+        assert file_changes[0]["additions"] == expected_additions
+        assert file_changes[0]["deletions"] == expected_deletions
+
 def test_extract_file_changes_modification(mock_repo, mock_commit):
     # Arrange
     old_tree_id = b"old_tree_sha"
     parser = DulwichDiffParser()
 
-    # Mock dulwich.patch.write_tree_diff output for a modification
+    # Mock dulwich.patch.write_object_diff output for a modification
     mock_diff_output = (
         b"diff --git a/file.txt b/file.txt\n"
         b"index 1234567..890abcdef 100644\n"
@@ -88,11 +96,7 @@ def test_extract_file_changes_modification(mock_repo, mock_commit):
             )
 
             # Assert
-            assert len(file_changes) == 1
-            assert file_changes[0]["file_paths"] == "file.txt"
-            assert file_changes[0]["change_type"] == "M"
-            assert file_changes[0]["additions"] == 2
-            assert file_changes[0]["deletions"] == 1
+            _assert_file_changes(file_changes, 1, "file.txt", "M", 2, 1)
 
 
 def test_extract_file_changes_addition(mock_repo, mock_commit):
@@ -111,12 +115,12 @@ def test_extract_file_changes_addition(mock_repo, mock_commit):
         b"+line2\n"
     ).decode("utf-8")
 
-    with patch("dulwich.patch.write_tree_diff") as mock_write_tree_diff:
+    with patch("dulwich.patch.write_object_diff") as mock_write_object_diff:
 
         def side_effect(stream, *args, **kwargs):
             stream.write(mock_diff_output.encode("utf-8"))
 
-        mock_write_tree_diff.side_effect = side_effect
+        mock_write_object_diff.side_effect = side_effect
 
         # Mock dulwich.diff_tree.tree_changes to return an add change
         mock_tree_change = create_mock_tree_change(
@@ -135,11 +139,7 @@ def test_extract_file_changes_addition(mock_repo, mock_commit):
             )
 
             # Assert
-            assert len(file_changes) == 1
-            assert file_changes[0]["file_paths"] == "new_file.txt"
-            assert file_changes[0]["change_type"] == "A"
-            assert file_changes[0]["additions"] == 2
-            assert file_changes[0]["deletions"] == 0
+            _assert_file_changes(file_changes, 1, "new_file.txt", "A", 2, 0)
 
 
 def test_extract_file_changes_deletion(mock_repo, mock_commit):
@@ -182,11 +182,7 @@ def test_extract_file_changes_deletion(mock_repo, mock_commit):
             )
 
             # Assert
-            assert len(file_changes) == 1
-            assert file_changes[0]["file_paths"] == "old_file.txt"
-            assert file_changes[0]["change_type"] == "D"
-            assert file_changes[0]["additions"] == 0
-            assert file_changes[0]["deletions"] == 2
+            _assert_file_changes(file_changes, 1, "old_file.txt", "D", 0, 2)
 
 
 def test_extract_file_changes_with_path_include_filter(mock_repo, mock_commit):
@@ -227,11 +223,7 @@ def test_extract_file_changes_with_path_include_filter(mock_repo, mock_commit):
             )
 
             # Assert
-            assert len(file_changes) == 1
-            assert file_changes[0]["file_paths"] == "src/file1.txt"
-            assert file_changes[0]["change_type"] == "M"
-            assert file_changes[0]["additions"] == 1
-            assert file_changes[0]["deletions"] == 1
+            _assert_file_changes(file_changes, 1, "src/file1.txt", "M", 1, 1)
 
 
 def test_extract_file_changes_with_path_exclude_filter(mock_repo, mock_commit):
@@ -272,11 +264,7 @@ def test_extract_file_changes_with_path_exclude_filter(mock_repo, mock_commit):
             )
 
             # Assert
-            assert len(file_changes) == 1
-            assert file_changes[0]["file_paths"] == "src/file1.txt"
-            assert file_changes[0]["change_type"] == "M"
-            assert file_changes[0]["additions"] == 1
-            assert file_changes[0]["deletions"] == 1
+            _assert_file_changes(file_changes, 1, "src/file1.txt", "M", 1, 1)
 
 
 def test_extract_file_changes_empty_diff(mock_repo, mock_commit):

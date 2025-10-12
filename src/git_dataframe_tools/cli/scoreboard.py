@@ -42,17 +42,28 @@ EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 app = typer.Typer(help="Git Author Ranking by Diff Size (Last 3 Months)")
 
 
+def _validate_cli_arguments(repo_path: str, remote_url: Optional[str], df_path: Optional[str], author: Optional[str], me: bool):
+    if repo_path != "." and (remote_url or df_path):
+        logger.error(
+            "Error: Cannot use repo_path with --remote-url or --df-path. Please choose only one source."
+        )
+        raise typer.Exit(1)
+
+    if author and me:
+        error_message = "Error: Cannot use both --author and --me options together"
+        logger.error(error_message)
+        print(error_message, file=sys.stderr)
+        raise typer.Exit(1)
+
 @app.command()
 def main(
     repo_path: RepoPath = ".",
     remote_url: RemoteUrl = None,
-    df_path: Annotated[
-        Optional[str],
-        typer.Option(
-            "--df-path",
-            help="Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df). Cannot be used with repo_path or --remote-url.",
-        ),
-    ] = None,
+    df_path: Optional[str] = typer.Option(
+        None,
+        "--df-path",
+        help="Path to a Parquet file containing pre-extracted Git commit data (e.g., from git-df). Cannot be used with repo_path or --remote-url.",
+    ),
     remote_branch: RemoteBranch = "main",
     since: Since = None,
     until: Until = None,
@@ -71,13 +82,11 @@ def main(
             help="Default time period for analysis if --since is not provided (default: 3 months ago)",
         ),
     ] = "3 months ago",
-    force_version_mismatch: Annotated[
-        bool,
-        typer.Option(
-            "--force-version-mismatch",
-            help="Proceed with analysis even if the DataFrame version does not match the expected version.",
-        ),
-    ] = False,
+    force_version_mismatch: bool = typer.Option(
+        False,
+        "--force-version-mismatch",
+        help="Proceed with analysis even if the DataFrame version does not match the expected version.",
+    ),
     verbose: Verbose = False,
     debug: Debug = False,
     format: Annotated[
@@ -92,25 +101,7 @@ def main(
     setup_logging(debug=debug, verbose=verbose)
     logger.bind(name="scoreboard").debug(f"CLI arguments: {locals()}")
 
-    # Typer handles mutual exclusivity, but we still need to validate combinations
-    # that Typer's mutually_exclusive_group doesn't cover (e.g., --author and --me)
-    # Also, repo_path is an Argument, so it's not part of the mutually_exclusive_group for options.
-    # We need to manually check if repo_path is used with --remote-url or --df-path.
-    if repo_path != "." and (remote_url or df_path):
-        logger.error(
-            "Error: Cannot use repo_path with --remote-url or --df-path. Please choose only one source."
-        )
-        raise typer.Exit(1)
-
-    # Create a dummy args object for _validate_arguments for now, or refactor _validate_arguments
-    # For now, let's refactor _validate_arguments to accept individual parameters
-    # or just inline the logic here.
-    # Inlining for now to avoid further refactoring _validation.py in this step.
-    if author and me:
-        error_message = "Error: Cannot use both --author and --me options together"
-        logger.error(error_message)
-        print(error_message, file=sys.stderr)
-        raise typer.Exit(1)
+    _validate_cli_arguments(repo_path, remote_url, df_path, author, me)
 
     # Create configuration object
     repo_info_provider = None

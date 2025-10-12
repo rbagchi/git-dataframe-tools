@@ -36,13 +36,25 @@
     - Split `tests/test_git2df_public_api.py` into multiple, more focused test files.
     - Updated various tests to align with `Typer` CLI structure and new data types.
     - Resolved all `ruff` linting and `mypy` type-checking issues.
-- **Cyclomatic Complexity Analysis:** Performed `radon` analysis. The `DulwichRemoteBackend` class's complexity improved from 'B' to 'A'. The highly complex `_extract_file_changes` method (D grade) was successfully moved to `DulwichDiffParser.extract_file_changes`, where it retains its 'D' grade. The `DulwichDiffParser` class itself has a 'C' grade. Other functions with C or D grades remain:
-    - `tests/test_git_df.py`: `test_git_extract_commits_basic` (D), `test_git_extract_commits_with_path_filter` (C), `test_git_extract_commits_with_author_filter` (C), `test_git_extract_commits_with_exclude_path_filter` (C)
-    - `tests/test_git2df_integration.py`: `_parse_raw_git_log_for_comparison` (D)
-    - `tests/test_git_integration.py`: `test_get_git_log_data_integration_default` (C)
-    - `tests/test_git2df_backends.py`: `test_get_raw_log_output_with_filters` (C), `test_get_raw_log_output_with_exclude_paths` (C), `test_get_raw_log_output_with_merges` (C), `test_get_raw_log_output_with_paths` (C)
-    - `tests/test_git_stats_pandas.py`: `test_get_author_stats_ranks_deciles` (C), `test_parse_git_log_multiple_commits_multiple_files` (C), `test_get_author_stats_basic` (C)
-    Further refactoring, especially of `DulwichDiffParser.extract_file_changes`, will be considered to improve these grades.
+- **Resolved `TypeError: 'NoneType' object is not subscriptable`**: Fixed `_build_git_log_arguments` to return `cmd`.
+- **Resolved `StopIteration` in `test_git2df_backends.py`**: Corrected `mock_subprocess_run.side_effect` setup in backend tests.
+- **Resolved `IndentationError` in `test_git2df_backends.py`**: Fixed indentation issues in backend tests.
+- **Resolved `NameError` for `Optional` and `List`**: Added missing imports in `tests/test_git_stats_pandas.py` and `tests/test_scoreboard.py`.
+- **Resolved `NameError` for `re`**: Moved `import re` to the top of `tests/test_scoreboard.py`.
+- **Resolved `pytest` failures in `tests/test_scoreboard_df_path.py`**: The `exit_code == 2` issue was resolved by simplifying the `df_path` argument definition in `src/git_dataframe_tools/cli/scoreboard.py`.
+- **Cyclomatic Complexity Analysis (Radon) - All functions now 'B' grade or better:**
+    *   `tests/test_git_df.py`: All functions are now 'A' grade.
+    *   `tests/test_git2df_integration.py`: All functions are now 'B' grade or better.
+    *   `src/git2df/backends.py`: All functions are now 'B' grade or better.
+    *   `src/git2df/dulwich/diff_parser.py`: All functions are now 'B' grade or better.
+    *   `src/git_dataframe_tools/git_stats_pandas.py`: All functions are now 'B' grade or better.
+    *   `src/git_dataframe_tools/cli/scoreboard.py`: All functions are now 'B' grade or better.
+    *   `src/git_dataframe_tools/cli/_data_loader.py`: All functions are now 'B' grade or better.
+    *   `src/git_dataframe_tools/cli/_display_utils.py`: All functions are now 'B' grade or better.
+    *   `tests/test_readme.py`: All functions are now 'A' grade.
+    *   `tests/test_git_df_cli.py`: All functions are now 'A' grade.
+    *   `tests/test_scoreboard.py`: All functions are now 'A' grade.
+    *   `tests/test_git2df_backends.py`: Refactored to use helper functions, significantly reducing complexity of individual test functions to 'A' and 'B' grades.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.
@@ -53,7 +65,7 @@
 - `uv pip install -e .`: To reinstall the project in editable mode after `pyproject.toml` changes.
 
 **Current Blockers/Issues:**
-- None. All tests are passing, and linting/type-checking issues are resolved.
+- Decouple `GitAnalysisConfig` from `GitPython`.
 
 Next Steps:
 - Decouple `GitAnalysisConfig` from `GitPython`.

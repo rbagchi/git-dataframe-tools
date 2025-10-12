@@ -5,6 +5,12 @@ import os
 from tests.conftest import sample_commits
 
 
+def _assert_cli_output_dataframe(df, expected_len):
+    assert not df.empty
+    assert len(df) == expected_len
+    assert "commit_hash" in df.columns
+    assert "author_name" in df.columns
+
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_git_df_cli_basic(git_repo, tmp_path):
     """Test the git-df CLI with basic arguments."""
@@ -25,11 +31,7 @@ def test_git_df_cli_basic(git_repo, tmp_path):
 
     table = pq.read_table(output_file)
     df = table.to_pandas()
-    assert not df.empty
-    # 1 initial commit + 3 sample commits
-    assert len(df) == 4
-    assert "commit_hash" in df.columns
-    assert "author_name" in df.columns
+    _assert_cli_output_dataframe(df, 4)
 
 
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)

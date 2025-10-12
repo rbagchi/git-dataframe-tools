@@ -95,6 +95,58 @@ class GitCliBackend:
             logger.error(f"Git command failed with error: {e.stderr}")
             raise
 
+    def _parse_numstat_output(self, numstat_output: str) -> dict[str, dict[str, str]]:
+        numstat_changes: dict[str, dict[str, str]] = {}
+        for line in numstat_output.strip().splitlines():
+            if line.strip():
+                parts = line.split("\t")
+                if len(parts) == 3:  # additions\tdeletions\tfile_path
+                    additions = parts[0]
+                    deletions = parts[1]
+                    file_path = parts[2].strip()
+                    numstat_changes[file_path] = {
+                        "additions": additions,
+                        "deletions": deletions,
+                    }
+                elif len(parts) == 4:  # Rename/Copy format: A\tB\told\tnew
+                    additions = parts[0]
+                    deletions = parts[1]
+                    file_path = parts[3].strip()  # Use new path as key
+                    numstat_changes[file_path] = {
+                        "additions": additions,
+                        "deletions": deletions,
+                    }
+                else:
+                    logger.warning(f"Unexpected numstat line format: '{line}'")
+        return numstat_changes
+
+    def _parse_name_status_output(self, name_status_output: str) -> dict[str, dict[str, str]]:
+        name_status_changes: dict[str, dict[str, str]] = {}
+        for line in name_status_output.strip().splitlines():
+            if line.strip():
+                parts = line.split("\t")
+                if len(parts) == 2:  # change_type\tfile_path
+                    change_type = parts[0]
+                    file_path = parts[1].strip()
+                    if file_path in name_status_changes:
+                        name_status_changes[file_path]["change_type"] = change_type
+                    else:
+                        name_status_changes[file_path] = {
+                            "change_type": change_type
+                        }
+                elif len(parts) == 3:  # Rename/Copy format: RXXX\told\tnew
+                    change_type = parts[0]
+                    file_path = parts[2].strip()  # Use new path as key
+                    if file_path in name_status_changes:
+                        name_status_changes[file_path]["change_type"] = change_type
+                    else:
+                        name_status_changes[file_path] = {
+                            "change_type": change_type
+                        }
+                else:
+                    logger.warning(f"Unexpected name-status line format: '{line}'")
+        return name_status_changes
+
     def get_raw_log_output(
         self,
         log_args: Optional[List[str]] = None,
@@ -175,53 +227,8 @@ class GitCliBackend:
                 metadata_output.strip()
             )  # metadata_output already has @@@COMMIT@@@ and ends with \n
 
-            numstat_changes = {}
-            for line in numstat_output.strip().splitlines():
-                if line.strip():
-                    parts = line.split("\t")
-                    if len(parts) == 3:  # additions\tdeletions\tfile_path
-                        additions = parts[0]
-                        deletions = parts[1]
-                        file_path = parts[2].strip()
-                        numstat_changes[file_path] = {
-                            "additions": additions,
-                            "deletions": deletions,
-                        }
-                    elif len(parts) == 4:  # Rename/Copy format: A\tB\told\tnew
-                        additions = parts[0]
-                        deletions = parts[1]
-                        file_path = parts[3].strip()  # Use new path as key
-                        numstat_changes[file_path] = {
-                            "additions": additions,
-                            "deletions": deletions,
-                        }
-                    else:
-                        logger.warning(f"Unexpected numstat line format: '{line}'")
-
-            name_status_changes: dict[str, dict[str, str]] = {}
-            for line in name_status_output.strip().splitlines():
-                if line.strip():
-                    parts = line.split("\t")
-                    if len(parts) == 2:  # change_type\tfile_path
-                        change_type = parts[0]
-                        file_path = parts[1].strip()
-                        if file_path in name_status_changes:
-                            name_status_changes[file_path]["change_type"] = change_type
-                        else:
-                            name_status_changes[file_path] = {
-                                "change_type": change_type
-                            }
-                    elif len(parts) == 3:  # Rename/Copy format: RXXX\told\tnew
-                        change_type = parts[0]
-                        file_path = parts[2].strip()  # Use new path as key
-                        if file_path in name_status_changes:
-                            name_status_changes[file_path]["change_type"] = change_type
-                        else:
-                            name_status_changes[file_path] = {
-                                "change_type": change_type
-                            }
-                    else:
-                        logger.warning(f"Unexpected name-status line format: '{line}'")
+            numstat_changes = self._parse_numstat_output(numstat_output)
+            name_status_changes = self._parse_name_status_output(name_status_output)
 
             # Combine and format file changes
             all_file_paths = set(numstat_changes.keys()).union(

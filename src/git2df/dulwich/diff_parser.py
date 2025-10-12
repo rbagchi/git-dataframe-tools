@@ -53,6 +53,17 @@ class DulwichDiffParser:
             return "M"
         return "U"  # Unknown
 
+    @staticmethod
+    def _parse_patch_for_additions_deletions(patch_content: str) -> tuple[int, int]:
+        additions = 0
+        deletions = 0
+        for line in patch_content.splitlines():
+            if line.startswith("+") and not line.startswith("+++"):
+                additions += 1
+            elif line.startswith("-") and not line.startswith("---"):
+                deletions += 1
+        return additions, deletions
+
     def _calculate_additions_deletions(
         self, repo: Repo, change: TreeChange
     ) -> tuple[int, int]:
@@ -83,11 +94,7 @@ class DulwichDiffParser:
                     change.new,
                 )
                 patch_content = patch_stream.getvalue().decode("utf-8", errors="ignore")
-                for line in patch_content.splitlines():
-                    if line.startswith("+") and not line.startswith("+++"):
-                        additions += 1
-                    elif line.startswith("-") and not line.startswith("---"):
-                        deletions += 1
+                additions, deletions = self._parse_patch_for_additions_deletions(patch_content)
         return additions, deletions
 
     def extract_file_changes(
@@ -123,6 +130,20 @@ class DulwichDiffParser:
 
         return file_changes
 
+    def _update_line_stats_from_line(self, line: str, current_file_path: Optional[str], current_additions: int, current_deletions: int) -> tuple[Optional[str], int, int]:
+        if line.startswith("diff --git"):
+            # Reset for a new file
+            return None, 0, 0
+        elif line.startswith("--- a/"):
+            pass # Ignore old file path
+        elif line.startswith("+++ b/"):
+            current_file_path = line[6:].strip()
+        elif line.startswith("-") and not line.startswith("---"):
+            current_deletions += 1
+        elif line.startswith("+") and not line.startswith("+++"):
+            current_additions += 1
+        return current_file_path, current_additions, current_deletions
+
     def _parse_diff_output(self, diff_output: str) -> dict:
         line_stats = {}
         current_file_path = None
@@ -130,24 +151,12 @@ class DulwichDiffParser:
         current_deletions = 0
 
         for line in diff_output.splitlines():
-            if line.startswith("diff --git"):
-                if current_file_path:
-                    line_stats[current_file_path] = {
-                        "additions": current_additions,
-                        "deletions": current_deletions,
-                    }
-                current_file_path = None
-                current_additions = 0
-                current_deletions = 0
-
-            elif line.startswith("--- a/"):
-                pass
-            elif line.startswith("+++ b/"):
-                current_file_path = line[6:].strip()
-            elif line.startswith("-") and not line.startswith("---"):
-                current_deletions += 1
-            elif line.startswith("+") and not line.startswith("+++"):
-                current_additions += 1
+            if line.startswith("diff --git") and current_file_path:
+                line_stats[current_file_path] = {
+                    "additions": current_additions,
+                    "deletions": current_deletions,
+                }
+            current_file_path, current_additions, current_deletions = self._update_line_stats_from_line(line, current_file_path, current_additions, current_deletions)
 
         if current_file_path:
             line_stats[current_file_path] = {

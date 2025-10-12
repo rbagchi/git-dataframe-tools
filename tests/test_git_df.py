@@ -76,6 +76,45 @@ def temp_git_repo_with_remote(tmp_path):
     # Teardown: shutil.rmtree(tmp_path) handles cleanup
 
 
+def _assert_common_dataframe_columns(df):
+    expected_columns = [
+        "commit_hash",
+        "parent_hash",
+        "author_name",
+        "author_email",
+        "commit_date",
+        "file_paths",
+        "change_type",
+        "additions",
+        "deletions",
+        "commit_message",
+    ]
+    for col in expected_columns:
+        assert col in df.columns
+
+def _assert_dataframe_numeric_aggregates(df, expected_author_nunique, expected_commit_nunique, expected_additions_sum, expected_deletions_sum):
+    assert df["author_name"].nunique() == expected_author_nunique
+    assert df["commit_hash"].nunique() == expected_commit_nunique
+    assert df["additions"].sum() == expected_additions_sum
+    assert df["deletions"].sum() == expected_deletions_sum
+
+def _assert_dataframe_properties(df, expected_len, expected_author_nunique, expected_commit_nunique, expected_additions_sum, expected_deletions_sum, expected_file_paths=None):
+    assert not df.empty
+    assert len(df) == expected_len
+    _assert_common_dataframe_columns(df)
+    _assert_dataframe_numeric_aggregates(df, expected_author_nunique, expected_commit_nunique, expected_additions_sum, expected_deletions_sum)
+    if expected_file_paths:
+        assert (df["file_paths"] == expected_file_paths).all()
+
+def _assert_metadata_properties(metadata):
+    assert b"data_version" in metadata
+    assert metadata[b"data_version"].decode() == "1.0"
+    assert b"description" in metadata
+    assert (
+        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
+    )
+
+
 def test_git_extract_commits_basic(temp_git_repo_with_remote, tmp_path):
     output_file = tmp_path / "commits.parquet"
     command = [
@@ -97,33 +136,8 @@ def test_git_extract_commits_basic(temp_git_repo_with_remote, tmp_path):
 
     table = pq.read_table(output_file)
     df = table.to_pandas()
-    assert not df.empty
-    assert len(df) == 5  # 5 total file changes in the fixture
-    assert "commit_hash" in df.columns
-    assert "parent_hash" in df.columns
-    assert "author_name" in df.columns
-    assert "author_email" in df.columns
-    assert "commit_date" in df.columns
-    assert "file_paths" in df.columns
-    assert "change_type" in df.columns
-    assert "additions" in df.columns
-    assert "deletions" in df.columns
-    assert "commit_message" in df.columns
-
-    # Verify metadata
-    metadata = table.schema.metadata
-    assert b"data_version" in metadata
-    assert metadata[b"data_version"].decode() == "1.0"
-    assert b"description" in metadata
-    assert (
-        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
-    )
-
-    # Verify some data
-    assert df["author_name"].nunique() == 2  # Test User and Dev User
-    assert df["commit_hash"].nunique() == 5  # 5 unique commits
-    assert df["additions"].sum() == 5  # Sum of additions from fixture
-    assert df["deletions"].sum() == 1  # Sum of deletions from fixture
+    _assert_dataframe_properties(df, 5, 2, 5, 5, 1)
+    _assert_metadata_properties(table.schema.metadata)
 
 
 def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_path):
@@ -145,20 +159,9 @@ def test_git_extract_commits_with_author_filter(temp_git_repo_with_remote, tmp_p
 
     table = pq.read_table(output_file)
     df = table.to_pandas()
-    assert not df.empty
-    assert len(df) == 2  # 2 file changes by Test User
+    _assert_dataframe_properties(df, 2, 1, 2, 2, 0)
     assert (df["author_name"] == "Test User").all()
-    assert df["additions"].sum() == 2  # 1 from Initial commit, 1 from Second commit
-    assert df["deletions"].sum() == 0
-
-    # Verify metadata
-    metadata = table.schema.metadata
-    assert b"data_version" in metadata
-    assert metadata[b"data_version"].decode() == "1.0"
-    assert b"description" in metadata
-    assert (
-        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
-    )
+    _assert_metadata_properties(table.schema.metadata)
 
 
 def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_path):
@@ -184,21 +187,9 @@ def test_git_extract_commits_with_path_filter(temp_git_repo_with_remote, tmp_pat
     assert output_file.exists()
     table = pq.read_table(output_file)
     df = table.to_pandas()
-    assert not df.empty
-    assert len(df) == 1  # 1 file change in src/
-    assert (df["file_paths"] == "src/feature.js").all()
+    _assert_dataframe_properties(df, 1, 1, 1, 1, 0, expected_file_paths="src/feature.js")
     assert (df["author_name"] == "Dev User").all()
-    assert df["additions"].sum() == 1
-    assert df["deletions"].sum() == 0
-
-    # Verify metadata
-    metadata = table.schema.metadata
-    assert b"data_version" in metadata
-    assert metadata[b"data_version"].decode() == "1.0"
-    assert b"description" in metadata
-    assert (
-        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
-    )
+    _assert_metadata_properties(table.schema.metadata)
 
 
 def test_git_extract_commits_with_exclude_path_filter(
@@ -227,19 +218,9 @@ def test_git_extract_commits_with_exclude_path_filter(
     # Manually filter out excluded paths as GitCliBackend does not apply this filter directly
     filtered_df = df[~df["file_paths"].str.startswith("docs/")]
 
-    assert len(filtered_df) == 4  # 4 file changes after excluding docs/
+    _assert_dataframe_properties(filtered_df, 4, 2, 4, 4, 1)
     assert "docs/README.md" not in filtered_df["file_paths"].values
-    assert filtered_df["additions"].sum() == 4  # 1+1+1+1
-    assert filtered_df["deletions"].sum() == 1  # 0+0+1+0
-
-    # Verify metadata
-    metadata = table.schema.metadata
-    assert b"data_version" in metadata
-    assert metadata[b"data_version"].decode() == "1.0"
-    assert b"description" in metadata
-    assert (
-        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
-    )
+    _assert_metadata_properties(table.schema.metadata)
 
 
 def test_git_extract_commits_no_commits_found(temp_git_repo_with_remote, tmp_path):
@@ -264,13 +245,6 @@ def test_git_extract_commits_no_commits_found(temp_git_repo_with_remote, tmp_pat
     df = table.to_pandas()
     assert df.empty  # The created DataFrame should be empty
 
-    # Verify metadata
-    metadata = table.schema.metadata
-    assert b"data_version" in metadata
-    assert metadata[b"data_version"].decode() == "1.0"
-    assert b"description" in metadata
-    assert (
-        metadata[b"description"].decode() == "Git commit data extracted by git-df CLI"
-    )
+    _assert_metadata_properties(table.schema.metadata)
 
     assert "No commits found" in result.stderr  # Check for warning message

@@ -10,6 +10,30 @@ logger = logging.getLogger(__name__)
 
 EXPECTED_DATA_VERSION = "1.0"  # Expected major version of the DataFrame schema
 
+def _validate_dataframe_version(metadata, force_version_mismatch: bool) -> tuple[bool, int]:
+    loaded_data_version = None
+    if b"data_version" in metadata:
+        loaded_data_version = metadata[b"data_version"].decode()
+
+    if loaded_data_version and loaded_data_version != EXPECTED_DATA_VERSION:
+        message = f"DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
+        if not force_version_mismatch:
+            logger.error(
+                f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
+            )
+            return False, 1
+        else:
+            logger.warning(f"{message} Proceeding due to --force-version-mismatch.")
+    elif not loaded_data_version:
+        message = "No 'data_version' metadata found in the DataFrame file."
+        if not force_version_mismatch:
+            logger.error(
+                f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
+            )
+            return False, 1
+        else:
+            logger.warning(f"{message} Proceeding due to --force-version-mismatch.")
+    return True, 0
 
 def _load_dataframe(args, config: GitAnalysisConfig):
     git_log_data = None
@@ -22,32 +46,9 @@ def _load_dataframe(args, config: GitAnalysisConfig):
             table = pq.read_table(args.df_path)
             metadata = table.schema.metadata
 
-            loaded_data_version = None
-            if b"data_version" in metadata:
-                loaded_data_version = metadata[b"data_version"].decode()
-
-            if loaded_data_version and loaded_data_version != EXPECTED_DATA_VERSION:
-                message = f"DataFrame version mismatch. Expected '{EXPECTED_DATA_VERSION}', but found '{loaded_data_version}'."
-                if not args.force_version_mismatch:
-                    logger.error(
-                        f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
-                    )
-                    return None, 1
-                else:
-                    logger.warning(
-                        f"{message} Proceeding due to --force-version-mismatch."
-                    )
-            elif not loaded_data_version:
-                message = "No 'data_version' metadata found in the DataFrame file."
-                if not args.force_version_mismatch:
-                    logger.error(
-                        f"{message} Aborting. Use --force-version-mismatch to proceed anyway."
-                    )
-                    return None, 1
-                else:
-                    logger.warning(
-                        f"{message} Proceeding due to --force-version-mismatch."
-                    )
+            is_valid, status_code = _validate_dataframe_version(metadata, args.force_version_mismatch)
+            if not is_valid:
+                return None, status_code
 
             git_log_data = table.to_pandas()
         except Exception as e:

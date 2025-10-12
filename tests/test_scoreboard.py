@@ -1,6 +1,8 @@
 import pytest
 import os
 import subprocess
+from typing import List
+import re
 
 from tests.conftest import sample_commits
 
@@ -50,6 +52,18 @@ def test_scoreboard_cli_author_filter(git_repo):
     assert "Dev User" not in result.stdout
 
 
+def _assert_markdown_header(stdout: str) -> None:
+    header_pattern = r"\|\s*Rank\s*\|\s*Author\s*\|\s*Lines Added\s*\|\s*Lines Deleted\s*\|\s*Total Diff\s*\|\s*Commits\s*\|\s*Diff D\s*\|\s*Comm D\s*\|"
+    assert re.search(header_pattern, stdout)
+
+def _assert_markdown_separator(stdout: str) -> None:
+    separator_pattern = r"\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|"
+    assert re.search(separator_pattern, stdout)
+
+def _assert_markdown_authors(stdout: str, authors: List[str]) -> None:
+    for author in authors:
+        assert author in stdout
+
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_scoreboard_cli_markdown_output(git_repo):
     """Test the git-scoreboard CLI with markdown output format."""
@@ -63,17 +77,6 @@ def test_scoreboard_cli_markdown_output(git_repo):
     assert result.returncode == 0
     import re
 
-    # Check for the header row with flexible whitespace
-    header_pattern = r"\|\s*Rank\s*\|\s*Author\s*\|\s*Lines Added\s*\|\s*Lines Deleted\s*\|\s*Total Diff\s*\|\s*Commits\s*\|\s*Diff D\s*\|\s*Comm D\s*\|"
-    assert re.search(header_pattern, result.stdout)
-
-    # Check for the separator line with flexible whitespace and alignment characters
-    separator_pattern = r"\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|\s*:?-+\s*:?\s*\|"
-    assert re.search(separator_pattern, result.stdout)
-
-    # Check for author names within the Markdown table content
-    assert "Test User" in result.stdout
-    assert "Dev User" in result.stdout
-    assert (
-        "Default User" in result.stdout
-    )  # Check for the default user from the initial commit
+    _assert_markdown_header(result.stdout)
+    _assert_markdown_separator(result.stdout)
+    _assert_markdown_authors(result.stdout, ["Test User", "Dev User", "Default User"])

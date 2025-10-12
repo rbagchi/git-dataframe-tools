@@ -116,26 +116,29 @@ class DulwichRepoHandler:
                     if not message:
                         return
 
-                    # Regex to capture progress for "Receiving objects", "Compressing objects", "Counting objects"
-                    match_progress = re.match(r".*\s+(\d+)%\s+\((\d+)/(\d+)\)", message)
-                    if match_progress:
-                        current, total = int(match_progress.group(2)), int(match_progress.group(3))
-                        if pbar.total == 0:
-                            pbar.total = total
-                        pbar.n = current
-                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
-                        pbar.refresh()
-                        return
+                    try:
+                        # Regex to capture progress for "Receiving objects", "Compressing objects", "Counting objects"
+                        match_progress = re.match(r".*\s+(\d+)%\s+\((\d+)/(\d+)\)", message)
+                        if match_progress:
+                            current, total = int(match_progress.group(2)), int(match_progress.group(3))
+                            if pbar.total == 0:
+                                pbar.total = total
+                            pbar.n = current
+                            pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                            pbar.refresh()
+                            return
 
-                    # Regex to capture total objects from "Total" message
-                    match_total = re.match(r"Total (\d+)", message)
-                    if match_total:
-                        total_objects = int(match_total.group(1))
-                        if pbar.total == 0:
-                            pbar.total = total_objects
-                        pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
-                        pbar.refresh()
-                        return
+                        # Regex to capture total objects from "Total" message
+                        match_total = re.match(r"Total (\d+)", message)
+                        if match_total:
+                            total_objects = int(match_total.group(1))
+                            if pbar.total == 0:
+                                pbar.total = total_objects
+                            pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")
+                            pbar.refresh()
+                            return
+                    except (ValueError, IndexError) as e:
+                        logger.debug(f"Could not parse progress message: '{message}'. Error: {e}")
 
                     # Fallback for other messages, just update description
                     pbar.set_description(f"Fetching {self.remote_branch} from {self.remote_url}: {message}")

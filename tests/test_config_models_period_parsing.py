@@ -32,3 +32,9 @@ def test_parse_period_string_invalid_format():
         _parse_period_string("3 lightyears")
     with pytest.raises(ValueError, match="Invalid period format"):
         _parse_period_string("month")
+
+def test_parse_period_string_with_articles():
+    assert _parse_period_string("a day") == timedelta(days=1)
+    assert _parse_period_string("a week") == timedelta(weeks=1)
+    assert _parse_period_string("a month") == relativedelta(months=1)
+    assert _parse_period_string("a year") == relativedelta(years=1)

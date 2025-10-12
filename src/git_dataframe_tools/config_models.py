@@ -18,15 +18,20 @@ class OutputFormat(str, Enum):
 
 
 def _parse_period_string(period_str: str) -> Union[timedelta, relativedelta]:
-    """Parses a period string like '3 months' or '1 year' into a timedelta."""
+    """Parses a period string like '3 months' or 'a year' into a timedelta."""
     period_str = period_str.lower().strip()
-    match = re.match(r"^(\d+)\s+(day|week|month|year)s?(\s+ago)?$", period_str)
+    match = re.match(r"^(a|an|\d+)\s+(day|week|month|year)s?(\s+ago)?$", period_str)
     if not match:
         raise ValueError(
-            f"Invalid period format: {period_str}. Use format like '3 months' or '1 year'."
+            f"Invalid period format: {period_str}. Use format like '3 months' or 'a year'."
         )
 
-    value = int(match.group(1))
+    value_str = match.group(1)
+    if value_str in ["a", "an"]:
+        value = 1
+    else:
+        value = int(value_str)
+
     unit = match.group(2)
 
     if unit == "day":

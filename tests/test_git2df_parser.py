@@ -2,7 +2,6 @@ import pytest
 import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 from git2df.git_parser._commit_metadata_parser import _parse_commit_metadata_line
 from git2df.git_parser._file_stat_parser import (
@@ -12,16 +11,15 @@ from git2df.git_parser._file_stat_parser import (
 )
 
 
+import dataclasses
+from git2df.git_parser import parse_git_log
+
 def get_golden_file_pairs():
     data_dir = Path(__file__).parent / "data"
     for log_file in data_dir.glob("*.log"):
         json_file = log_file.with_suffix(".json")
         if json_file.exists():
             yield log_file, json_file
-
-
-import dataclasses
-from git2df.git_parser import parse_git_log
 
 
 @pytest.mark.parametrize("log_file, json_file", get_golden_file_pairs())

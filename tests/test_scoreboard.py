@@ -75,7 +75,6 @@ def test_scoreboard_cli_markdown_output(git_repo):
         text=True,
     )
     assert result.returncode == 0
-    import re
 
     _assert_markdown_header(result.stdout)
     _assert_markdown_separator(result.stdout)

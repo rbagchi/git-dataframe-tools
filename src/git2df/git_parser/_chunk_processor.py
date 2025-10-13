@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 from ._commit_metadata_parser import GitLogEntry, _parse_commit_metadata_line
 from ._file_stat_parser import FileChange

@@ -56,6 +56,10 @@ dev = [
 pythonpath = ["src"]
 log_cli_level = "INFO"
 
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+
 [[tool.mypy.overrides]]
-module = ["parsedatetime", "pyarrow", "dulwich", "pyarrow.parquet"]
+module = ["parsedatetime", "pyarrow", "dulwich", "pyarrow.parquet", "git_dataframe_tools.*", "git2df.*"]
 ignore_missing_imports = true

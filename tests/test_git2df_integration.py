@@ -120,7 +120,7 @@ def _parse_raw_git_log_for_comparison(raw_log_output: str) -> list[dict]:
     Parses raw git log output (with --numstat and --pretty format)
     to extract commit details and file stats per commit for comparison.
     """
-    commits_data = []
+    commits_data: list[dict] = []
     current_commit: dict[str, Union[str, datetime, None, int]] = {}
     current_files: list[dict[str, Union[str, int]]] = []
 

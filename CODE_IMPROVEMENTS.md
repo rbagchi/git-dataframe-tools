@@ -40,6 +40,7 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Description:** The regex in `config_models.py` could be made more robust to handle variations in input (e.g., singular vs. plural, "1 month" vs "a month").
 - **Impact:** 2 (Improves user experience by making date parsing more flexible.)
 - **Effort:** 2 (Requires refining the regular expression and testing various date formats.)
+- **Status:** Completed
 
 ### 6. Enhance `git_parser.py` robustness
 - **Description:** The parsing logic in `_parse_git_data_internal` is brittle to changes in `git log` output format. If possible, explore using a more structured Git log parser library or a more resilient state machine for parsing.
@@ -51,6 +52,7 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Description:** The simplified `change_type` logic in `git_parser.py` ("M" by default) should be improved to accurately reflect all Git change types (e.g., "R" for rename, "C" for copy). This might require parsing additional `git log` output formats (e.g., `--raw` or `--diff-filter`).
 - **Impact:** 3 (Improves data accuracy and the richness of analysis.)
 - **Effort:** 3 (Requires modifying the `git log` command and adapting the parsing logic.)
+- **Status:** Completed
 
 ## C. Readability & Maintainability
 
@@ -70,11 +72,13 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Description:** Ensure `start_date` and `end_date` are consistently `datetime.date` objects or `None` to simplify type checking and avoid `isinstance` checks in `get_analysis_description`.
 - **Impact:** 2 (Improves type safety and reduces potential for runtime errors.)
 - **Effort:** 1 (Requires minor adjustments to date assignment and type hints.)
+- **Status:** Completed
 
 ### 14. Prioritize explicit string splitting over complex regex for structured data
 - **Description:** Review existing and future parsing logic to favor explicit string splitting (e.g., `str.split()`, `str.partition()`) over complex regular expressions when dealing with structured input formats (like `git log` output). This improves readability, reduces cognitive load, and makes the code less prone to subtle regex matching errors, especially when delimiters are consistent.
 - **Impact:** 3 (Significantly improves code clarity, maintainability, and reduces potential for parsing bugs.)
 - **Effort:** 2 (Requires careful review of parsing functions and potential refactoring, but often simplifies the logic.)
+- **Status:** Completed
 
 ## D. Future-proofing & Extensibility
 
@@ -88,6 +92,7 @@ This document outlines potential improvements for the `git-dataframe-tools` proj
 - **Description:** Make the `_calculate_deciles` function in `git_stats_pandas.py` more generic to accept any column for decile calculation, enhancing its reusability.
 - **Impact:** 2 (Improves reusability and flexibility of the analysis logic.)
 - **Effort:** 2 (Requires refactoring the function to accept a column name as a parameter.)
+- **Status:** Completed
 
 ### 13. Consider `loguru` for logging
 - **Description:** For more advanced logging features and easier configuration, `loguru` could be a good alternative to the standard `logging` module.

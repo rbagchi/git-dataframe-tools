@@ -60,6 +60,7 @@
 - **Used a table formatting library:** Manual string formatting for tables in `_display_utils.py` has been replaced with a library like `tabulate`, improving output presentation and simplifying display logic.
 - **Decoupled `GitAnalysisConfig` from `GitPython`:** The `_set_current_git_user` and `_check_git_repo` methods in `config_models.py` no longer directly use `GitPython`, abstracting Git repository interactions and improving testability and flexibility.
 - **Integrated `loguru` for logging:** `loguru` has been integrated for advanced logging features and easier configuration.
+- **Accurate `change_type` determination:** The `change_type` logic has been improved to accurately reflect all Git change types (e.g., "R" for rename, "C" for copy) by correctly parsing `git show --name-status` output.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.

@@ -38,7 +38,7 @@
     - Resolved all `ruff` linting and `mypy` type-checking issues.
 - **Resolved `TypeError: 'NoneType' object is not subscriptable`**: Fixed `_build_git_log_arguments` to return `cmd`.
 - **Resolved `StopIteration` in `test_git2df_backends.py`**: Corrected `mock_subprocess_run.side_effect` setup in backend tests.
-- **Resolved `IndentationError` in `test_git2df_backends.py`**: Fixed indentation issues in backend tests.
+- **Resolved `IndentationError` in `tests/test_git2df_backends.backends.py`**: Fixed indentation issues in backend tests.
 - **Resolved `NameError` for `Optional` and `List`**: Added missing imports in `tests/test_git_stats_pandas.py` and `tests/test_scoreboard.py`.
 - **Resolved `NameError` for `re`**: Moved `import re` to the top of `tests/test_scoreboard.py`.
 - **Resolved `pytest` failures in `tests/test_scoreboard_df_path.py`**: The `exit_code == 2` issue was resolved by simplifying the `df_path` argument definition in `src/git_dataframe_tools/cli/scoreboard.py`.
@@ -71,7 +71,17 @@
 - `uv pip install -e .`: To reinstall the project in editable mode after `pyproject.toml` changes.
 
 **Current Blockers/Issues:**
-- None
+- `tests/test_git_df.py::test_git_extract_commits_basic` is failing (`AssertionError: assert np.int64(4) == 5`). The `additions` sum is incorrect.
+- `tests/test_git_df.py::test_git_extract_commits_with_author_filter` is failing (`AssertionError: assert np.int64(1) == 2`). The `additions` sum is incorrect.
+- `tests/test_git_df.py::test_git_extract_commits_with_exclude_path_filter` is failing (`TypeError: bad operand type for unary ~: 'NoneType'`).
+- `tests/test_git_df_cli.py::test_git_df_cli_no_warnings_with_path_filter[git_repo0]` is failing (`AssertionError: assert not True`).
 
 **Next Steps:**
-- None
+- Focus on fixing `tests/test_git_df.py::test_git_extract_commits_basic` first.
+
+**5 Possible Avenues to Unblock:**
+1.  **Analyze `git show` output directly:** Manually run `git show --numstat <commit_hash>` for each commit in the `temp_git_repo_with_remote` fixture and compare the output with what `_parse_single_file_change_line` is receiving and processing. This will confirm if the `git` command itself is producing unexpected output or if the parsing logic is flawed.
+2.  **Refine `_parse_single_file_change_line` further:** Even with the commit hash filtering, there might be other unexpected lines in the `git show --numstat` output that are causing incorrect parsing or being ignored when they shouldn't be. I can expand the `if` condition in `_parse_single_file_change_line` to explicitly ignore more known non-file-change lines (e.g., lines starting with "commit", "Author:", "Date:", etc., if they appear in the `numstat` section).
+3.  **Inspect `file_changes_raw` in `_process_commit_chunk`:** Add debug prints to `_process_commit_chunk` in `src/git2df/git_parser/_chunk_processor.py` to see the exact content of `file_changes_raw` before it's split into lines and passed to `_parse_single_file_change_line`. This will help identify any unexpected content in the raw output from `git show`.
+4.  **Verify `GitCliBackend`'s `get_raw_log_output`:** Ensure that the `GitCliBackend` is correctly constructing and executing the `git show` commands and that the raw output it returns is as expected. This might involve temporarily printing the `stdout` of the `subprocess.run` calls within `GitCliBackend`.
+5.  **Simplify `temp_git_repo_with_remote` fixture:** Temporarily simplify the `temp_git_repo_with_remote` fixture to create fewer, simpler commits (e.g., only one commit with one file change) to isolate the problem to a specific commit or type of change.

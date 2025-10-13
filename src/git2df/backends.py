@@ -8,6 +8,31 @@ from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 logger = logging.getLogger(__name__)
 
 
+def _parse_name_status_line(line: str, name_status_changes: dict[str, dict[str, str]]):
+    if not line.strip():
+        return
+    parts = line.split("\t")
+    if len(parts) == 2:
+        change_type = parts[0]
+        file_path = parts[1].strip()
+        if file_path in name_status_changes:
+            name_status_changes[file_path]["change_type"] = change_type
+        else:
+            name_status_changes[file_path] = {
+                "change_type": change_type
+            }
+    elif len(parts) == 3:
+        change_type = parts[0]
+        file_path = parts[2].strip()
+        if file_path in name_status_changes:
+            name_status_changes[file_path]["change_type"] = change_type
+        else:
+            name_status_changes[file_path] = {
+                "change_type": change_type
+            }
+    else:
+        logger.warning(f"Unexpected name-status line format: '{line}'")
+
 class GitCliBackend:
     """A backend for git2df that interacts with the Git CLI."""
 
@@ -134,29 +159,53 @@ class GitCliBackend:
             lines = lines[1:]
 
         for line in lines:
-            if line.strip():
-                parts = line.split("\t")
-                if len(parts) == 2:
-                    change_type = parts[0]
-                    file_path = parts[1].strip()
-                    if file_path in name_status_changes:
-                        name_status_changes[file_path]["change_type"] = change_type
-                    else:
-                        name_status_changes[file_path] = {
-                            "change_type": change_type
-                        }
-                elif len(parts) == 3:
-                    change_type = parts[0]
-                    file_path = parts[2].strip()
-                    if file_path in name_status_changes:
-                        name_status_changes[file_path]["change_type"] = change_type
-                    else:
-                        name_status_changes[file_path] = {
-                            "change_type": change_type
-                        }
-                else:
-                    logger.warning(f"Unexpected name-status line format: '{line}'")
+            _parse_name_status_line(line, name_status_changes)
         return name_status_changes
+
+    def _process_commit(self, commit_hash: str, path_filters: List[str]) -> List[str]:
+        metadata_cmd = (
+            ["git", "show", commit_hash, "--no-patch"]
+            + [
+                "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%s---MSG_END---",
+                "--date=iso-strict",
+            ]
+            + path_filters
+        )
+        metadata_output = self._run_git_command(metadata_cmd)
+
+        parent_hashes = metadata_output.split("@@@FIELD@@@")[1].strip()
+
+        if not parent_hashes:
+            numstat_cmd = ["git", "diff-tree", "-r", "--numstat", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
+            name_status_cmd = ["git", "diff-tree", "-r", "--name-status", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
+        else:
+            numstat_cmd = ["git", "diff-tree", "-r", "--numstat", commit_hash] + path_filters
+            name_status_cmd = (
+                ["git", "diff-tree", "-r", "--name-status", commit_hash]
+                + path_filters
+            )
+
+        numstat_output = self._run_git_command(numstat_cmd)
+        name_status_output = self._run_git_command(name_status_cmd)
+
+        commit_lines = [metadata_output.strip()]
+
+        numstat_changes = self._parse_numstat_output(numstat_output)
+        name_status_changes = self._parse_name_status_output(name_status_output)
+
+        all_file_paths = set(numstat_changes.keys()).union(
+            name_status_changes.keys()
+        )
+        for file_path in all_file_paths:
+            additions = numstat_changes.get(file_path, {}).get("additions", "0")
+            deletions = numstat_changes.get(file_path, {}).get("deletions", "0")
+            change_type = name_status_changes.get(file_path, {}).get(
+                "change_type", "U"
+            )
+            commit_lines.append(
+                f"{additions}\t{deletions}\t{change_type}\t{file_path}"
+            )
+        return commit_lines
 
     def get_raw_log_output(
         self,
@@ -206,49 +255,6 @@ class GitCliBackend:
         combined_output_lines = []
 
         for commit_hash in commit_hashes:
-            metadata_cmd = (
-                ["git", "show", commit_hash, "--no-patch"]
-                + [
-                    "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%s---MSG_END---",
-                    "--date=iso-strict",
-                ]
-                + path_filters
-            )
-            metadata_output = self._run_git_command(metadata_cmd)
-
-            parent_hashes = metadata_output.split("@@@FIELD@@@")[1].strip()
-
-            if not parent_hashes:
-                numstat_cmd = ["git", "diff-tree", "-r", "--numstat", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
-                name_status_cmd = ["git", "diff-tree", "-r", "--name-status", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
-            else:
-                numstat_cmd = ["git", "diff-tree", "-r", "--numstat", commit_hash] + path_filters
-                name_status_cmd = (
-                    ["git", "diff-tree", "-r", "--name-status", commit_hash]
-                    + path_filters
-                )
-
-            numstat_output = self._run_git_command(numstat_cmd)
-            name_status_output = self._run_git_command(name_status_cmd)
-
-            combined_output_lines.append(
-                metadata_output.strip()
-            )
-
-            numstat_changes = self._parse_numstat_output(numstat_output)
-            name_status_changes = self._parse_name_status_output(name_status_output)
-
-            all_file_paths = set(numstat_changes.keys()).union(
-                name_status_changes.keys()
-            )
-            for file_path in all_file_paths:
-                additions = numstat_changes.get(file_path, {}).get("additions", "0")
-                deletions = numstat_changes.get(file_path, {}).get("deletions", "0")
-                change_type = name_status_changes.get(file_path, {}).get(
-                    "change_type", "U"
-                )
-                combined_output_lines.append(
-                    f"{additions}\t{deletions}\t{change_type}\t{file_path}"
-                )
+            combined_output_lines.extend(self._process_commit(commit_hash, path_filters))
 
         return "\n".join(combined_output_lines)

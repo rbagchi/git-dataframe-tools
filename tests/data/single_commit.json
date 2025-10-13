@@ -12,7 +12,7 @@
         "file_path": "file1.txt",
         "additions": 10,
         "deletions": 5,
-        "change_type": "M"
+        "change_type": ""
       },
       {
         "file_path": "file2.py",

@@ -2,6 +2,7 @@ import pytest
 import json
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from git2df.git_parser._commit_metadata_parser import _parse_commit_metadata_line
 from git2df.git_parser._file_stat_parser import (
@@ -19,11 +20,15 @@ def get_golden_file_pairs():
             yield log_file, json_file
 
 
+import dataclasses
+from git2df.git_parser import parse_git_log
+
+
 @pytest.mark.parametrize("log_file, json_file", get_golden_file_pairs())
 def test_parse_git_data_internal(log_file, json_file):
     """Test _parse_git_data_internal with golden files."""
     with open(log_file, "r") as f:
-        f.read()  # Removed assignment to git_log_output
+        git_log_output = f.read()
 
     with open(json_file, "r") as f:
         expected_output_json = json.load(f)
@@ -40,15 +45,14 @@ def test_parse_git_data_internal(log_file, json_file):
                 if "change_type" in change and isinstance(change["change_type"], bytes):
                     change["change_type"] = change["change_type"].decode("utf-8")
 
-    # For now, we cannot directly test parse_git_log with golden files because it now requires a GitCliBackend instance.
-    # This test will need to be updated to mock the GitCliBackend or use an integration test approach.
-    # For now, we will skip this test.
-    pytest.skip("parse_git_log now requires GitCliBackend, skipping for now.")
+    result = parse_git_log(git_log_output)
 
-    # result = parse_git_log(git_log_output)
-    # # Convert dataclass objects to dictionaries for comparison
-    # result_as_dicts = [dataclasses.asdict(entry) for entry in result]
-    # assert result_as_dicts == expected_output_json
+    # Convert dataclass objects to dictionaries for comparison
+    result_as_dicts = []
+    for entry in result:
+        entry_dict = dataclasses.asdict(entry)
+        result_as_dicts.append(entry_dict)
+    assert result_as_dicts == expected_output_json
 
 
 # New tests for _parse_commit_metadata_line

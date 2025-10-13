@@ -17,3 +17,11 @@ This document outlines the rubric used to assess the `git-dataframe-tools` codeb
 *   **3: Medium:** Requires some refactoring and careful testing.
 *   **4: High:** A significant refactoring or a new feature.
 *   **5: Major:** A major architectural change or a rewrite of a core component.
+
+## Development Process
+
+For each task, the following iterative development process is used:
+
+1.  **Detailed Steps:** The task is broken down into small, detailed, low-effort steps.
+2.  **Test After Each Step:** After each step is completed, all unit tests are run to ensure that no regressions have been introduced.
+3.  **Quality Checks:** At the conclusion of the entire task, `ruff` and `mypy` are run to ensure that the code adheres to quality standards.

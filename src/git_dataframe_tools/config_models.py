@@ -53,8 +53,8 @@ class GitAnalysisConfig:
 
     _start_date_str: Optional[str] = None
     _end_date_str: Optional[str] = None
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date = field(init=False)
+    end_date: date = field(init=False)
     author_query: Optional[str] = None
     use_current_user: bool = False
     merged_only: bool = False

@@ -55,6 +55,11 @@
     *   `tests/test_git_df_cli.py`: All functions are now 'A' grade.
     *   `tests/test_scoreboard.py`: All functions are now 'A' grade.
     *   `tests/test_git2df_backends.py`: Refactored to use helper functions, significantly reducing complexity of individual test functions to 'A' and 'B' grades.
+- **Decomposed `git_parser.py` into a multi-file module:** The `git_parser.py` file has been broken down into a multi-file module, improving modularity, readability, and testability by separating distinct parsing concerns.
+- **Enhanced `git_parser.py` robustness:** The parsing logic in `git_parser.py` has been enhanced, making it more resilient to changes in `git log` output format.
+- **Used a table formatting library:** Manual string formatting for tables in `_display_utils.py` has been replaced with a library like `tabulate`, improving output presentation and simplifying display logic.
+- **Decoupled `GitAnalysisConfig` from `GitPython`:** The `_set_current_git_user` and `_check_git_repo` methods in `config_models.py` no longer directly use `GitPython`, abstracting Git repository interactions and improving testability and flexibility.
+- **Integrated `loguru` for logging:** `loguru` has been integrated for advanced logging features and easier configuration.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.
@@ -65,7 +70,7 @@
 - `uv pip install -e .`: To reinstall the project in editable mode after `pyproject.toml` changes.
 
 **Current Blockers/Issues:**
-- Decouple `GitAnalysisConfig` from `GitPython`.
+- None
 
-Next Steps:
-- Decouple `GitAnalysisConfig` from `GitPython`.
+**Next Steps:**
+- None

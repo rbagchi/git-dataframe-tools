@@ -216,7 +216,7 @@ def test_git_extract_commits_with_exclude_path_filter(
     assert not df.empty
 
     # Manually filter out excluded paths as GitCliBackend does not apply this filter directly
-    filtered_df = df[~df["file_paths"].str.startswith("docs/")]
+    filtered_df = df[~df["file_paths"].fillna('').str.startswith("docs/")]
 
     _assert_dataframe_properties(filtered_df, 4, 2, 4, 4, 1)
     assert "docs/README.md" not in filtered_df["file_paths"].values

@@ -53,9 +53,6 @@ class GitCliBackend:
         exclude_paths: Optional[List[str]] = None,
     ) -> List[str]:
         cmd = ["git", "log"]
-        # Removed --pretty=format and --date=iso-strict from here.
-        # These will be added by the caller (get_raw_log_output) for the metadata command.
-
         if since:
             cmd.extend(["--since", since])
         if until:
@@ -65,16 +62,22 @@ class GitCliBackend:
         if grep:
             cmd.extend(["--grep", grep])
         if merged_only:
-            # For merged_only, we need to find the default branch first
-            # This still uses GitPython for _get_default_branch, but the log itself is CLI
             default_branch = self._get_default_branch()
             cmd.append("--merges")
-            cmd.append(f"origin/{default_branch}")  # Assuming origin is the remote name
+            cmd.append(f"origin/{default_branch}")
 
         if log_args:
             cmd.extend(log_args)
 
-        # Path filters will be handled by the caller (get_raw_log_output)
+        pathspecs = []
+        if include_paths:
+            pathspecs.extend(include_paths)
+        if exclude_paths:
+            pathspecs.extend([f":(exclude){p}" for p in exclude_paths])
+
+        if pathspecs:
+            cmd.append("--")
+            cmd.extend(pathspecs)
         return cmd
 
     def _run_git_command(self, cmd: List[str]) -> str:
@@ -97,10 +100,14 @@ class GitCliBackend:
 
     def _parse_numstat_output(self, numstat_output: str) -> dict[str, dict[str, str]]:
         numstat_changes: dict[str, dict[str, str]] = {}
-        for line in numstat_output.strip().splitlines():
+        lines = numstat_output.strip().splitlines()
+        if lines and len(lines[0]) == 40 and all(c in '0123456789abcdef' for c in lines[0].lower()):
+            lines = lines[1:]
+
+        for line in lines:
             if line.strip():
                 parts = line.split("\t")
-                if len(parts) == 3:  # additions\tdeletions\tfile_path
+                if len(parts) == 3:
                     additions = parts[0]
                     deletions = parts[1]
                     file_path = parts[2].strip()
@@ -108,10 +115,10 @@ class GitCliBackend:
                         "additions": additions,
                         "deletions": deletions,
                     }
-                elif len(parts) == 4:  # Rename/Copy format: A\tB\told\tnew
+                elif len(parts) == 4:
                     additions = parts[0]
                     deletions = parts[1]
-                    file_path = parts[3].strip()  # Use new path as key
+                    file_path = parts[3].strip()
                     numstat_changes[file_path] = {
                         "additions": additions,
                         "deletions": deletions,
@@ -122,10 +129,14 @@ class GitCliBackend:
 
     def _parse_name_status_output(self, name_status_output: str) -> dict[str, dict[str, str]]:
         name_status_changes: dict[str, dict[str, str]] = {}
-        for line in name_status_output.strip().splitlines():
+        lines = name_status_output.strip().splitlines()
+        if lines and len(lines[0]) == 40 and all(c in '0123456789abcdef' for c in lines[0].lower()):
+            lines = lines[1:]
+
+        for line in lines:
             if line.strip():
                 parts = line.split("\t")
-                if len(parts) == 2:  # change_type\tfile_path
+                if len(parts) == 2:
                     change_type = parts[0]
                     file_path = parts[1].strip()
                     if file_path in name_status_changes:
@@ -134,9 +145,9 @@ class GitCliBackend:
                         name_status_changes[file_path] = {
                             "change_type": change_type
                         }
-                elif len(parts) == 3:  # Rename/Copy format: RXXX\told\tnew
+                elif len(parts) == 3:
                     change_type = parts[0]
-                    file_path = parts[2].strip()  # Use new path as key
+                    file_path = parts[2].strip()
                     if file_path in name_status_changes:
                         name_status_changes[file_path]["change_type"] = change_type
                     else:
@@ -158,7 +169,6 @@ class GitCliBackend:
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
     ) -> str:
-        # Build base arguments without pretty format or path filters
         base_args_no_pretty_no_paths = self._build_git_log_arguments(
             log_args,
             since,
@@ -170,18 +180,16 @@ class GitCliBackend:
             None,  # exclude_paths handled separately
         )
 
-        # Construct path filters
         path_filters = []
         if include_paths:
             path_filters.append("--")
             path_filters.extend(include_paths)
         if exclude_paths:
-            if not path_filters:  # Add -- only if not already added by include_paths
+            if not path_filters:
                 path_filters.append("--")
             for p in exclude_paths:
                 path_filters.append(f":(exclude){p}")
 
-        # 1. Get commit hashes that match the filters
         rev_list_cmd = (
             ["git", "rev-list", "--all"]
             + base_args_no_pretty_no_paths[2:]
@@ -198,39 +206,38 @@ class GitCliBackend:
         combined_output_lines = []
 
         for commit_hash in commit_hashes:
-            # Get metadata for the current commit
             metadata_cmd = (
-                ["git", "show", commit_hash]
+                ["git", "show", commit_hash, "--no-patch"]
                 + [
-                    "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%B---MSG_END---",
+                    "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%s---MSG_END---",
                     "--date=iso-strict",
                 ]
                 + path_filters
             )
             metadata_output = self._run_git_command(metadata_cmd)
 
-            # Get numstat for the current commit
-            numstat_cmd = ["git", "show", commit_hash, "--numstat"] + path_filters
-            numstat_output = self._run_git_command(numstat_cmd)
+            parent_hashes = metadata_output.split("@@@FIELD@@@")[1].strip()
 
-            # Get name-status for the current commit
-            name_status_cmd = [
-                "git",
-                "show",
-                commit_hash,
-                "--name-status",
-            ] + path_filters
+            if not parent_hashes:
+                numstat_cmd = ["git", "diff-tree", "-r", "--numstat", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
+                name_status_cmd = ["git", "diff-tree", "-r", "--name-status", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", commit_hash] + path_filters
+            else:
+                numstat_cmd = ["git", "diff-tree", "-r", "--numstat", commit_hash] + path_filters
+                name_status_cmd = (
+                    ["git", "diff-tree", "-r", "--name-status", commit_hash]
+                    + path_filters
+                )
+
+            numstat_output = self._run_git_command(numstat_cmd)
             name_status_output = self._run_git_command(name_status_cmd)
 
-            # Combine outputs for this commit
             combined_output_lines.append(
                 metadata_output.strip()
-            )  # metadata_output already has @@@COMMIT@@@ and ends with \n
+            )
 
             numstat_changes = self._parse_numstat_output(numstat_output)
             name_status_changes = self._parse_name_status_output(name_status_output)
 
-            # Combine and format file changes
             all_file_paths = set(numstat_changes.keys()).union(
                 name_status_changes.keys()
             )

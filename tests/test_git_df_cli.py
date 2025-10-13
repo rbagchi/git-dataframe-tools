@@ -82,3 +82,38 @@ def test_git_df_cli_no_commits_found(git_repo, tmp_path):
     df = pq.read_table(output_file).to_pandas()
     assert df.empty
     assert "No commits found" in result.stderr
+
+
+@pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
+def test_git_df_cli_no_warnings_with_path_filter(git_repo, tmp_path, caplog):
+    """Test the git-df CLI with a path filter and ensure no warnings are logged."""
+    output_file = tmp_path / "filtered_commits.parquet"
+    os.chdir(git_repo)
+
+    # Set the logging level to WARNING to capture warnings
+    import logging
+    caplog.set_level(logging.WARNING)
+
+    command = [
+        "git-df",
+        "--output",
+        str(output_file),
+        "--repo-path",
+        ".",
+        "--path",
+        "file1.txt",
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=True)
+    assert result.returncode == 0
+    assert output_file.exists()
+
+    # Assert that no WARNING messages were logged by the relevant loggers
+    for record in caplog.records:
+        if record.levelno == logging.WARNING:
+            assert not (
+                record.name.startswith("git2df.git_parser._chunk_processor")
+                or record.name.startswith("git2df.backends")
+            ), f"Unexpected warning: {record.name} - {record.message}"
+
+    df = pq.read_table(output_file).to_pandas()
+    _assert_cli_output_dataframe(df, 2) # file1.txt has 2 commits in sample_commits

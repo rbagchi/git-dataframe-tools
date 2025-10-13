@@ -31,40 +31,10 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
 
     for line in file_changes_raw.split("\n"):
         if line.strip():
-            parts = line.strip().split("\t")
-            if len(parts) == 4:
-                try:
-                    additions = 0 if parts[0] == "-" else int(parts[0])
-                    deletions = 0 if parts[1] == "-" else int(parts[1])
-                    change_type = parts[2]
-                    file_path = parts[3]
-                    combined_file_changes.append(
-                        FileChange(
-                            file_path=file_path,
-                            additions=additions,
-                            deletions=deletions,
-                            change_type=change_type,
-                        )
-                    )
-                except ValueError:
-                    logger.warning(f"Could not parse 4-part file change line: '{line}'")
-            elif len(parts) == 3:
-                try:
-                    additions = 0 if parts[0] == "-" else int(parts[0])
-                    deletions = 0 if parts[1] == "-" else int(parts[1])
-                    file_path = parts[2]
-                    combined_file_changes.append(
-                        FileChange(
-                            file_path=file_path,
-                            additions=additions,
-                            deletions=deletions,
-                            change_type="",  # No change type provided in 3-part format
-                        )
-                    )
-                except ValueError:
-                    logger.warning(f"Could not parse 3-part file change line: '{line}'")
-            else:
-                logger.warning(f"Unexpected file change line format: '{line}'")
+            file_change = _parse_single_file_change_line(line)
+            if file_change:
+                combined_file_changes.append(file_change)
+
     return GitLogEntry(
         commit_hash=commit_metadata_dict["commit_hash"],
         parent_hash=commit_metadata_dict["parent_hash"],
@@ -75,3 +45,37 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
         commit_message=commit_metadata_dict["commit_message"],
         file_changes=combined_file_changes,
     )
+
+def _parse_single_file_change_line(line: str) -> Optional[FileChange]:
+    """Parses a single line representing a file change and returns a FileChange object."""
+    parts = line.strip().split("\t")
+    if len(parts) == 4:
+        try:
+            additions = 0 if parts[0] == "-" else int(parts[0])
+            deletions = 0 if parts[1] == "-" else int(parts[1])
+            change_type = parts[2]
+            file_path = parts[3]
+            return FileChange(
+                file_path=file_path,
+                additions=additions,
+                deletions=deletions,
+                change_type=change_type,
+            )
+        except ValueError:
+            logger.warning(f"Could not parse 4-part file change line: '{line}'")
+    elif len(parts) == 3:
+        try:
+            additions = 0 if parts[0] == "-" else int(parts[0])
+            deletions = 0 if parts[1] == "-" else int(parts[1])
+            file_path = parts[2]
+            return FileChange(
+                file_path=file_path,
+                additions=additions,
+                deletions=deletions,
+                change_type="",  # No change type provided in 3-part format
+            )
+        except ValueError:
+            logger.warning(f"Could not parse 3-part file change line: '{line}'")
+    else:
+        logger.warning(f"Unexpected file change line format: '{line}'")
+    return None

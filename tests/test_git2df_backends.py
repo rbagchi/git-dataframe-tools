@@ -134,8 +134,7 @@ def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_bra
     output = backend.get_raw_log_output()
     expected_output = (
         "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n"
-        "10\t5\tM\tfile1.txt"
+        "\n10\t5\tM\tfile1.txt"
     )
     assert output == expected_output
     _assert_subprocess_calls(mock_subprocess_run, repo_path, [], [])
@@ -166,8 +165,7 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     # Assert
     expected_output = (
         "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n"
-        "10\t5\tM\tfile1.txt"
+        "\n10\t5\tM\tfile1.txt"
     )
     assert output == expected_output
     expected_rev_list_args = [
@@ -195,8 +193,7 @@ def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_br
     # Assert
     expected_output = (
         "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Merge commit---MSG_END---"
-        "\n"
-        "10\t5\tM\tfile1.txt"
+        "\n10\t5\tM\tfile1.txt"
     )
     assert output == expected_output
     expected_rev_list_args = ["--merges", f"origin/{mock_get_default_branch.return_value}"]
@@ -223,8 +220,7 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     # Assert
     expected_output = (
         "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n"
-        "10\t5\tM\tsrc/file1.txt"
+        "\n10\t5\tM\tsrc/file1.txt"
     )
     assert output == expected_output
     expected_rev_list_args = []
@@ -274,11 +270,9 @@ def test_get_raw_log_output_with_exclude_paths(
     # Assert
     expected_output = (
         "@@@COMMIT@@@commit1hash@@@FIELD@@@parenthash1@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n"
-        "10\t0\tM\tsrc/main.py\n"
+        "\n10\t0\tM\tsrc/main.py\n"
         "@@@COMMIT@@@commit2hash@@@FIELD@@@parenthash2@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---"
-        "\n"
-        "20\t0\tM\ttests/test_main.py"
+        "\n20\t0\tM\ttests/test_main.py"
     )
     assert output == expected_output
     assert mock_subprocess_run.call_count == 7

@@ -48,17 +48,17 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
 
 def _is_ignorable_line(line: str) -> bool:
     """Checks if a line from git diff output should be ignored."""
-    return (
-        not line
-        or line.startswith("diff --git")
-        or line.startswith("old mode")
-        or line.startswith("new mode")
-        or line.startswith("index")
-        or line.startswith("--- a/")
-        or line.startswith("+++ b/")
-        or line.startswith("@@ - ")
-        or (len(line) == 40 and all(c in "0123456789abcdefABCDEF" for c in line))
-    )
+    if not line:
+        return True
+
+    prefixes = ("diff --git", "old mode", "new mode", "index", "--- a/", "+++ b/", "@@ - ")
+    if line.startswith(prefixes):
+        return True
+
+    if len(line) == 40 and all(c in "0123456789abcdefABCDEF" for c in line):
+        return True
+
+    return False
 
 def _parse_4_part_line(parts: List[str]) -> Optional[FileChange]:
     try:

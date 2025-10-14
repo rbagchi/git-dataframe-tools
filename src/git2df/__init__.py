@@ -1,10 +1,10 @@
 import logging
 import pandas as pd
-from typing import Optional, List, Union
+from typing import Optional, List
 
+from git2df.backend_interface import GitBackend
 from git2df.backends import GitCliBackend
 from git2df.dulwich.backend import DulwichRemoteBackend
-from .git_parser import parse_git_log
 from git2df.dataframe_builder import build_commits_df
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
@@ -16,7 +16,7 @@ def _get_git_backend(
     remote_url: Optional[str],
     remote_branch: str,
     repo_info_provider: Optional[GitRepoInfoProvider] = None,
-) -> Union[GitCliBackend, DulwichRemoteBackend]:
+) -> GitBackend:
     """Factory function to get the appropriate Git backend."""
     if remote_url:
         return DulwichRemoteBackend(remote_url, remote_branch)
@@ -63,7 +63,7 @@ def get_commits_df(
 
     backend = _get_git_backend(repo_path, remote_url, remote_branch, repo_info_provider)
 
-    raw_log_output = backend.get_raw_log_output(
+    parsed_entries = backend.get_log_entries(
         log_args=log_args,
         since=since,
         until=until,
@@ -73,8 +73,6 @@ def get_commits_df(
         include_paths=include_paths,
         exclude_paths=exclude_paths,
     )
-
-    parsed_entries = parse_git_log(raw_log_output)
     logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
 
     df = build_commits_df(parsed_entries)

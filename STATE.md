@@ -63,6 +63,7 @@
 - **Accurate `change_type` determination:** The `change_type` logic has been improved to accurately reflect all Git change types (e.g., "R" for rename, "C" for copy) by correctly parsing `git show --name-status` output.
 - **Refactored `GitCliBackend` and Fixed Static Analysis Errors:** Refactored `GitCliBackend` to implement the `GitBackend` interface, as part of the backend standardization plan. Implemented `get_log_entries` to return structured data, added `_get_default_branch` to fetch the default branch name, refactored `_build_git_log_arguments` to reduce cyclomatic complexity, and removed a duplicated `get_raw_log_output` method. Also addressed several static analysis issues, including `ruff` errors, `radon` cyclomatic complexity, and fixed broken unit tests.
 - **Refactored `DulwichRemoteBackend` to Implement `GitBackend`**: Refactored `DulwichRemoteBackend` to implement the `GitBackend` interface. This included adding the `get_log_entries` method, inheriting from `GitBackend`, and deprecating the `get_raw_log_output` method.
+- **Updated `get_commits_df` to Use `get_log_entries`**: Refactored `get_commits_df` in `src/git2df/__init__.py` to call `backend.get_log_entries()` directly, removing the separate parsing step and simplifying the data flow. Updated and fixed related unit tests.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.
@@ -79,7 +80,7 @@
 - `tests/test_git_df_cli.py::test_git_df_cli_no_warnings_with_path_filter[git_repo0]` is failing (`AssertionError: assert not True`).
 
 **Next Steps:**
-- **Update `get_commits_df` in `src/git2df/__init__.py`**: Simplify `get_commits_df` to always call `backend.get_log_entries()` directly, removing conditional logic and external parsing. This is a low-complexity change that will streamline the data retrieval process.
+- **Implement New Backend (e.g., `Pygit2Backend` or `GitPython2Backend`)**: This is the next step in the backend standardization plan. It involves creating a new backend class that implements the `GitBackend` interface using a new library. This is a high-complexity change that will provide a more performant and native Git database access option.
 
 **5 Possible Avenues to Unblock:**
 1.  **Analyze `git show` output directly:** Manually run `git show --numstat <commit_hash>` for each commit in the `temp_git_repo_with_remote` fixture and compare the output with what `_parse_single_file_change_line` is receiving and processing. This will confirm if the `git` command itself is producing unexpected output or if the parsing logic is flawed.

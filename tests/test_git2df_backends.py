@@ -227,6 +227,67 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, include_paths)
 
 
+def _assert_log_entry_commit_metadata(entry: Any, expected_values: dict[str, Any]) -> None:
+    """Asserts that a GitLogEntry object's commit metadata matches the expected values."""
+    assert entry.commit_hash == expected_values["commit_hash"]
+    assert entry.parent_hash == expected_values["parent_hash"]
+    assert entry.author_name == expected_values["author_name"]
+    assert entry.author_email == expected_values["author_email"]
+    assert entry.commit_date.isoformat() == expected_values["commit_date"]
+    assert entry.commit_timestamp == expected_values["commit_timestamp"]
+    assert entry.commit_message == expected_values["commit_message"]
+
+def _assert_log_entry_file_changes(entry: Any, expected_values: dict[str, Any]) -> None:
+    """Asserts that a GitLogEntry object's file changes match the expected values."""
+    assert len(entry.file_changes) == 1
+    file_change = entry.file_changes[0]
+    assert file_change.file_path == expected_values["file_path"]
+    assert file_change.additions == expected_values["additions"]
+    assert file_change.deletions == expected_values["deletions"]
+    assert file_change.change_type == expected_values["change_type"]
+
+def _assert_log_entry(entry: Any, expected_values: dict[str, Any]) -> None:
+    """Asserts that a GitLogEntry object matches the expected values."""
+    _assert_log_entry_commit_metadata(entry, expected_values)
+    _assert_log_entry_file_changes(entry, expected_values)
+
+
+@patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
+@patch("subprocess.run")
+def test_get_log_entries_no_filters(mock_subprocess_run, mock_get_default_branch):
+    # Arrange
+    rev_list_stdout = "commit1hash\n"
+    metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
+    numstat_stdout = "10\t5\tfile1.txt\n"
+    name_status_stdout = "M\tfile1.txt\n"
+    mock_subprocess_run.side_effect = _setup_mock_subprocess_run_side_effect(rev_list_stdout, metadata_stdout, numstat_stdout, name_status_stdout)
+
+    repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
+
+    # Act
+    log_entries = backend.get_log_entries()
+
+    # Assert
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hash": "parent1hash",
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
+
+    _assert_subprocess_calls(mock_subprocess_run, repo_path, [], [])
+
+
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
 def test_get_raw_log_output_with_exclude_paths(

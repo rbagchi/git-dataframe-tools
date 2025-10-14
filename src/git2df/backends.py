@@ -1,9 +1,10 @@
 import subprocess
-import git
 import logging
 from typing import List, Optional
 
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
+from git2df.backend_interface import GitBackend
+from git2df.git_parser import parse_git_log, GitLogEntry
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def _parse_name_status_line(line: str, name_status_changes: dict[str, dict[str, 
     else:
         logger.warning(f"Unexpected name-status line format: '{line}'")
 
-class GitCliBackend:
+class GitCliBackend(GitBackend):
     """A backend for git2df that interacts with the Git CLI."""
 
     def __init__(
@@ -46,25 +47,104 @@ class GitCliBackend:
         logger.info(f"Using GitPython backend for git operations on {self.repo_path}.")
 
     def _get_default_branch(self) -> str:
-        """Determines the default branch (main or master) for a given repository."""
-        logger.debug(f"Checking for default branch in {self.repo_path}")
+        """
+        Returns the default branch of the remote 'origin'.
+        """
+        cmd = ["git", "symbolic-ref", "refs/remotes/origin/HEAD"]
         try:
-            repo = git.Repo(self.repo_path)
-            if "main" in repo.heads:
-                logger.info("Found 'main' as default branch.")
-                return "main"
-            elif "master" in repo.heads:
-                logger.info("Found 'master' as default branch.")
-                return "master"
-            else:
-                logger.warning(
-                    "Neither 'main' nor 'master' found as default branch. Defaulting to 'main'."
-                )
-                return "main"
-        except git.InvalidGitRepositoryError:
-            logger.error(f"{self.repo_path} is not a valid git repository.")
-            return "main"  # fallback for now
-        return "main"
+            result = self._run_git_command(cmd)
+            # The output is like 'refs/remotes/origin/main', we want 'main'
+            return result.strip().split("/")[-1]
+        except subprocess.CalledProcessError as e:
+            logger.warning(
+                "Could not determine default branch from remote 'origin'. "
+                "Falling back to 'master'. Error: %s", e.stderr
+            )
+            return "master"
+
+    def get_log_entries(
+        self,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False,
+        include_paths: Optional[List[str]] = None,
+        exclude_paths: Optional[List[str]] = None,
+    ) -> List[GitLogEntry]:
+        """
+        Retrieves a list of GitLogEntry objects by calling get_raw_log_output
+        and then parsing the result.
+        """
+        raw_output = self.get_raw_log_output(
+            log_args=log_args,
+            since=since,
+            until=until,
+            author=author,
+            grep=grep,
+            merged_only=merged_only,
+            include_paths=include_paths,
+            exclude_paths=exclude_paths,
+        )
+        return parse_git_log(raw_output)
+
+    def get_raw_log_output(
+        self,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False,
+        include_paths: Optional[List[str]] = None,
+        exclude_paths: Optional[List[str]] = None,
+    ) -> str:
+        """
+        [DEPRECATED] Fetches git log information from a local repository using the Git CLI
+        and returns it in a raw string format compatible with git2df's parser.
+        Use get_log_entries instead.
+        """
+        base_args_no_pretty_no_paths = self._build_git_log_arguments(
+            log_args,
+            since,
+            until,
+            author,
+            grep,
+            merged_only,
+            None,  # include_paths handled separately
+            None,  # exclude_paths handled separately
+        )
+
+        path_filters = []
+        if include_paths:
+            path_filters.append("--")
+            path_filters.extend(include_paths)
+        if exclude_paths:
+            if not path_filters:
+                path_filters.append("--")
+            for p in exclude_paths:
+                path_filters.append(f":(exclude){p}")
+
+        rev_list_cmd = (
+            ["git", "rev-list", "--all"]
+            + base_args_no_pretty_no_paths[2:]
+            + path_filters
+        )
+        commit_hashes_output = self._run_git_command(rev_list_cmd)
+        commit_hashes = [
+            h.strip() for h in commit_hashes_output.strip().splitlines() if h.strip()
+        ]
+
+        if not commit_hashes:
+            return ""
+
+        combined_output_lines = []
+
+        for commit_hash in commit_hashes:
+            combined_output_lines.extend(self._process_commit(commit_hash, path_filters))
+
+        return "\n".join(combined_output_lines)
 
     def _build_git_log_arguments(
         self,
@@ -78,14 +158,17 @@ class GitCliBackend:
         exclude_paths: Optional[List[str]] = None,
     ) -> List[str]:
         cmd = ["git", "log"]
-        if since:
-            cmd.extend(["--since", since])
-        if until:
-            cmd.extend(["--until", until])
-        if author:
-            cmd.extend(["--author", author])
-        if grep:
-            cmd.extend(["--grep", grep])
+
+        arg_map = {
+            "--since": since,
+            "--until": until,
+            "--author": author,
+            "--grep": grep,
+        }
+        for arg, value in arg_map.items():
+            if value:
+                cmd.extend([arg, value])
+
         if merged_only:
             default_branch = self._get_default_branch()
             cmd.append("--merges")
@@ -206,55 +289,3 @@ class GitCliBackend:
                 f"{additions}\t{deletions}\t{change_type}\t{file_path}"
             )
         return commit_lines
-
-    def get_raw_log_output(
-        self,
-        log_args: Optional[List[str]] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-        author: Optional[str] = None,
-        grep: Optional[str] = None,
-        merged_only: bool = False,
-        include_paths: Optional[List[str]] = None,
-        exclude_paths: Optional[List[str]] = None,
-    ) -> str:
-        base_args_no_pretty_no_paths = self._build_git_log_arguments(
-            log_args,
-            since,
-            until,
-            author,
-            grep,
-            merged_only,
-            None,  # include_paths handled separately
-            None,  # exclude_paths handled separately
-        )
-
-        path_filters = []
-        if include_paths:
-            path_filters.append("--")
-            path_filters.extend(include_paths)
-        if exclude_paths:
-            if not path_filters:
-                path_filters.append("--")
-            for p in exclude_paths:
-                path_filters.append(f":(exclude){p}")
-
-        rev_list_cmd = (
-            ["git", "rev-list", "--all"]
-            + base_args_no_pretty_no_paths[2:]
-            + path_filters
-        )
-        commit_hashes_output = self._run_git_command(rev_list_cmd)
-        commit_hashes = [
-            h.strip() for h in commit_hashes_output.strip().splitlines() if h.strip()
-        ]
-
-        if not commit_hashes:
-            return ""
-
-        combined_output_lines = []
-
-        for commit_hash in commit_hashes:
-            combined_output_lines.extend(self._process_commit(commit_hash, path_filters))
-
-        return "\n".join(combined_output_lines)

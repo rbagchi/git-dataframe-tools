@@ -1,6 +1,4 @@
 import subprocess
-import pytest
-from tests.conftest import git_repo
 
 
 def test_initial_commit_diff_tree(git_repo):
@@ -21,7 +19,6 @@ def test_diff_tree_output_format(git_repo):
         f.write("new content")
     subprocess.check_call(["git", "add", "new_file.txt"], cwd=git_repo)
     subprocess.check_call(["git", "commit", "-m", "new commit"], cwd=git_repo)
-    commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=git_repo).decode().strip()
 
     numstat_output = subprocess.check_output(["git", "diff-tree", "-r", "--numstat", "HEAD"], cwd=git_repo).decode().strip()
     assert "1\t0\tnew_file.txt" in numstat_output

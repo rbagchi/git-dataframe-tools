@@ -61,6 +61,8 @@
 - **Decoupled `GitAnalysisConfig` from `GitPython`:** The `_set_current_git_user` and `_check_git_repo` methods in `config_models.py` no longer directly use `GitPython`, abstracting Git repository interactions and improving testability and flexibility.
 - **Integrated `loguru` for logging:** `loguru` has been integrated for advanced logging features and easier configuration.
 - **Accurate `change_type` determination:** The `change_type` logic has been improved to accurately reflect all Git change types (e.g., "R" for rename, "C" for copy) by correctly parsing `git show --name-status` output.
+- **Refactored `GitCliBackend` and Fixed Static Analysis Errors:** Refactored `GitCliBackend` to implement the `GitBackend` interface, as part of the backend standardization plan. Implemented `get_log_entries` to return structured data, added `_get_default_branch` to fetch the default branch name, refactored `_build_git_log_arguments` to reduce cyclomatic complexity, and removed a duplicated `get_raw_log_output` method. Also addressed several static analysis issues, including `ruff` errors, `radon` cyclomatic complexity, and fixed broken unit tests.
+- **Refactored `DulwichRemoteBackend` to Implement `GitBackend`**: Refactored `DulwichRemoteBackend` to implement the `GitBackend` interface. This included adding the `get_log_entries` method, inheriting from `GitBackend`, and deprecating the `get_raw_log_output` method.
 
 **Commands Used for Running and Testing Code:**
 - `uv run pytest`: To execute the test suite.
@@ -77,7 +79,7 @@
 - `tests/test_git_df_cli.py::test_git_df_cli_no_warnings_with_path_filter[git_repo0]` is failing (`AssertionError: assert not True`).
 
 **Next Steps:**
-- Focus on fixing `tests/test_git_df.py::test_git_extract_commits_basic` first.
+- **Update `get_commits_df` in `src/git2df/__init__.py`**: Simplify `get_commits_df` to always call `backend.get_log_entries()` directly, removing conditional logic and external parsing. This is a low-complexity change that will streamline the data retrieval process.
 
 **5 Possible Avenues to Unblock:**
 1.  **Analyze `git show` output directly:** Manually run `git show --numstat <commit_hash>` for each commit in the `temp_git_repo_with_remote` fixture and compare the output with what `_parse_single_file_change_line` is receiving and processing. This will confirm if the `git` command itself is producing unexpected output or if the parsing logic is flawed.

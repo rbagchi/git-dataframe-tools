@@ -4,6 +4,8 @@ from typing import List, Optional
 
 from dulwich.repo import Repo
 
+from ..backend_interface import GitBackend
+from ..git_parser import GitLogEntry, parse_git_log
 from .date_utils import get_date_filters
 from .diff_parser import DulwichDiffParser
 from .commit_filters import DulwichCommitFilters
@@ -14,7 +16,7 @@ from .repo_handler import DulwichRepoHandler
 logger = logging.getLogger(__name__)
 
 
-class DulwichRemoteBackend:
+class DulwichRemoteBackend(GitBackend):
     """A backend for git2df that interacts with remote Git repositories using Dulwich."""
 
     def __init__(self, remote_url: str, remote_branch: str = "main"):
@@ -48,21 +50,48 @@ class DulwichRemoteBackend:
             self.commit_walker,
         )
 
+    def get_log_entries(
+        self,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False,
+        include_paths: Optional[List[str]] = None,
+        exclude_paths: Optional[List[str]] = None,
+    ) -> List[GitLogEntry]:
+        """
+        Retrieves a list of GitLogEntry objects by calling get_raw_log_output
+        and then parsing the result.
+        """
+        raw_output = self.get_raw_log_output(
+            log_args=log_args,
+            since=since,
+            until=until,
+            author=author,
+            grep=grep,
+            merged_only=merged_only,
+            include_paths=include_paths,
+            exclude_paths=exclude_paths,
+        )
+        return parse_git_log(raw_output)
+
     def get_raw_log_output(
         self,
-        repo_path: Optional[str] = None,  # Added for compatibility
         log_args: Optional[List[str]] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
         grep: Optional[str] = None,
         merged_only: bool = False,  # Not directly supported by dulwich fetch by date
-        include_paths: Optional[List[str]] = None,  # Will be filtered post-fetch
+        include_paths: Optional[List[str]] = None, # Will be filtered post-fetch
         exclude_paths: Optional[List[str]] = None,  # Will be filtered post-fetch
     ) -> str:
         """
-        Fetches git log information from a remote repository using Dulwich and returns it
+        [DEPRECATED] Fetches git log information from a remote repository using Dulwich and returns it
         in a raw string format compatible with git2df's parser.
+        Use get_log_entries instead.
         """
         since_dt, until_dt = get_date_filters(since, until)
 

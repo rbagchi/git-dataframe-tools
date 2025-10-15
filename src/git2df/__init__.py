@@ -5,6 +5,7 @@ from typing import Optional, List
 from git2df.backend_interface import GitBackend
 from git2df.backends import GitCliBackend
 from git2df.dulwich.backend import DulwichRemoteBackend
+from git2df.pygit2_backend import Pygit2Backend # Import Pygit2Backend
 from git2df.dataframe_builder import build_commits_df
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
@@ -16,12 +17,16 @@ def _get_git_backend(
     remote_url: Optional[str],
     remote_branch: str,
     repo_info_provider: Optional[GitRepoInfoProvider] = None,
+    local_backend_type: str = "cli", # New parameter for local backend selection
 ) -> GitBackend:
     """Factory function to get the appropriate Git backend."""
     if remote_url:
         return DulwichRemoteBackend(remote_url, remote_branch)
     else:
-        return GitCliBackend(repo_path, repo_info_provider=repo_info_provider)
+        if local_backend_type == "pygit2":
+            return Pygit2Backend(repo_path)
+        else: # Default to cli
+            return GitCliBackend(repo_path, repo_info_provider=repo_info_provider)
 
 
 def get_commits_df(
@@ -37,6 +42,7 @@ def get_commits_df(
     include_paths: Optional[List[str]] = None,
     exclude_paths: Optional[List[str]] = None,
     repo_info_provider: Optional[GitRepoInfoProvider] = None,
+    local_backend_type: str = "cli", # New parameter for local backend selection
 ) -> pd.DataFrame:
     """
     Extracts git commit data from a repository and returns it as a Pandas DataFrame.
@@ -53,15 +59,16 @@ def get_commits_df(
         include_paths: Optional list of paths to include.
         exclude_paths: Optional list of paths to exclude.
         repo_info_provider: Optional GitRepoInfoProvider instance for repository info.
+        local_backend_type: Optional string to select the local backend type ('cli' or 'pygit2'). Defaults to 'cli'.
 
     Returns:
         A Pandas DataFrame containing commit information.
     """
     logger.debug(
-        f"get_commits_df called with: repo_path={repo_path}, remote_url={remote_url}, remote_branch={remote_branch}, since={since}, until={until}, author={author}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}, repo_info_provider={repo_info_provider}"
+        f"get_commits_df called with: repo_path={repo_path}, remote_url={remote_url}, remote_branch={remote_branch}, since={since}, until={until}, author={author}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}, repo_info_provider={repo_info_provider}, local_backend_type={local_backend_type}"
     )
 
-    backend = _get_git_backend(repo_path, remote_url, remote_branch, repo_info_provider)
+    backend = _get_git_backend(repo_path, remote_url, remote_branch, repo_info_provider, local_backend_type)
 
     parsed_entries = backend.get_log_entries(
         log_args=log_args,

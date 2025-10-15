@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 from unittest.mock import patch, MagicMock
 from git2df import get_commits_df
 from git2df.git_parser import GitLogEntry, FileChange
@@ -81,11 +82,13 @@ MOCKED_GIT_LOG_ENTRIES = [
 MOCKED_DF = pd.DataFrame(MOCKED_PARSED_DATA)
 
 
+@pytest.mark.parametrize("local_backend_type", ["cli", "pygit2"])
 @patch("git2df.build_commits_df")
 @patch("git2df._get_git_backend")
 def test_get_commits_df_with_all_filters_and_paths(
     mock_get_git_backend,
     mock_build_commits_df,
+    local_backend_type,
 ):
     # Setup mocks
     mock_backend_instance = MagicMock()
@@ -112,10 +115,11 @@ def test_get_commits_df_with_all_filters_and_paths(
         merged_only=merged_only_arg,
         include_paths=include_paths_arg,
         exclude_paths=exclude_paths_arg,
+        local_backend_type=local_backend_type,
     )
 
     # Assertions
-    mock_get_git_backend.assert_called_once_with(repo_path, None, "main", None)
+    mock_get_git_backend.assert_called_once_with(repo_path, None, "main", None, local_backend_type)
     mock_backend_instance.get_log_entries.assert_called_once_with(
         log_args=None,
         since=since_arg,

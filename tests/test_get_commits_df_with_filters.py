@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from git2df import get_commits_df
 from git2df.git_parser import GitLogEntry, FileChange
 from datetime import datetime, timezone
+import pytest # Added import
 
 # Mock data for commit-centric output
 MOCKED_RAW_LOG_OUTPUT = (
@@ -81,11 +82,13 @@ MOCKED_GIT_LOG_ENTRIES = [
 MOCKED_DF = pd.DataFrame(MOCKED_PARSED_DATA)
 
 
+@pytest.mark.parametrize("local_backend_type", ["cli", "pygit2"])
 @patch("git2df.build_commits_df")
 @patch("git2df._get_git_backend")
 def test_get_commits_df_with_filters(
     mock_get_git_backend,
     mock_build_commits_df,
+    local_backend_type,
 ):
     # Setup mocks
     mock_backend_instance = MagicMock()
@@ -98,10 +101,10 @@ def test_get_commits_df_with_filters(
     grep_arg = "feature"
 
     # Call the function under test
-    df = get_commits_df(repo_path, since=since_arg, grep=grep_arg)
+    df = get_commits_df(repo_path, since=since_arg, grep=grep_arg, local_backend_type=local_backend_type)
 
     # Assertions
-    mock_get_git_backend.assert_called_once_with(repo_path, None, "main", None)
+    mock_get_git_backend.assert_called_once_with(repo_path, None, "main", None, local_backend_type)
     mock_backend_instance.get_log_entries.assert_called_once_with(
         log_args=None,
         since=since_arg,

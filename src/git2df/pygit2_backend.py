@@ -16,6 +16,19 @@ class Pygit2Backend(GitBackend):
     def __init__(self, repo_path: str = "."):
         self.repo_path = repo_path
 
+    def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep):
+        commit_time = datetime.fromtimestamp(commit.author.time, tz=timezone.utc)
+
+        if since_dt and commit_time < since_dt:
+            return False, True  # False for match, True to break walk
+        if until_dt and commit_time > until_dt:
+            return False, False # False for match, False to continue walk
+        if author and author not in commit.author.name and author not in commit.author.email:
+            return False, False
+        if grep and grep not in commit.message:
+            return False, False
+        return True, False # True for match, False to continue walk
+
     def get_log_entries(
         self,
         log_args: Optional[List[str]] = None,
@@ -39,62 +52,132 @@ class Pygit2Backend(GitBackend):
 
         log_entries = []
         for commit in repo.walk(last, pygit2.GIT_SORT_TIME):
+            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, author, grep)
+            if should_break:
+                break
+            if not matches:
+                continue
+
+    def _get_file_path_from_patch(self, patch):
+        file_path = None
+        if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
+            file_path = patch.delta.new_file.path
+        elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
+            file_path = patch.delta.old_file.path
+        else:
+            file_path = patch.delta.new_file.path
+
+        if isinstance(file_path, bytes):
+            file_path = file_path.decode('utf-8')
+        return file_path
+
+    def _process_commit_file_changes(self, repo, commit, include_paths, exclude_paths) -> List[FileChange]:
+        file_changes = []
+        if commit.parents:
+            diff = repo.diff(commit.parents[0], commit)
+        else:
+            diff = commit.tree.diff_to_tree()
+
+        diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
+
+        for patch in diff:
+            file_path = self._get_file_path_from_patch(patch)
+
+    def _is_path_filtered(self, file_path, include_paths, exclude_paths):
+        if include_paths and not any(file_path.startswith(p) for p in include_paths):
+            return True
+        if exclude_paths and any(file_path.startswith(p) for p in exclude_paths):
+            return True
+        return False
+
+    def _process_commit_file_changes(self, repo, commit, include_paths, exclude_paths) -> List[FileChange]:
+        file_changes = []
+        if commit.parents:
+            diff = repo.diff(commit.parents[0], commit)
+        else:
+            diff = commit.tree.diff_to_tree()
+
+        diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
+
+        for patch in diff:
+            file_path = self._get_file_path_from_patch(patch)
+
+            if self._is_path_filtered(file_path, include_paths, exclude_paths):
+                continue
+
+    def _get_change_stats(self, patch, commit_parents):
+        additions = patch.line_stats[1]
+        deletions = patch.line_stats[2]
+        current_change_type = patch.delta.status_char()
+
+        if not commit_parents and current_change_type == 'D':
+            additions = patch.line_stats[2]
+            deletions = 0
+            final_change_type = 'A'
+        else:
+            final_change_type = current_change_type
+        return additions, deletions, final_change_type
+
+    def _process_commit_file_changes(self, repo, commit, include_paths, exclude_paths) -> List[FileChange]:
+        file_changes = []
+        if commit.parents:
+            diff = repo.diff(commit.parents[0], commit)
+        else:
+            diff = commit.tree.diff_to_tree()
+
+        diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
+
+        for patch in diff:
+            file_path = self._get_file_path_from_patch(patch)
+
+            if self._is_path_filtered(file_path, include_paths, exclude_paths):
+                continue
+
+            additions, deletions, final_change_type = self._get_change_stats(patch, commit.parents)
+
+            file_changes.append(
+                FileChange(
+                    file_path=file_path,
+                    additions=additions,
+                    deletions=deletions,
+                    change_type=final_change_type,
+                )
+            )
+        return file_changes
+
+    def get_log_entries(
+        self,
+        log_args: Optional[List[str]] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        author: Optional[str] = None,
+        grep: Optional[str] = None,
+        merged_only: bool = False,
+        include_paths: Optional[List[str]] = None,
+        exclude_paths: Optional[List[str]] = None,
+    ) -> List[GitLogEntry]:
+        logger.debug(f"Pygit2Backend.get_log_entries called with repo_path={self.repo_path}")
+        try:
+            repo = pygit2.Repository(self.repo_path)
+        except KeyError:
+            logger.warning(f"No git repository found at {self.repo_path}")
+            return []
+        last = repo.head.target
+
+        since_dt, until_dt = get_date_filters(since, until)
+
+        log_entries = []
+        for commit in repo.walk(last, pygit2.GIT_SORT_TIME):
+            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, author, grep)
+            if should_break:
+                break
+            if not matches:
+                continue
+
             commit_time = datetime.fromtimestamp(commit.author.time, tz=timezone.utc)
 
-            if since_dt and commit_time < since_dt:
-                break
-            if until_dt and commit_time > until_dt:
-                continue
-            if author and author not in commit.author.name and author not in commit.author.email:
-                continue
-            if grep and grep not in commit.message:
-                continue
+            file_changes = self._process_commit_file_changes(repo, commit, include_paths, exclude_paths)
 
-            if commit.parents:
-                diff = repo.diff(commit.parents[0], commit)
-            else:
-                diff = commit.tree.diff_to_tree()
-
-            # Find similar files (renames and copies)
-            diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
-
-            file_changes = []
-            for patch in diff:
-                if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
-                    file_path = patch.delta.new_file.path
-                elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
-                    file_path = patch.delta.old_file.path
-                else:
-                    file_path = patch.delta.new_file.path
-                if isinstance(file_path, bytes):
-                    file_path = file_path.decode('utf-8')
-
-                if include_paths and not any(file_path.startswith(p) for p in include_paths):
-                    continue
-                if exclude_paths and any(file_path.startswith(p) for p in exclude_paths):
-                    continue
-
-                additions = patch.line_stats[1]
-                deletions = patch.line_stats[2]
-
-                current_change_type = patch.delta.status_char()
-                if not commit.parents and current_change_type == 'D':
-                    # This is an initial commit, and pygit2 reports additions as deletions
-                    additions = patch.line_stats[2]  # Interpret deletions as additions
-                    deletions = 0
-                    final_change_type = 'A'
-                else:
-                    final_change_type = current_change_type
-
-                file_changes.append(
-                    FileChange(
-                        file_path=file_path,
-                        additions=additions,
-                        deletions=deletions,
-                        change_type=final_change_type,
-                    )
-                )
-            
             if not file_changes and (include_paths or exclude_paths):
                 continue
 

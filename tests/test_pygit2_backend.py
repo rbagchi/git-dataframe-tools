@@ -1,3 +1,4 @@
+import pytest
 import subprocess
 import os
 
@@ -247,22 +248,32 @@ def test_get_log_entries_path_filtering(git_repo):
     assert len(log_entries) == 0
 
 
-def test_get_log_entries_file_stats_extraction(git_repo):
+def _setup_file_stats_repo(tmp_path):
+    repo_path = tmp_path / "test_repo_file_stats"
+    repo_path.mkdir()
+    subprocess.run(["git", "init"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
+    )
+
     # Create a file and commit it
-    file_path = f"{git_repo}/test_file.txt"
+    file_path = repo_path / "test_file.txt"
     with open(file_path, "w") as f:
         f.write("line1\nline2\n")
-    subprocess.run(["git", "add", "test_file.txt"], cwd=git_repo, check=True)
+    subprocess.run(["git", "add", "test_file.txt"], cwd=repo_path, check=True)
     subprocess.run(
         ["git", "commit", "-m", "Add test_file.txt", "--date", "2023-01-01T10:00:00Z"],
-        cwd=git_repo,
+        cwd=repo_path,
         check=True,
     )
 
     # Modify the file
     with open(file_path, "w") as f:
         f.write("line1\nline2_modified\nline3_added\n")
-    subprocess.run(["git", "add", "test_file.txt"], cwd=git_repo, check=True)
+    subprocess.run(["git", "add", "test_file.txt"], cwd=repo_path, check=True)
     subprocess.run(
         [
             "git",
@@ -272,13 +283,13 @@ def test_get_log_entries_file_stats_extraction(git_repo):
             "--date",
             "2023-01-02T10:00:00Z",
         ],
-        cwd=git_repo,
+        cwd=repo_path,
         check=True,
     )
 
     # Delete the file
     os.remove(file_path)
-    subprocess.run(["git", "rm", "test_file.txt"], cwd=git_repo, check=True)
+    subprocess.run(["git", "rm", "test_file.txt"], cwd=repo_path, check=True)
     subprocess.run(
         [
             "git",
@@ -288,41 +299,31 @@ def test_get_log_entries_file_stats_extraction(git_repo):
             "--date",
             "2023-01-03T10:00:00Z",
         ],
-        cwd=git_repo,
+        cwd=repo_path,
         check=True,
     )
+    return Pygit2Backend(repo_path=repo_path)
 
-    backend = Pygit2Backend(repo_path=git_repo)
-
-    # Test Add
-    log_entries = backend.get_log_entries(grep="Add test_file.txt")
+@pytest.mark.parametrize(
+    "grep_message, expected_additions, expected_deletions, expected_change_type",
+    [
+        ("Add test_file.txt", 2, 0, "A"),
+        ("Modify test_file.txt", 2, 1, "M"),
+        ("Delete test_file.txt", 0, 3, "D"),
+    ],
+)
+def test_get_log_entries_file_stats_extraction(tmp_path, grep_message, expected_additions, expected_deletions, expected_change_type):
+    backend = _setup_file_stats_repo(tmp_path)
+    log_entries = backend.get_log_entries(grep=grep_message)
     assert len(log_entries) == 1
     file_change = log_entries[0].file_changes[0]
     assert file_change.file_path == "test_file.txt"
-    assert file_change.additions == 2
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
-
-    # Test Modify
-    log_entries = backend.get_log_entries(grep="Modify test_file.txt")
-    assert len(log_entries) == 1
-    file_change = log_entries[0].file_changes[0]
-    assert file_change.file_path == "test_file.txt"
-    assert file_change.additions == 2
-    assert file_change.deletions == 1
-    assert file_change.change_type == "M"
-
-    # Test Delete
-    log_entries = backend.get_log_entries(grep="Delete test_file.txt")
-    assert len(log_entries) == 1
-    file_change = log_entries[0].file_changes[0]
-    assert file_change.file_path == "test_file.txt"
-    assert file_change.additions == 0
-    assert file_change.deletions == 3
-    assert file_change.change_type == "D"
+    assert file_change.additions == expected_additions
+    assert file_change.deletions == expected_deletions
+    assert file_change.change_type == expected_change_type
 
 
-def test_get_log_entries_file_path_for_renames_and_copies(tmp_path):
+def _setup_rename_copy_repo(tmp_path):
     repo_path = tmp_path / "test_repo_rename_copy"
     repo_path.mkdir()
     subprocess.run(["git", "init"], cwd=repo_path, check=True)
@@ -350,14 +351,6 @@ def test_get_log_entries_file_path_for_renames_and_copies(tmp_path):
         check=True,
     )
 
-    log_entries = backend.get_log_entries(grep="Rename file_a.txt to file_b.txt")
-    assert len(log_entries) == 1
-    file_change = log_entries[0].file_changes[0]
-    assert file_change.file_path == "file_b.txt"
-    assert file_change.change_type == "R"  # R for rename
-    assert file_change.additions == 0
-    assert file_change.deletions == 0
-
     # Test Copy
     file_c_path = repo_path / "file_c.txt"
     file_d_path = repo_path / "file_d.txt"
@@ -375,14 +368,24 @@ def test_get_log_entries_file_path_for_renames_and_copies(tmp_path):
         cwd=repo_path,
         check=True,
     )
+    return backend
 
-    log_entries = backend.get_log_entries(grep="Copy file_c.txt to file_d.txt")
+@pytest.mark.parametrize(
+    "grep_message, expected_file_path, expected_change_type, expected_additions, expected_deletions",
+    [
+        ("Rename file_a.txt to file_b.txt", "file_b.txt", "R", 0, 0),
+        ("Copy file_c.txt to file_d.txt", "file_d.txt", "A", 1, 0),
+    ],
+)
+def test_get_log_entries_file_path_for_renames_and_copies(tmp_path, grep_message, expected_file_path, expected_change_type, expected_additions, expected_deletions):
+    backend = _setup_rename_copy_repo(tmp_path)
+    log_entries = backend.get_log_entries(grep=grep_message)
     assert len(log_entries) == 1
     file_change = log_entries[0].file_changes[0]
-    assert file_change.file_path == "file_d.txt"
-    assert file_change.change_type == "A"  # pygit2 reports copy as add
-    assert file_change.additions == 1
-    assert file_change.deletions == 0
+    assert file_change.file_path == expected_file_path
+    assert file_change.change_type == expected_change_type
+    assert file_change.additions == expected_additions
+    assert file_change.deletions == expected_deletions
 
 
 def test_get_log_entries_initial_commit_file_stats(tmp_path):
@@ -416,7 +419,7 @@ def test_get_log_entries_initial_commit_file_stats(tmp_path):
     assert file_change.change_type == "A"
 
 
-def test_get_log_entries_path_filtering_advanced(tmp_path):
+def _setup_advanced_path_filtering_repo(tmp_path):
     repo_path = tmp_path / "test_repo_path_filter_advanced"
     repo_path.mkdir()
     subprocess.run(["git", "init"], cwd=repo_path, check=True)
@@ -426,8 +429,6 @@ def test_get_log_entries_path_filtering_advanced(tmp_path):
     subprocess.run(
         ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
     )
-
-    backend = Pygit2Backend(repo_path=repo_path)
 
     # Setup: Create files and commits
     (repo_path / "root_file.txt").write_text("root content")
@@ -441,34 +442,24 @@ def test_get_log_entries_path_filtering_advanced(tmp_path):
     subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
     subprocess.run(["git", "commit", "-m", "Initial files"], cwd=repo_path, check=True)
 
-    # Test Case 1: Multiple include_paths
-    log_entries = backend.get_log_entries(include_paths=["src/module1/", "docs/"])
-    assert len(log_entries) == 1  # Only the initial commit
-    file_paths = [fc.file_path for fc in log_entries[0].file_changes]
-    assert "src/module1/file1.txt" in file_paths
-    assert "docs/doc1.md" in file_paths
-    assert "src/module2/file2.txt" not in file_paths
-    assert "root_file.txt" not in file_paths
+    return Pygit2Backend(repo_path=repo_path)
 
-    # Test Case 2: Multiple exclude_paths
-    log_entries = backend.get_log_entries(exclude_paths=["src/", "root_file.txt"])
+@pytest.mark.parametrize(
+    "include_paths, exclude_paths, expected_file_paths",
+    [
+        # Test Case 1: Multiple include_paths
+        (["src/module1/", "docs/"], None, ["src/module1/file1.txt", "docs/doc1.md"]),
+        # Test Case 2: Multiple exclude_paths
+        (None, ["src/", "root_file.txt"], ["docs/doc1.md"]),
+        # Test Case 3: Exact file path include_paths
+        (["src/module1/file1.txt"], None, ["src/module1/file1.txt"]),
+        # Test Case 4: Exact file path exclude_paths
+        (None, ["src/module2/file2.txt"], ["src/module1/file1.txt", "docs/doc1.md", "root_file.txt"]),
+    ],
+)
+def test_get_log_entries_path_filtering_advanced(tmp_path, include_paths, exclude_paths, expected_file_paths):
+    backend = _setup_advanced_path_filtering_repo(tmp_path)
+    log_entries = backend.get_log_entries(include_paths=include_paths, exclude_paths=exclude_paths)
     assert len(log_entries) == 1  # Only the initial commit
     file_paths = [fc.file_path for fc in log_entries[0].file_changes]
-    assert "docs/doc1.md" in file_paths
-    assert "src/module1/file1.txt" not in file_paths
-    assert "src/module2/file2.txt" not in file_paths
-    assert "root_file.txt" not in file_paths
-
-    # Test Case 3: Exact file path include_paths
-    log_entries = backend.get_log_entries(include_paths=["src/module1/file1.txt"])
-    assert len(log_entries) == 1  # Only the initial commit
-    file_paths = [fc.file_path for fc in log_entries[0].file_changes]
-    assert "src/module1/file1.txt" in file_paths
-    assert "src/module2/file2.txt" not in file_paths
-
-    # Test Case 4: Exact file path exclude_paths
-    log_entries = backend.get_log_entries(exclude_paths=["src/module2/file2.txt"])
-    assert len(log_entries) == 1  # Only the initial commit
-    file_paths = [fc.file_path for fc in log_entries[0].file_changes]
-    assert "src/module1/file1.txt" in file_paths
-    assert "src/module2/file2.txt" not in file_paths
+    assert sorted(file_paths) == sorted(expected_file_paths)

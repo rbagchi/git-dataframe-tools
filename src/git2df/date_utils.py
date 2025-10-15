@@ -1,29 +1,31 @@
 import parsedatetime as pdt
 from datetime import datetime, timezone
 
+def _parse_and_localize_date(date_str, default_datetime, cal):
+    if not date_str:
+        return None
+
+    dt, parse_result = cal.parseDT(date_str, default_datetime)
+
+    if dt and dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    # Adjust time based on accuracy if it was a date only
+    if dt and parse_result.accuracy == pdt.pdtContext.ACU_DATE:
+        if default_datetime.hour == 0 and default_datetime.minute == 0 and default_datetime.second == 0: # Start of day
+            dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        else: # End of day
+            dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return dt
+
 def get_date_filters(since, until):
     cal = pdt.Calendar(version=pdt.VERSION_CONTEXT_STYLE)
     now = datetime.now(timezone.utc)
 
-    now = datetime.now(timezone.utc)
     now_start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     now_end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    since_dt, since_parse_result = cal.parseDT(since, now_start_of_day) if since else (None, None)
-    until_dt, until_parse_result = cal.parseDT(until, now_end_of_day) if until else (None, None)
-
-    if since_dt and since_dt.tzinfo is None:
-        since_dt = since_dt.replace(tzinfo=timezone.utc)
-
-    if until_dt and until_dt.tzinfo is None:
-        until_dt = until_dt.replace(tzinfo=timezone.utc)
-
-    # If 'until' was a date only (no time specified), ensure it's set to the end of the day
-    if until_dt and until_parse_result.accuracy == pdt.pdtContext.ACU_DATE:
-        until_dt = until_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
-
-    # If 'since' was a date only (no time specified), ensure it's set to the beginning of the day
-    if since_dt and since_parse_result.accuracy == pdt.pdtContext.ACU_DATE:
-        since_dt = since_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    since_dt = _parse_and_localize_date(since, now_start_of_day, cal)
+    until_dt = _parse_and_localize_date(until, now_end_of_day, cal)
 
     return since_dt, until_dt

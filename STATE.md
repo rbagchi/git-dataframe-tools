@@ -64,6 +64,9 @@
 - **Refactored `GitCliBackend` and Fixed Static Analysis Errors:** Refactored `GitCliBackend` to implement the `GitBackend` interface, as part of the backend standardization plan. Implemented `get_log_entries` to return structured data, added `_get_default_branch` to fetch the default branch name, refactored `_build_git_log_arguments` to reduce cyclomatic complexity, and removed a duplicated `get_raw_log_output` method. Also addressed several static analysis issues, including `ruff` errors, `radon` cyclomatic complexity, and fixed broken unit tests.
 - **Refactored `DulwichRemoteBackend` to Implement `GitBackend`**: Refactored `DulwichRemoteBackend` to implement the `GitBackend` interface. This included adding the `get_log_entries` method, inheriting from `GitBackend`, and deprecating the `get_raw_log_output` method.
 - **Updated `get_commits_df` to Use `get_log_entries`**: Refactored `get_commits_df` in `src/git2df/__init__.py` to call `backend.get_log_entries()` directly, removing the separate parsing step and simplifying the data flow. Updated and fixed related unit tests.
+- **Cyclomatic Complexity Analysis (Radon) - All functions now 'B' grade or better**: Confirmed that all functions and classes meet the complexity target.
+- **`mypy` checks passed**: All type-checking issues resolved, ensuring type consistency across the codebase.
+- **Resolved `ruff` errors in `src/git2df/pygit2_backend.py`**: Fixed F841 (unused variables) and F811 (redefinition of `get_log_entries`) by removing duplicate and incomplete function definitions, and correctly placing helper methods within the `Pygit2Backend` class.
 - **Implemented File Change Extraction and Filtering for `Pygit2Backend` (Step 5.4):**
     - Verified `patch.delta.new_file.path` for various change types (add, modify, delete, rename, copy).
     - Verified path filtering (`include_paths`/`exclude_paths`) with various scenarios.

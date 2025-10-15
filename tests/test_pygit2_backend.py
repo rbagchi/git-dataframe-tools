@@ -1,6 +1,3 @@
-import pytest
-import pygit2
-from datetime import datetime, timezone
 import subprocess
 import os
 
@@ -13,10 +10,10 @@ def test_get_log_entries_metadata(git_repo):
 
     assert len(log_entries) > 0
 
-    entry = log_entries[-1] # The first commit
+    entry = log_entries[-1]  # The first commit
     assert entry.author_name == "Default User"
     assert entry.author_email == "default@example.com"
-    assert entry.commit_message == "Initial default commit"
+    assert entry.commit_message == "Initial commit"
 
 
 def test_get_log_entries_date_filtering(tmp_path):
@@ -31,8 +28,32 @@ def test_get_log_entries_date_filtering(tmp_path):
     )
 
     # Create one commit with a specific date
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Commit 1", "--date", "2023-01-01T10:00:00Z"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Commit 2", "--date", "2023-01-03T10:00:00Z"], cwd=repo_path, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Commit 1",
+            "--date",
+            "2023-01-01T10:00:00Z",
+        ],
+        cwd=repo_path,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Commit 2",
+            "--date",
+            "2023-01-03T10:00:00Z",
+        ],
+        cwd=repo_path,
+        check=True,
+    )
 
     backend = Pygit2Backend(repo_path=repo_path)
 
@@ -56,8 +77,34 @@ def test_get_log_entries_date_filtering(tmp_path):
 
 
 def test_get_log_entries_author_filtering(git_repo):
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Commit by Alice", "--author=\"Alice <alice@example.com>\"", "--date", "2023-01-01T10:00:00Z"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Commit by Bob", "--author=\"Bob <bob@example.com>\"", "--date", "2023-01-02T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Commit by Alice",
+            '--author="Alice <alice@example.com>"',
+            "--date",
+            "2023-01-01T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Commit by Bob",
+            '--author="Bob <bob@example.com>"',
+            "--date",
+            "2023-01-02T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     backend = Pygit2Backend(repo_path=git_repo)
 
@@ -71,8 +118,32 @@ def test_get_log_entries_author_filtering(git_repo):
 
 
 def test_get_log_entries_grep_filtering(git_repo):
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Fix: bug in login", "--date", "2023-01-01T10:00:00Z"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Feat: add new feature", "--date", "2023-01-02T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Fix: bug in login",
+            "--date",
+            "2023-01-01T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Feat: add new feature",
+            "--date",
+            "2023-01-02T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     backend = Pygit2Backend(repo_path=git_repo)
 
@@ -86,22 +157,73 @@ def test_get_log_entries_grep_filtering(git_repo):
 
 
 def test_get_log_entries_path_filtering(git_repo):
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Add file1", "--date", "2023-01-01T10:00:00Z"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Add file2", "--date", "2023-01-02T10:00:00Z"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "--allow-empty", "-m", "Add file3", "--date", "2023-01-03T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Add file1",
+            "--date",
+            "2023-01-01T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Add file2",
+            "--date",
+            "2023-01-02T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "Add file3",
+            "--date",
+            "2023-01-03T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     # Create files
     os.makedirs(f"{git_repo}/src", exist_ok=True)
     with open(f"{git_repo}/src/file1.txt", "w") as f:
         f.write("content1")
     subprocess.run(["git", "add", "src/file1.txt"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Add src/file1.txt", "--date", "2023-01-04T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add src/file1.txt", "--date", "2023-01-04T10:00:00Z"],
+        cwd=git_repo,
+        check=True,
+    )
 
     os.makedirs(f"{git_repo}/docs", exist_ok=True)
     with open(f"{git_repo}/docs/file2.txt", "w") as f:
         f.write("content2")
     subprocess.run(["git", "add", "docs/file2.txt"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Add docs/file2.txt", "--date", "2023-01-05T10:00:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "-m",
+            "Add docs/file2.txt",
+            "--date",
+            "2023-01-05T10:00:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     backend = Pygit2Backend(repo_path=git_repo)
 
@@ -112,14 +234,16 @@ def test_get_log_entries_path_filtering(git_repo):
 
     # Test exclude_paths
     log_entries = backend.get_log_entries(exclude_paths=["src/"])
-    print("Log entries for exclude_paths=\"src/\":")
+    print('Log entries for exclude_paths="src/":')
     for entry in log_entries:
         print(f"  - {entry.commit_message} ({entry.file_changes})")
     assert len(log_entries) == 2
     assert log_entries[0].commit_message == "Add docs/file2.txt"
 
     # Test include_paths and exclude_paths
-    log_entries = backend.get_log_entries(include_paths=["src/"], exclude_paths=["src/file1.txt"])
+    log_entries = backend.get_log_entries(
+        include_paths=["src/"], exclude_paths=["src/file1.txt"]
+    )
     assert len(log_entries) == 0
 
 
@@ -129,18 +253,44 @@ def test_get_log_entries_file_stats_extraction(git_repo):
     with open(file_path, "w") as f:
         f.write("line1\nline2\n")
     subprocess.run(["git", "add", "test_file.txt"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Add test_file.txt", "--date", "2023-01-01T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add test_file.txt", "--date", "2023-01-01T10:00:00Z"],
+        cwd=git_repo,
+        check=True,
+    )
 
     # Modify the file
     with open(file_path, "w") as f:
         f.write("line1\nline2_modified\nline3_added\n")
     subprocess.run(["git", "add", "test_file.txt"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Modify test_file.txt", "--date", "2023-01-02T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "-m",
+            "Modify test_file.txt",
+            "--date",
+            "2023-01-02T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     # Delete the file
     os.remove(file_path)
     subprocess.run(["git", "rm", "test_file.txt"], cwd=git_repo, check=True)
-    subprocess.run(["git", "commit", "-m", "Delete test_file.txt", "--date", "2023-01-03T10:00:00Z"], cwd=git_repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "commit",
+            "-m",
+            "Delete test_file.txt",
+            "--date",
+            "2023-01-03T10:00:00Z",
+        ],
+        cwd=git_repo,
+        check=True,
+    )
 
     backend = Pygit2Backend(repo_path=git_repo)
 
@@ -187,20 +337,24 @@ def test_get_log_entries_file_path_for_renames_and_copies(tmp_path):
 
     # Test Rename
     file_a_path = repo_path / "file_a.txt"
-    file_b_path = repo_path / "file_b.txt"
+
     with open(file_a_path, "w") as f:
         f.write("content")
     subprocess.run(["git", "add", "file_a.txt"], cwd=repo_path, check=True)
     subprocess.run(["git", "commit", "-m", "Add file_a.txt"], cwd=repo_path, check=True)
 
     subprocess.run(["git", "mv", "file_a.txt", "file_b.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Rename file_a.txt to file_b.txt"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Rename file_a.txt to file_b.txt"],
+        cwd=repo_path,
+        check=True,
+    )
 
     log_entries = backend.get_log_entries(grep="Rename file_a.txt to file_b.txt")
     assert len(log_entries) == 1
     file_change = log_entries[0].file_changes[0]
     assert file_change.file_path == "file_b.txt"
-    assert file_change.change_type == "R" # R for rename
+    assert file_change.change_type == "R"  # R for rename
     assert file_change.additions == 0
     assert file_change.deletions == 0
 
@@ -212,15 +366,21 @@ def test_get_log_entries_file_path_for_renames_and_copies(tmp_path):
     subprocess.run(["git", "add", "file_c.txt"], cwd=repo_path, check=True)
     subprocess.run(["git", "commit", "-m", "Add file_c.txt"], cwd=repo_path, check=True)
 
-    subprocess.run(["cp", str(file_c_path), str(file_d_path)], cwd=repo_path, check=True)
+    subprocess.run(
+        ["cp", str(file_c_path), str(file_d_path)], cwd=repo_path, check=True
+    )
     subprocess.run(["git", "add", "file_d.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Copy file_c.txt to file_d.txt"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Copy file_c.txt to file_d.txt"],
+        cwd=repo_path,
+        check=True,
+    )
 
     log_entries = backend.get_log_entries(grep="Copy file_c.txt to file_d.txt")
     assert len(log_entries) == 1
     file_change = log_entries[0].file_changes[0]
     assert file_change.file_path == "file_d.txt"
-    assert file_change.change_type == "A" # pygit2 reports copy as add
+    assert file_change.change_type == "A"  # pygit2 reports copy as add
     assert file_change.additions == 1
     assert file_change.deletions == 0
 
@@ -243,7 +403,9 @@ def test_get_log_entries_initial_commit_file_stats(tmp_path):
     with open(file_path, "w") as f:
         f.write("line1\nline2\nline3\n")
     subprocess.run(["git", "add", "initial_file.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit with file"], cwd=repo_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial commit with file"], cwd=repo_path, check=True
+    )
 
     log_entries = backend.get_log_entries(grep="Initial commit with file")
     assert len(log_entries) == 1
@@ -253,34 +415,6 @@ def test_get_log_entries_initial_commit_file_stats(tmp_path):
     assert file_change.deletions == 0
     assert file_change.change_type == "A"
 
-
-def test_get_log_entries_initial_commit_file_stats(tmp_path):
-    repo_path = tmp_path / "test_repo_initial_commit"
-    repo_path.mkdir()
-    subprocess.run(["git", "init"], cwd=repo_path, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"], cwd=repo_path, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"], cwd=repo_path, check=True
-    )
-
-    backend = Pygit2Backend(repo_path=repo_path)
-
-    # Create a file and make the initial commit
-    file_path = repo_path / "initial_file.txt"
-    with open(file_path, "w") as f:
-        f.write("line1\nline2\nline3\n")
-    subprocess.run(["git", "add", "initial_file.txt"], cwd=repo_path, check=True)
-    subprocess.run(["git", "commit", "-m", "Initial commit with file"], cwd=repo_path, check=True)
-
-    log_entries = backend.get_log_entries(grep="Initial commit with file")
-    assert len(log_entries) == 1
-    file_change = log_entries[0].file_changes[0]
-    assert file_change.file_path == "initial_file.txt"
-    assert file_change.additions == 3
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
 
 def test_get_log_entries_path_filtering_advanced(tmp_path):
     repo_path = tmp_path / "test_repo_path_filter_advanced"
@@ -309,7 +443,7 @@ def test_get_log_entries_path_filtering_advanced(tmp_path):
 
     # Test Case 1: Multiple include_paths
     log_entries = backend.get_log_entries(include_paths=["src/module1/", "docs/"])
-    assert len(log_entries) == 1 # Only the initial commit
+    assert len(log_entries) == 1  # Only the initial commit
     file_paths = [fc.file_path for fc in log_entries[0].file_changes]
     assert "src/module1/file1.txt" in file_paths
     assert "docs/doc1.md" in file_paths
@@ -318,7 +452,7 @@ def test_get_log_entries_path_filtering_advanced(tmp_path):
 
     # Test Case 2: Multiple exclude_paths
     log_entries = backend.get_log_entries(exclude_paths=["src/", "root_file.txt"])
-    assert len(log_entries) == 1 # Only the initial commit
+    assert len(log_entries) == 1  # Only the initial commit
     file_paths = [fc.file_path for fc in log_entries[0].file_changes]
     assert "docs/doc1.md" in file_paths
     assert "src/module1/file1.txt" not in file_paths
@@ -327,14 +461,14 @@ def test_get_log_entries_path_filtering_advanced(tmp_path):
 
     # Test Case 3: Exact file path include_paths
     log_entries = backend.get_log_entries(include_paths=["src/module1/file1.txt"])
-    assert len(log_entries) == 1 # Only the initial commit
+    assert len(log_entries) == 1  # Only the initial commit
     file_paths = [fc.file_path for fc in log_entries[0].file_changes]
     assert "src/module1/file1.txt" in file_paths
     assert "src/module2/file2.txt" not in file_paths
 
     # Test Case 4: Exact file path exclude_paths
     log_entries = backend.get_log_entries(exclude_paths=["src/module2/file2.txt"])
-    assert len(log_entries) == 1 # Only the initial commit
+    assert len(log_entries) == 1  # Only the initial commit
     file_paths = [fc.file_path for fc in log_entries[0].file_changes]
     assert "src/module1/file1.txt" in file_paths
     assert "src/module2/file2.txt" not in file_paths

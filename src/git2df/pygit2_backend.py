@@ -55,9 +55,17 @@ class Pygit2Backend(GitBackend):
             else:
                 diff = commit.tree.diff_to_tree()
 
+            # Find similar files (renames and copies)
+            diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
+
             file_changes = []
             for patch in diff:
-                file_path = patch.delta.new_file.path
+                if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
+                    file_path = patch.delta.new_file.path
+                elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
+                    file_path = patch.delta.old_file.path
+                else:
+                    file_path = patch.delta.new_file.path
                 if isinstance(file_path, bytes):
                     file_path = file_path.decode('utf-8')
 
@@ -69,18 +77,21 @@ class Pygit2Backend(GitBackend):
                 additions = patch.line_stats[1]
                 deletions = patch.line_stats[2]
 
-                # Special handling for initial commit diffs (no parents)
-                # pygit2's diff_to_tree() reports additions as deletions from an empty tree
-                if not commit.parents and patch.delta.status_char() == 'D':
+                current_change_type = patch.delta.status_char()
+                if not commit.parents and current_change_type == 'D':
+                    # This is an initial commit, and pygit2 reports additions as deletions
                     additions = patch.line_stats[2]  # Interpret deletions as additions
                     deletions = 0
+                    final_change_type = 'A'
+                else:
+                    final_change_type = current_change_type
 
                 file_changes.append(
                     FileChange(
                         file_path=file_path,
                         additions=additions,
                         deletions=deletions,
-                        change_type=patch.delta.status_char(),
+                        change_type=final_change_type,
                     )
                 )
             

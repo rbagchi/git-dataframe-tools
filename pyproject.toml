@@ -61,5 +61,5 @@ namespace_packages = true
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["parsedatetime", "pyarrow", "dulwich", "pyarrow.parquet", "git_dataframe_tools.*", "git2df.*"]
+module = ["parsedatetime", "pyarrow", "dulwich", "pyarrow.parquet", "git_dataframe_tools.*", "git2df.*", "pygit2"]
 ignore_missing_imports = true

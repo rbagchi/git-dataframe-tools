@@ -264,6 +264,54 @@ def test_get_log_entries_file_rename(pygit2_repo):
             {
                 "author_name": "Test User",
                 "author_email": "test@example.com",
+                "message": "Initial commit on main",
+                "files": {"file_main.txt": "main content"},
+                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Feature User",
+                "author_email": "feature@example.com",
+                "message": "Feature commit on branch",
+                "files": {"file_feature.txt": "feature content"},
+                "commit_date": (datetime.now(timezone.utc) - timedelta(days=4)).strftime("%Y-%m-%d"),
+                "merge_branch": "feature-branch",
+            },
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Another commit on main",
+                "files": {"file_main2.txt": "more main content"},
+                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+            },
+        ]
+    ],
+    indirect=True,
+)
+def test_get_log_entries_merged_only_filter(pygit2_repo):
+    repo_path = pygit2_repo
+    backend = Pygit2Backend(repo_path=repo_path)
+
+    # Get all commits
+    all_log_entries = backend.get_log_entries()
+    # Expected: Initial fixture commit + 3 parameterized commits (initial on main, feature on branch, another on main, merge commit)
+    # The merge commit will have 2 parents, so it will be 5 commits in total
+    assert len(all_log_entries) == 5
+
+    # Filter for merged_only commits
+    merged_log_entries = backend.get_log_entries(merged_only=True)
+
+    assert len(merged_log_entries) == 1
+    merge_commit = merged_log_entries[0]
+    assert "Merge" in merge_commit.commit_message
+    assert len(merge_commit.parent_hashes) == 2
+
+@pytest.mark.parametrize(
+    "pygit2_repo",
+    [
+        [
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"file_to_delete.txt": "line 1\nline 2\nline 3"},
                 "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),

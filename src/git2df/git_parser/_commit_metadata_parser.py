@@ -11,18 +11,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GitLogEntry:
     commit_hash: str
-    parent_hash: Optional[str]
     author_name: str
     author_email: str
     commit_date: datetime
     commit_timestamp: int
     commit_message: str
+    parent_hashes: List[str] = field(default_factory=list)
     file_changes: List[FileChange] = field(default_factory=list)  # Use FileChange here
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "commit_hash": self.commit_hash,
-            "parent_hash": self.parent_hash,
+            "parent_hashes": self.parent_hashes,
             "author_name": self.author_name,
             "author_email": self.author_email,
             "commit_date": self.commit_date,
@@ -46,7 +46,7 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     commit_hash_with_marker = parts[0]
     commit_hash = commit_hash_with_marker.replace("@@@COMMIT@@@", "")
 
-    parent_hash = parts[1] if parts[1] else None
+    parent_hashes = parts[1].split() if parts[1] else []
     author_name = parts[2]
     author_email = parts[3]
 
@@ -85,7 +85,7 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
 
     return {
         "commit_hash": commit_hash,
-        "parent_hash": parent_hash,
+        "parent_hashes": parent_hashes,
         "author_name": author_name,
         "author_email": author_email,
         "commit_date": commit_date,

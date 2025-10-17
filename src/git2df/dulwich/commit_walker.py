@@ -131,7 +131,7 @@ class DulwichCommitWalker:
 
             entry = GitLogEntry(
                 commit_hash=commit_metadata["commit_hash"],
-                parent_hash=commit_metadata["parent_hashes"],
+                parent_hashes=commit_metadata["parent_hashes"],
                 author_name=commit_metadata["author_name"],
                 author_email=commit_metadata["author_email"],
                 commit_date=commit_metadata["commit_date"],

@@ -38,7 +38,7 @@ def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
 
     return GitLogEntry(
         commit_hash=commit_metadata_dict["commit_hash"],
-        parent_hash=commit_metadata_dict["parent_hash"],
+        parent_hashes=commit_metadata_dict["parent_hashes"],
         author_name=commit_metadata_dict["author_name"],
         author_email=commit_metadata_dict["author_email"],
         commit_date=commit_metadata_dict["commit_date"],

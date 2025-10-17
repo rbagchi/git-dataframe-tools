@@ -22,7 +22,7 @@ class DulwichCommitFormatter:
         """
         commit_hash = commit.id.hex()
         logger.debug(f"Dulwich Commit hash: {commit_hash}")
-        parent_hashes = " ".join([p.hex() for p in commit.parents])
+        parent_hashes = [p.hex() for p in commit.parents]
         raw_author = commit.author.decode("utf-8")
         logger.debug(f"Raw author string: {raw_author}")
         author_name = raw_author.split("<")[0].strip()

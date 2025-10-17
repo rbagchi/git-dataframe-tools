@@ -230,7 +230,7 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
 def _assert_log_entry_commit_metadata(entry: Any, expected_values: dict[str, Any]) -> None:
     """Asserts that a GitLogEntry object's commit metadata matches the expected values."""
     assert entry.commit_hash == expected_values["commit_hash"]
-    assert entry.parent_hash == expected_values["parent_hash"]
+    assert entry.parent_hashes == expected_values["parent_hashes"]
     assert entry.author_name == expected_values["author_name"]
     assert entry.author_email == expected_values["author_email"]
     assert entry.commit_date.isoformat() == expected_values["commit_date"]
@@ -272,7 +272,7 @@ def test_get_log_entries_no_filters(mock_subprocess_run, mock_get_default_branch
     assert len(log_entries) == 1
     expected_values = {
         "commit_hash": "commit1hash",
-        "parent_hash": "parent1hash",
+        "parent_hashes": ["parent1hash"],
         "author_name": "Author One",
         "author_email": "author1@example.com",
         "commit_date": "2023-01-01T10:00:00+00:00",

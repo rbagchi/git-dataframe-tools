@@ -10,7 +10,7 @@ REGENERATE_GOLDEN_FILES = os.environ.get("REGENERATE_GOLDEN_FILES", "false").low
 
 def commit_to_dict(commit: GitLogEntry):
     return {
-        "parent_hash": commit.parent_hash,
+        "parent_hashes": commit.parent_hashes,
         "author_name": commit.author_name,
         "author_email": commit.author_email,
         "commit_message": commit.commit_message,
@@ -25,6 +25,42 @@ def commit_to_dict(commit: GitLogEntry):
             } for f in commit.file_changes
         ], key=lambda x: x["file_path"]),
     }
+
+def _compare_file_changes(file_changes1: list[dict], file_changes2: list[dict]) -> bool:
+    if len(file_changes1) != len(file_changes2):
+        return False
+    for fc1, fc2 in zip(file_changes1, file_changes2):
+        if fc1 != fc2:
+            return False
+    return True
+
+def compare_commit_dicts(dict1: dict, dict2: dict, tolerance_seconds: int = 2) -> bool:
+    """Compares two commit dictionaries, allowing for a tolerance in commit_timestamp."""
+    if dict1.keys() != dict2.keys():
+        return False
+
+    comparison_strategies = {
+        "commit_timestamp": lambda v1, v2: abs(v1 - v2) <= tolerance_seconds,
+        "file_changes": _compare_file_changes,
+        "commit_hash": lambda v1, v2: True,  # Ignore for direct comparison
+        "parent_hashes": lambda v1, v2: sorted(v1) == sorted(v2),
+        "commit_message": lambda v1, v2: v1.strip() == v2.strip(),
+    }
+
+    for key in dict1.keys():
+        if key in comparison_strategies:
+            if not comparison_strategies[key](dict1[key], dict2[key]):
+                print(f"DEBUG: Mismatch in key '{key}'.")
+                if key == "commit_timestamp":
+                    print(f"DEBUG: Timestamp mismatch: {dict1[key]} vs {dict2[key]}, diff: {abs(dict1[key] - dict2[key])}")
+                elif key == "commit_message":
+                    print(f"DEBUG: Mismatch in key '{key}': Expected '{dict1[key]}', Actual '{dict2[key]}'")
+                return False
+        else:
+            if dict1[key] != dict2[key]:
+                print(f"DEBUG: Mismatch in key '{key}': Expected '{dict1[key]}', Actual '{dict2[key]}'")
+                return False
+    return True
 
 
 @pytest.fixture(params=[GitCliBackend, Pygit2Backend, DulwichRemoteBackend])
@@ -51,7 +87,7 @@ def test_backend_consistency_basic(git_repo, backend_instance, golden_file_manag
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], x["parent_hash"] or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
 
     test_id = f"basic_{backend_instance.__class__.__name__}"
     print(f"DEBUG: Type of golden_file_manager: {type(golden_file_manager)}")
@@ -98,7 +134,7 @@ def test_backend_consistency_with_filters(git_repo, backend_instance, filter_arg
         exclude_paths=filter_args.get("exclude_paths"),
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], x["parent_hash"] or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
 
     test_id = f"filtered_{backend_instance.__class__.__name__}"
     param_id = "-".join(f"{k}_{v}" for k, v in sorted(filter_args.items()))
@@ -119,39 +155,3 @@ def test_backend_consistency_with_filters(git_repo, backend_instance, filter_arg
             print("DEBUG: Actual commit:")
             print(actual_commits[i])
             assert False, f"Commit dictionaries do not match for {test_id} with params {param_id} at index {i}."
-
-def _compare_file_changes(file_changes1: list[dict], file_changes2: list[dict]) -> bool:
-    if len(file_changes1) != len(file_changes2):
-        return False
-    for fc1, fc2 in zip(file_changes1, file_changes2):
-        if fc1 != fc2:
-            return False
-    return True
-
-def compare_commit_dicts(dict1: dict, dict2: dict, tolerance_seconds: int = 2) -> bool:
-    """Compares two commit dictionaries, allowing for a tolerance in commit_timestamp."""
-    if dict1.keys() != dict2.keys():
-        return False
-
-    comparison_strategies = {
-        "commit_timestamp": lambda v1, v2: abs(v1 - v2) <= tolerance_seconds,
-        "file_changes": _compare_file_changes,
-        "commit_hash": lambda v1, v2: True,  # Ignore for direct comparison
-        "parent_hash": lambda v1, v2: True,  # Ignore for direct comparison
-        "commit_message": lambda v1, v2: v1.strip() == v2.strip(),
-    }
-
-    for key in dict1.keys():
-        if key in comparison_strategies:
-            if not comparison_strategies[key](dict1[key], dict2[key]):
-                print(f"DEBUG: Mismatch in key '{key}'.")
-                if key == "commit_timestamp":
-                    print(f"DEBUG: Timestamp mismatch: {dict1[key]} vs {dict2[key]}, diff: {abs(dict1[key] - dict2[key])}")
-                elif key == "commit_message":
-                    print(f"DEBUG: Mismatch in key '{key}': Expected '{dict1[key]}', Actual '{dict2[key]}'")
-                return False
-        else:
-            if dict1[key] != dict2[key]:
-                print(f"DEBUG: Mismatch in key '{key}': Expected '{dict1[key]}', Actual '{dict2[key]}'")
-                return False
-    return True

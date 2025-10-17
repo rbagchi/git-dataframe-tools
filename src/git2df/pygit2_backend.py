@@ -16,10 +16,13 @@ class Pygit2Backend(GitBackend):
     def __init__(self, repo_path: str = "."):
         self.repo_path = repo_path
 
-    def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep):
+    def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep, merged_only):
         commit_time = datetime.fromtimestamp(commit.committer.time, tz=timezone.utc) # Use committer time
-        logger.debug(f"Commit hash: {commit.id}, Commit time: {commit_time}, Since date: {since_dt}, Until date: {until_dt}")
+        logger.debug(f"Commit hash: {commit.id}, Commit time: {commit_time}, Since date: {since_dt}, Until date: {until_dt}, Merged only: {merged_only}")
 
+        if merged_only and len(commit.parent_ids) <= 1:
+            logger.debug(f"Commit {commit.id} excluded by merged_only filter: not a merge commit")
+            return False, False
         if since_dt and commit_time < since_dt:
             logger.debug(f"Commit {commit.id} excluded by since_dt filter: {commit_time} < {since_dt}")
             return False, True  # False for match, True to break walk
@@ -130,7 +133,7 @@ class Pygit2Backend(GitBackend):
 
         log_entries = []
         for commit in repo.walk(last, pygit2.GIT_SORT_TIME):
-            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, author, grep)
+            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, author, grep, merged_only)
             if should_break:
                 break
             if not matches:
@@ -146,7 +149,7 @@ class Pygit2Backend(GitBackend):
             log_entries.append(
                 GitLogEntry(
                     commit_hash=str(commit.id),
-                    parent_hash=str(commit.parent_ids[0]) if commit.parent_ids else None,
+                    parent_hashes=[str(parent_id) for parent_id in commit.parent_ids],
                     author_name=commit.author.name,
                     author_email=commit.author.email,
                     commit_date=commit_time,

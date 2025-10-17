@@ -25,7 +25,7 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
         return pd.DataFrame(
             columns=[
                 "commit_hash",
-                "parent_hash",
+                "parent_hashes",
                 "author_name",
                 "author_email",
                 "commit_date",
@@ -46,7 +46,7 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
                 records.append(
                     {
                         "commit_hash": entry.commit_hash,
-                        "parent_hash": entry.parent_hash,
+                        "parent_hashes": ", ".join(entry.parent_hashes) if entry.parent_hashes else None,
                         "author_name": entry.author_name,
                         "author_email": entry.author_email,
                         "commit_date": entry.commit_date,
@@ -65,7 +65,7 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
             records.append(
                 {
                     "commit_hash": entry.commit_hash,
-                    "parent_hash": entry.parent_hash,
+                    "parent_hashes": ", ".join(entry.parent_hashes) if entry.parent_hashes else None,
                     "author_name": entry.author_name,
                     "author_email": entry.author_email,
                     "commit_date": entry.commit_date,

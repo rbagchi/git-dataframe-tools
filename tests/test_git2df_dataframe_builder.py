@@ -15,7 +15,7 @@ def test_build_commits_df_commit_centric():
     git_log_entries = [
         GitLogEntry(
             commit_hash="commit1hash",
-            parent_hash="parent1hash",
+            parent_hashes=["parent1hash"],
             author_name="Author One",
             author_email="author1@example.com",
             commit_date=commit1_date,
@@ -28,7 +28,7 @@ def test_build_commits_df_commit_centric():
         ),
         GitLogEntry(
             commit_hash="commit2hash",
-            parent_hash=None,
+            parent_hashes=[],
             author_name="Author Two",
             author_email="author2@example.com",
             commit_date=commit2_date,
@@ -40,7 +40,7 @@ def test_build_commits_df_commit_centric():
         ),
         GitLogEntry(
             commit_hash="commit3hash",
-            parent_hash="parent3hash",
+            parent_hashes=["parent3hash"],
             author_name="Author One",
             author_email="author1@example.com",
             commit_date=commit3_date,
@@ -56,7 +56,7 @@ def test_build_commits_df_commit_centric():
     expected_raw_data = [
         {
             "commit_hash": "commit1hash",
-            "parent_hash": "parent1hash",
+            "parent_hashes": ["parent1hash"],
             "author_name": "Author One",
             "author_email": "author1@example.com",
             "commit_date": commit1_date,
@@ -84,7 +84,7 @@ def test_build_commits_df_commit_centric():
         },
         {
             "commit_hash": "commit2hash",
-            "parent_hash": None,
+            "parent_hashes": [],
             "author_name": "Author Two",
             "author_email": "author2@example.com",
             "commit_date": commit2_date,
@@ -98,7 +98,7 @@ def test_build_commits_df_commit_centric():
         },
         {
             "commit_hash": "commit3hash",
-            "parent_hash": "parent3hash",
+            "parent_hashes": ["parent3hash"],
             "author_name": "Author One",
             "author_email": "author1@example.com",
             "commit_date": commit3_date,
@@ -127,7 +127,7 @@ def test_build_commits_df_empty_input():
     assert len(df) == 0
     assert list(df.columns) == [
         "commit_hash",
-        "parent_hash",
+        "parent_hashes",
         "author_name",
         "author_email",
         "commit_date",

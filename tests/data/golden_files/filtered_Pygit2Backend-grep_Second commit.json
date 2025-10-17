@@ -1,6 +1,8 @@
 [
     {
-        "parent_hash": "946b3a2d28d96a3c74bc3d805d7e33c07119fefd",
+        "parent_hashes": [
+            "946b3a2d28d96a3c74bc3d805d7e33c07119fefd"
+        ],
         "author_name": "Test User",
         "author_email": "test@example.com",
         "commit_message": "Second commit",

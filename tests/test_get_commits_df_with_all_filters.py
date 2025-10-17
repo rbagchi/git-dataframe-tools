@@ -55,7 +55,7 @@ MOCKED_PARSED_DATA = [
 MOCKED_GIT_LOG_ENTRIES = [
     GitLogEntry(
         commit_hash="commit1hash",
-        parent_hash="parent1hash",
+        parent_hashes=["parent1hash"],
         author_name="Author One",
         author_email="author1@example.com",
         commit_date=datetime(2023, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
@@ -67,7 +67,7 @@ MOCKED_GIT_LOG_ENTRIES = [
     ),
     GitLogEntry(
         commit_hash="commit2hash",
-        parent_hash=None,
+        parent_hashes=[],
         author_name="Author Two",
         author_email="author2@example.com",
         commit_date=datetime(2023, 1, 2, 11, 0, 0, tzinfo=timezone.utc),

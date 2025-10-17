@@ -50,17 +50,18 @@ class GitCliBackend(GitBackend):
         """
         Returns the default branch of the remote 'origin'.
         """
-        cmd = ["git", "symbolic-ref", "refs/remotes/origin/HEAD"]
         try:
-            result = self._run_git_command(cmd)
-            # The output is like 'refs/remotes/origin/main', we want 'main'
-            return result.strip().split("/")[-1]
+            result = self._run_git_command(["git", "remote", "show", "origin"])
+            for line in result.splitlines():
+                if "HEAD branch" in line:
+                    return line.split(":")[-1].strip()
+            return "main" # Fallback to main if not found
         except subprocess.CalledProcessError as e:
             logger.warning(
                 "Could not determine default branch from remote 'origin'. "
-                "Falling back to 'master'. Error: %s", e.stderr
+                "Falling back to 'main'. Error: %s", e.stderr
             )
-            return "master"
+            return "main"
 
     def get_log_entries(
         self,
@@ -170,9 +171,14 @@ class GitCliBackend(GitBackend):
                 cmd.extend([arg, value])
 
         if merged_only:
-            default_branch = self._get_default_branch()
-            cmd.append("--merges")
-            cmd.append(f"origin/{default_branch}")
+            try:
+                # Check if 'origin' remote exists
+                self._run_git_command(["git", "remote", "show", "origin"])
+                default_branch = self._get_default_branch()
+                cmd.extend(["--merges", f"origin/{default_branch}"])
+            except subprocess.CalledProcessError:
+                # If 'origin' remote does not exist, just use --merges
+                cmd.append("--merges")
 
         if log_args:
             cmd.extend(log_args)

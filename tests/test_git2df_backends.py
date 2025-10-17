@@ -175,15 +175,21 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
-@patch("subprocess.run")
-def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_branch):
+@patch("git2df.backends.GitCliBackend._run_git_command")
+def test_get_raw_log_output_with_merges(mock_run_git_command, mock_get_default_branch):
     # Arrange
     rev_list_stdout = "commit1hash\n"
     metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Merge commit---MSG_END---"
     numstat_stdout = "10\t5\tfile1.txt\n"
     name_status_stdout = "M\tfile1.txt\n"
-    mock_subprocess_run.side_effect = _setup_mock_subprocess_run_side_effect(rev_list_stdout, metadata_stdout, numstat_stdout, name_status_stdout)
 
+    mock_run_git_command.side_effect = [
+        "* remote origin\n  Fetch URL: ...\n  Push  URL: ...\n  HEAD branch: main\n", # For git remote show origin
+        rev_list_stdout, # For git rev-list
+        metadata_stdout, # For git show (metadata)
+        numstat_stdout, # For git diff-tree --numstat
+        name_status_stdout, # For git diff-tree --name-status
+    ]
     repo_path = "/test/repo"
     backend = GitCliBackend(repo_path)
 
@@ -196,8 +202,17 @@ def test_get_raw_log_output_with_merges(mock_subprocess_run, mock_get_default_br
         "\n10\t5\tM\tfile1.txt"
     )
     assert output == expected_output
-    expected_rev_list_args = ["--merges", f"origin/{mock_get_default_branch.return_value}"]
-    _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, [])
+
+    # Assertions for mock_run_git_command calls
+    mock_run_git_command.assert_any_call(["git", "remote", "show", "origin"])
+    mock_run_git_command.assert_any_call(["git", "rev-list", "--all", "--merges", "origin/main"])
+    mock_run_git_command.assert_any_call(
+        ["git", "show", "commit1hash", "--no-patch", "--pretty=format:@@@COMMIT@@@%H@@@FIELD@@@%P@@@FIELD@@@%an@@@FIELD@@@%ae@@@FIELD@@@%ad%x09%at@@@FIELD@@@---MSG_START---%s---MSG_END---", "--date=iso-strict"]
+    )
+    mock_run_git_command.assert_any_call(["git", "diff-tree", "-r", "--numstat", "commit1hash"])
+    mock_run_git_command.assert_any_call(["git", "diff-tree", "-r", "--name-status", "commit1hash"])
+
+    assert mock_run_git_command.call_count == 5
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")

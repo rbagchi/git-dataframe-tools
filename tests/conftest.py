@@ -47,4 +47,70 @@ def sample_unusual_character_commits():
         },
     ]
 
+@pytest.fixture
+def sample_unusual_character_commits():
+    return [
+        {
+            "author_name": "Jöhn Döe",
+            "author_email": "john.doe+test@example.com",
+            "message": "Commit with unicode characters: éàçüö",
+            "files": {"file_é.txt": "content with é"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "User <with> special chars",
+            "author_email": "user@special.chars.com",
+            "message": "Another commit with [brackets] and !exclamations!",
+            "files": {"file_!.txt": "content with !"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+        },
+    ]
+
 logging.basicConfig(level=logging.DEBUG)
+
+@pytest.fixture
+def sample_merge_commits():
+    return [
+        {
+            "author_name": "Feature Author",
+            "author_email": "feature@example.com",
+            "message": "Initial commit on feature branch",
+            "files": {"feature_file.txt": "feature content"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d"),
+            "branch": "feature",
+        },
+        {
+            "author_name": "Main Author",
+            "author_email": "main@example.com",
+            "message": "Initial commit on main branch",
+            "files": {"main_file.txt": "main content"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=8)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "Main Author",
+            "author_email": "main@example.com",
+            "message": "Merge feature into main",
+            "files": {},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=6)).strftime("%Y-%m-%d"),
+            "merge_from": "feature",
+        },
+    ]
+
+@pytest.fixture
+def sample_rename_commits():
+    return [
+        {
+            "author_name": "Rename Author",
+            "author_email": "rename@example.com",
+            "message": "Initial commit with file to be renamed",
+            "files": {"old_name.txt": "content"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "Rename Author",
+            "author_email": "rename@example.com",
+            "message": "Rename old_name.txt to new_name.txt",
+            "renames": [("old_name.txt", "new_name.txt")],
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+        },
+    ]

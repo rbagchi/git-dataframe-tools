@@ -147,16 +147,6 @@ class GitCliBackend(GitBackend):
 
         return self._parse_git_data_to_log_entries(git_data)
 
-        parsed_entries: List[GitLogEntry] = []
-
-        for chunk in commit_chunks:
-            entry = _process_commit_chunk(chunk)
-            if entry:
-                parsed_entries.append(entry)
-
-        logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
-        return parsed_entries
-
 
     def _build_git_log_arguments(
         self,

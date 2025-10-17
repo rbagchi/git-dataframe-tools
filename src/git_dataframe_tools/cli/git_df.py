@@ -81,19 +81,35 @@ def _handle_empty_dataframe(output: str, repo_path: str) -> None:
 def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str) -> None:
     logger.info(f"Saving {len(commits_df)} commits to '{output}'...")
     try:
-        table = pa.Table.from_pandas(commits_df)
+        # Reset index to ensure a default integer index, which can be more robust for PyArrow conversion
+        commits_df.reset_index(drop=True, inplace=True)
 
+        # Fill None values in 'old_file_path' and 'parent_hash' with empty strings to prevent issues with Parquet serialization
+        commits_df['old_file_path'] = commits_df['old_file_path'].fillna('')
+        commits_df['parent_hash'] = commits_df['parent_hash'].fillna('')
+
+        # Explicitly convert all string columns to str type in Pandas to ensure consistency
+        for col in ["commit_hash", "parent_hash", "author_name", "author_email", "commit_message", "file_paths", "change_type", "old_file_path"]:
+            if col in commits_df.columns:
+                commits_df[col] = commits_df[col].astype(str)
+
+        # Debug: Comprehensive check for any remaining None values in the entire DataFrame
+        for col in commits_df.columns:
+            if commits_df[col].isnull().any():
+                logger.error(f"DEBUG: Column '{col}' still contains None/NaN values after processing.")
+                logger.error(f"DEBUG: Rows with None/NaN in '{col}':\n{commits_df[commits_df[col].isnull()]}")
+                raise ValueError(f"Column '{col}' contains None/NaN values.")
+
+        table = pa.Table.from_pandas(commits_df)
         custom_metadata = {
             "data_version": DATA_VERSION,
             "description": "Git commit data extracted by git-df CLI",
         }
-
         metadata_bytes = {
             k.encode(): str(v).encode() for k, v in custom_metadata.items()
         }
-        temp_table = pa.Table.from_pandas(commits_df)
-        new_schema = temp_table.schema.with_metadata(metadata_bytes)
-
+        
+        new_schema = table.schema.with_metadata(metadata_bytes)
         table = pa.Table.from_pandas(commits_df, schema=new_schema)
 
         pq.write_table(table, output)

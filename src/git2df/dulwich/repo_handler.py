@@ -4,9 +4,10 @@ import datetime
 from typing import Optional
 import sys
 import re
+from urllib.parse import urlparse
 
 from dulwich.repo import Repo
-from dulwich.client import HttpGitClient
+from dulwich.client import HttpGitClient, LocalGitClient
 from tqdm import tqdm
 
 from .commit_walker import DulwichCommitWalker
@@ -76,8 +77,42 @@ class DulwichRepoHandler:
         diff_parser: DulwichDiffParser,
     ) -> str:
         with tempfile.TemporaryDirectory() as tmpdir:
-            repo = Repo.init(tmpdir)
-            client = HttpGitClient(self.remote_url)
+
+            parsed_url = urlparse(self.remote_url)
+            print(f"DEBUG: remote_url: {self.remote_url}")
+            print(f"DEBUG: parsed_url.scheme: {parsed_url.scheme}")
+            if parsed_url.scheme == "file":
+                local_path = parsed_url.path
+                # Directly open the bare repository
+                repo = Repo(local_path, bare=True)
+                logger.info(f"Directly opening local bare repository: {local_path}")
+                # For local bare repos, we don't need to fetch, just walk the commits
+                return self.commit_walker.walk_commits(
+                    repo,
+                    since_dt,
+                    until_dt,
+                    author,
+                    grep,
+                    diff_parser,
+                    tqdm(disable=True, file=sys.stderr), # Dummy pbar
+                )
+            elif not parsed_url.scheme: # Handle plain local paths without a scheme
+                local_path = self.remote_url
+                repo = Repo(local_path, bare=True)
+                logger.info(f"Directly opening local bare repository (no scheme): {local_path}")
+                return self.commit_walker.walk_commits(
+                    repo,
+                    since_dt,
+                    until_dt,
+                    author,
+                    grep,
+                    diff_parser,
+                    tqdm(disable=True, file=sys.stderr), # Dummy pbar
+                )
+            else:
+                # For other schemes (http, https), use HttpGitClient and fetch into a temporary non-bare repo
+                repo = Repo.init(tmpdir)
+                client = HttpGitClient(self.remote_url)
 
             _disable_tqdm = (
                 not sys.stdout.isatty() or not sys.stderr.isatty()

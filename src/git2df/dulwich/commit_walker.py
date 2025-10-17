@@ -1,6 +1,7 @@
 import datetime
 import logging
 from typing import List, Optional, cast
+from git2df.git_parser import GitLogEntry
 
 from dulwich.repo import Repo
 from dulwich.objects import Commit
@@ -22,9 +23,11 @@ class DulwichCommitWalker:
         self,
         commit_filters: DulwichCommitFilters,
         commit_formatter: DulwichCommitFormatter,
+        remote_branch: str,
     ):
         self.commit_filters = commit_filters
         self.commit_formatter = commit_formatter
+        self.remote_branch = remote_branch
 
     def _get_commit_output_lines(
         self,
@@ -94,17 +97,52 @@ class DulwichCommitWalker:
         grep: Optional[str],
         diff_parser: DulwichDiffParser,
         pbar: tqdm,
-    ) -> str:
+    ) -> List[GitLogEntry]:
         all_commits = self._collect_and_filter_commits(repo, since_dt, until_dt)
 
         self._initialize_progress_bar(pbar, all_commits)
 
-        output_lines: list[str] = self._process_all_filtered_commits(
-            repo, all_commits, author, grep, diff_parser, pbar
-        )
+        parsed_entries: List[GitLogEntry] = []
+        for commit in all_commits:
+            pbar.update(1)
+            commit_metadata = self.commit_formatter.extract_commit_metadata(commit)
 
-        logger.debug(f"Final output_lines: {output_lines}")
-        return "\n".join(output_lines)
+            if not self.commit_filters.filter_commits_by_author_and_grep(
+                commit_metadata, author, grep
+            ):
+                logger.debug(f"Commit {commit.id.hex()} filtered out by author/grep.")
+                continue
+
+            old_tree_id = None
+            if commit.parents:  # Not an initial commit
+                try:
+                    parent_commit = cast(Commit, repo[commit.parents[0]])
+                    old_tree_id = parent_commit.tree
+                except KeyError:
+                    # This can happen if the parent commit is not in the local clone
+                    # (e.g. shallow clone). We can't get file changes in this case.
+                    logger.warning(f"Parent commit {commit.parents[0].hex()} not found for commit {commit.id.hex()}. Cannot determine file changes.")
+
+            file_changes_list = diff_parser.extract_file_changes(repo, commit, old_tree_id)
+            
+            if (diff_parser.include_paths or diff_parser.exclude_paths) and not file_changes_list:
+                logger.debug(f"Commit {commit.id.hex()} filtered out by path filters.")
+                continue
+
+            entry = GitLogEntry(
+                commit_hash=commit_metadata["commit_hash"],
+                parent_hash=commit_metadata["parent_hashes"],
+                author_name=commit_metadata["author_name"],
+                author_email=commit_metadata["author_email"],
+                commit_date=commit_metadata["commit_date"],
+                commit_timestamp=commit_metadata["commit_timestamp"],
+                commit_message=commit_metadata["commit_message"],
+                file_changes=file_changes_list,
+            )
+            parsed_entries.append(entry)
+
+        logger.debug(f"Final parsed_entries: {parsed_entries}")
+        return parsed_entries
 
     def _collect_and_filter_commits(
         self,
@@ -114,7 +152,16 @@ class DulwichCommitWalker:
     ) -> List[Commit]:
         all_commits = []
         logger.debug(f"Starting commit collection for repo: {repo.path}")
-        for entry in repo.get_walker():
+        print(f"DEBUG: repo.refs: {repo.refs}")
+        # Explicitly get the head of the remote_branch (main) and walk from there
+        try:
+            main_branch_sha = repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
+            print(f"DEBUG: main_branch_sha: {main_branch_sha}")
+        except KeyError:
+            logger.warning(f"Branch {self.remote_branch} not found in repo {repo.path}. No commits to walk.")
+            return []
+
+        for entry in repo.get_walker(include=[main_branch_sha]):
             commit: Commit = entry.commit
             commit_datetime = datetime.datetime.fromtimestamp(
                 commit.commit_time, tz=datetime.timezone.utc

@@ -172,7 +172,7 @@ def test_parse_name_status_line_deleted():
 def test_parse_name_status_line_renamed():
     line = "R100\told_name.txt\tnew_name.txt"
     expected = FileChange(
-        file_path="new_name.txt", additions=0, deletions=0, change_type="R100"
+        file_path="new_name.txt", additions=0, deletions=0, change_type="R100", old_file_path="old_name.txt"
     )
     result = _parse_name_status_line(line)
     assert result == expected
@@ -181,7 +181,7 @@ def test_parse_name_status_line_renamed():
 def test_parse_name_status_line_copied():
     line = "C090\tsrc_file.txt\tdest_file.txt"
     expected = FileChange(
-        file_path="dest_file.txt", additions=0, deletions=0, change_type="C090"
+        file_path="dest_file.txt", additions=0, deletions=0, change_type="C090", old_file_path="src_file.txt"
     )
     result = _parse_name_status_line(line)
     assert result == expected

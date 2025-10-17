@@ -8,7 +8,7 @@ def test_remote_fetch():
     # This test requires network access
     backend = DulwichRemoteBackend("https://github.com/pallets/flask", "main")
     # Just fetch, don't get output
-    backend.get_raw_log_output(since="1 day ago")
+    backend.get_log_entries(since="1 day ago")
 
 
 def test_remote_fetch_stremio_web_development_branch_returns_commits():

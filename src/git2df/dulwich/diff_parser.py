@@ -6,6 +6,7 @@ from dulwich.diff_tree import TreeChange
 import dulwich.patch
 from dulwich.objects import Commit
 from dulwich.repo import Repo
+from ..git_parser import FileChange
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class DulwichDiffParser:
         repo: Repo,
         commit: Commit,
         old_tree_id: Optional[bytes],
-    ) -> List[dict]:
+    ) -> List[FileChange]:
         file_changes = []
 
         for change in dulwich.diff_tree.tree_changes(
@@ -120,12 +121,13 @@ class DulwichDiffParser:
             change_type_char = self._get_change_type_char(change.type)
 
             file_changes.append(
-                {
-                    "file_paths": path_str,
-                    "change_type": change_type_char,
-                    "additions": additions,
-                    "deletions": deletions,
-                }
+                FileChange(
+                    file_path=path_str,
+                    additions=additions,
+                    deletions=deletions,
+                    change_type=change_type_char,
+                    old_file_path=None,
+                )
             )
 
         return file_changes

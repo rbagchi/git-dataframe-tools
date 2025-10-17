@@ -17,11 +17,14 @@ class Pygit2Backend(GitBackend):
         self.repo_path = repo_path
 
     def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep):
-        commit_time = datetime.fromtimestamp(commit.author.time, tz=timezone.utc)
+        commit_time = datetime.fromtimestamp(commit.committer.time, tz=timezone.utc) # Use committer time
+        logger.debug(f"Commit hash: {commit.id}, Commit time: {commit_time}, Since date: {since_dt}, Until date: {until_dt}")
 
         if since_dt and commit_time < since_dt:
+            logger.debug(f"Commit {commit.id} excluded by since_dt filter: {commit_time} < {since_dt}")
             return False, True  # False for match, True to break walk
         if until_dt and commit_time > until_dt:
+            logger.debug(f"Commit {commit.id} excluded by until_dt filter: {commit_time} > {until_dt}")
             return False, False # False for match, False to continue walk
         if author and author not in commit.author.name and author not in commit.author.email:
             return False, False
@@ -49,6 +52,19 @@ class Pygit2Backend(GitBackend):
             return True
         return False
 
+    def _get_change_stats(self, patch, commit_parents):
+        additions = patch.line_stats[1]
+        deletions = patch.line_stats[2]
+        current_change_type = patch.delta.status_char()
+
+        if not commit_parents and current_change_type == 'D':
+            additions = patch.line_stats[2]
+            deletions = 0
+            final_change_type = 'A'
+        else:
+            final_change_type = current_change_type
+        return additions, deletions, final_change_type
+
 
     def _process_commit_file_changes(self, repo, commit, include_paths, exclude_paths) -> List[FileChange]:
         file_changes = []
@@ -60,7 +76,20 @@ class Pygit2Backend(GitBackend):
         diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
 
         for patch in diff:
-            file_path = self._get_file_path_from_patch(patch)
+            file_path = None
+            old_file_path = None
+
+            if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
+                old_file_path_raw = patch.delta.old_file.path
+                file_path_raw = patch.delta.new_file.path
+                old_file_path = old_file_path_raw.decode('utf-8') if isinstance(old_file_path_raw, bytes) else old_file_path_raw
+                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+            elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
+                file_path_raw = patch.delta.old_file.path
+                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+            else:
+                file_path_raw = patch.delta.new_file.path
+                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
 
             if self._is_path_filtered(file_path, include_paths, exclude_paths):
                 continue
@@ -73,6 +102,7 @@ class Pygit2Backend(GitBackend):
                     additions=additions,
                     deletions=deletions,
                     change_type=final_change_type,
+                    old_file_path=old_file_path,
                 )
             )
         return file_changes
@@ -106,7 +136,7 @@ class Pygit2Backend(GitBackend):
             if not matches:
                 continue
 
-            commit_time = datetime.fromtimestamp(commit.author.time, tz=timezone.utc)
+            commit_time = datetime.fromtimestamp(commit.committer.time, tz=timezone.utc)
 
             file_changes = self._process_commit_file_changes(repo, commit, include_paths, exclude_paths)
 
@@ -120,7 +150,7 @@ class Pygit2Backend(GitBackend):
                     author_name=commit.author.name,
                     author_email=commit.author.email,
                     commit_date=commit_time,
-                    commit_timestamp=commit.commit_time,
+                    commit_timestamp=commit.committer.time,
                     commit_message=commit.message.strip(),
                     file_changes=file_changes,
                 )

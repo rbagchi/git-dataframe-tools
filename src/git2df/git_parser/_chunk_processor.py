@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def _process_commit_chunk(chunk: str) -> Optional[GitLogEntry]:
+    logger.debug(f"Processing chunk: {chunk[:100]}...") # Print first 100 chars of chunk
     """Processes a single commit chunk string and extracts commit metadata and file changes."""
     msg_end_marker = "---MSG_END---"
     end_of_msg_index = chunk.find(msg_end_marker)

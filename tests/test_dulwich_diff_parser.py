@@ -6,7 +6,8 @@ from dulwich.objects import Commit, Blob, TreeEntry
 from dulwich.repo import Repo
 from dulwich.diff_tree import TreeChange
 
-from git2df.dulwich.diff_parser import DulwichDiffParser
+from src.git2df.git_parser import FileChange
+from src.git2df.dulwich.diff_parser import DulwichDiffParser
 
 
 # Helper to create a mock blob object
@@ -51,13 +52,13 @@ def mock_commit():
     return commit
 
 
-def _assert_file_changes(file_changes, expected_len, expected_file_paths, expected_change_type, expected_additions, expected_deletions):
+def _assert_file_changes(file_changes, expected_len, expected_file_path, expected_change_type, expected_additions, expected_deletions):
     assert len(file_changes) == expected_len
     if expected_len > 0:
-        assert file_changes[0]["file_paths"] == expected_file_paths
-        assert file_changes[0]["change_type"] == expected_change_type
-        assert file_changes[0]["additions"] == expected_additions
-        assert file_changes[0]["deletions"] == expected_deletions
+        assert file_changes[0].file_path == expected_file_path
+        assert file_changes[0].change_type == expected_change_type
+        assert file_changes[0].additions == expected_additions
+        assert file_changes[0].deletions == expected_deletions
 
 def test_extract_file_changes_modification(mock_repo, mock_commit):
     # Arrange

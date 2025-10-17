@@ -22,30 +22,21 @@ class DulwichRemoteBackend(GitBackend):
     def __init__(self, remote_url: str, remote_branch: str = "main"):
         self.remote_url = remote_url
         self.remote_branch = remote_branch
-        self.is_local_repo = os.path.exists(remote_url) and os.path.isdir(remote_url)
 
-        self.repo: Optional[Repo]
-
-        if self.is_local_repo:
-            self.repo = Repo(remote_url)
-            logger.info(
-                f"Using Dulwich backend for local repository at {remote_url}/{remote_branch}"
-            )
-        else:
-            self.repo = None
-            logger.info(
-                f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}"
-            )
+        self.repo: Optional[Repo] = None # Always treat as remote
+        logger.info(
+            f"Using Dulwich backend for remote operations on {remote_url}/{remote_branch}"
+        )
 
         self.commit_filters = DulwichCommitFilters()
         self.commit_formatter = DulwichCommitFormatter()
         self.commit_walker = DulwichCommitWalker(
-            self.commit_filters, self.commit_formatter
+            self.commit_filters, self.commit_formatter, self.remote_branch
         )
         self.repo_handler = DulwichRepoHandler(
             self.remote_url,
             self.remote_branch,
-            self.is_local_repo,
+            False, # Always treat as remote
             self.repo,
             self.commit_walker,
         )
@@ -62,20 +53,17 @@ class DulwichRemoteBackend(GitBackend):
         exclude_paths: Optional[List[str]] = None,
     ) -> List[GitLogEntry]:
         """
-        Retrieves a list of GitLogEntry objects by calling get_raw_log_output
-        and then parsing the result.
+        Retrieves a list of GitLogEntry objects directly from the Dulwich backend.
         """
-        raw_output = self.get_raw_log_output(
-            log_args=log_args,
-            since=since,
-            until=until,
-            author=author,
-            grep=grep,
-            merged_only=merged_only,
-            include_paths=include_paths,
-            exclude_paths=exclude_paths,
+        since_dt, until_dt = get_date_filters(since, until)
+
+        diff_parser = DulwichDiffParser(
+            include_paths=include_paths, exclude_paths=exclude_paths
         )
-        return parse_git_log(raw_output)
+
+        return self.repo_handler.handle_remote_repo(
+            since_dt, until_dt, author, grep, diff_parser
+        )
 
     def get_raw_log_output(
         self,
@@ -93,17 +81,22 @@ class DulwichRemoteBackend(GitBackend):
         in a raw string format compatible with git2df's parser.
         Use get_log_entries instead.
         """
-        since_dt, until_dt = get_date_filters(since, until)
-
-        diff_parser = DulwichDiffParser(
-            include_paths=include_paths, exclude_paths=exclude_paths
+        parsed_entries = self.get_log_entries(
+            log_args=log_args,
+            since=since,
+            until=until,
+            author=author,
+            grep=grep,
+            merged_only=merged_only,
+            include_paths=include_paths,
+            exclude_paths=exclude_paths,
         )
 
-        if self.is_local_repo:
-            return self.repo_handler.handle_local_repo(
-                since_dt, until_dt, author, grep, diff_parser
-            )
-        else:
-            return self.repo_handler.handle_remote_repo(
-                since_dt, until_dt, author, grep, diff_parser
-            )
+        output_lines: List[str] = []
+        for entry in parsed_entries:
+            output_lines.append(self.commit_formatter.format_commit_line(entry.to_dict())) # Assuming to_dict() exists or similar
+            for file_change in entry.file_changes:
+                output_lines.append(
+                    f"{file_change.additions}\t{file_change.deletions}\t{file_change.change_type}\t{file_change.file_path}"
+                )
+        return "\n".join(output_lines)

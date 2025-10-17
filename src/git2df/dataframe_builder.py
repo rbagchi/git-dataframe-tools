@@ -29,11 +29,13 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
                 "author_name",
                 "author_email",
                 "commit_date",
+                "commit_timestamp",
                 "commit_message",
                 "file_paths",
                 "change_type",
                 "additions",
                 "deletions",
+                "old_file_path",
             ]
         )
 
@@ -48,13 +50,16 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
                         "author_name": entry.author_name,
                         "author_email": entry.author_email,
                         "commit_date": entry.commit_date,
+                        "commit_timestamp": entry.commit_timestamp,
                         "commit_message": entry.commit_message,
                         "file_paths": file_change.file_path,
                         "change_type": file_change.change_type,
                         "additions": file_change.additions,
                         "deletions": file_change.deletions,
+                        "old_file_path": file_change.old_file_path,
                     }
                 )
+                logger.debug(f"Appended record for commit {entry.commit_hash}, file {file_change.file_path}")
         else:
             # Handle commits with no file changes (e.g., merge commits without --numstat output)
             records.append(
@@ -64,11 +69,13 @@ def build_commits_df(parsed_data: List[GitLogEntry]) -> pd.DataFrame:
                     "author_name": entry.author_name,
                     "author_email": entry.author_email,
                     "commit_date": entry.commit_date,
+                    "commit_timestamp": entry.commit_timestamp,
                     "commit_message": entry.commit_message,
                     "file_paths": None,  # Or an appropriate default
                     "change_type": None,  # Or an appropriate default
                     "additions": 0,
                     "deletions": 0,
+                    "old_file_path": None,
                 }
             )
 

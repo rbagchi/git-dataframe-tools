@@ -27,11 +27,6 @@ def get_date_filters(
         if not since_dt:
             # logger.warning(f"Unsupported 'since' format: {since}. Ignoring.")
             pass
-    else:
-        # Default to last year if no 'since' is provided
-        since_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-            days=365
-        )
 
     until_dt = None
     if until:

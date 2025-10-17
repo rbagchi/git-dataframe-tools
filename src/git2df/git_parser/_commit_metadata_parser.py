@@ -19,6 +19,18 @@ class GitLogEntry:
     commit_message: str
     file_changes: List[FileChange] = field(default_factory=list)  # Use FileChange here
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "commit_hash": self.commit_hash,
+            "parent_hash": self.parent_hash,
+            "author_name": self.author_name,
+            "author_email": self.author_email,
+            "commit_date": self.commit_date,
+            "commit_timestamp": self.commit_timestamp,
+            "commit_message": self.commit_message,
+            "file_changes": [fc.to_dict() for fc in self.file_changes], # Assuming FileChange also has to_dict()
+        }
+
 
 def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     """Parses a single commit metadata line and returns a dictionary of its components."""
@@ -61,6 +73,8 @@ def _parse_commit_metadata_line(line: str) -> Optional[Dict[str, Any]]:
     try:
         commit_date_str, commit_timestamp_str = date_timestamp_str.split("\t")
         logger.debug(f"date_timestamp_str: '{date_timestamp_str}'")
+        # Replace 'Z' with '+00:00' for consistent ISO format parsing
+        commit_date_str = commit_date_str.replace("Z", "+00:00")
         commit_date = datetime.fromisoformat(commit_date_str)
         commit_timestamp = int(commit_timestamp_str)
     except ValueError:

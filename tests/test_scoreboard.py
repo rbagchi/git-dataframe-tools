@@ -28,7 +28,7 @@ def test_scoreboard_cli_basic(git_repo):
     os.chdir(git_repo)
 
     result = subprocess.run(
-        ["git-scoreboard", "--repo-path", "."], capture_output=True, text=True
+        ["git-scoreboard", "--repo-path", ".", "--since", "2022-01-01"], capture_output=True, text=True
     )
     assert result.returncode == 0
     assert "Git Author Ranking by Diff Size" in result.stdout
@@ -42,7 +42,7 @@ def test_scoreboard_cli_author_filter(git_repo):
     os.chdir(git_repo)
 
     result = subprocess.run(
-        ["git-scoreboard", "--repo-path", ".", "--author", "Test User"],
+        ["git-scoreboard", "--repo-path", ".", "--author", "Test User", "--since", "2022-01-01"],
         capture_output=True,
         text=True,
     )
@@ -70,7 +70,7 @@ def test_scoreboard_cli_markdown_output(git_repo):
     os.chdir(git_repo)
 
     result = subprocess.run(
-        ["git-scoreboard", "--repo-path", ".", "--format", "markdown"],
+        ["git-scoreboard", "--repo-path", ".", "--format", "markdown", "--since", "2022-01-01"],
         capture_output=True,
         text=True,
     )

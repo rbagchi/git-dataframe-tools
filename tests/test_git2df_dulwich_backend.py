@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def mock_dulwich_commit_walker(mocker):
     mock_filters = mocker.MagicMock(spec=DulwichCommitFilters)
     mock_formatter = mocker.MagicMock(spec=DulwichCommitFormatter)
-    return DulwichCommitWalker(mock_filters, mock_formatter)
+    return DulwichCommitWalker(mock_filters, mock_formatter, "main")
 
 
 @pytest.fixture
@@ -48,6 +48,8 @@ def mock_repo_with_commits(mocker):
         mocker.MagicMock(commit=commit2),
         mocker.MagicMock(commit=commit3),
     ]
+    repo.refs = mocker.MagicMock()
+    repo.refs.__getitem__.return_value = "main_sha"
     return repo
 
 

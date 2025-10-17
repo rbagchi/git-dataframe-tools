@@ -10,8 +10,8 @@ def _parse_and_localize_date(date_str, default_datetime, cal):
     if dt and dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
 
-    # Adjust time based on accuracy if it was a date only
-    if dt and parse_result.accuracy == pdt.pdtContext.ACU_DATE:
+    # Adjust time based on whether it's a date-only string
+    if dt and not ('T' in date_str or ':' in date_str or '+' in date_str):
         if default_datetime.hour == 0 and default_datetime.minute == 0 and default_datetime.second == 0: # Start of day
             dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
         else: # End of day

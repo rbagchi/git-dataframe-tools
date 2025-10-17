@@ -21,6 +21,7 @@ class DulwichCommitFormatter:
             A dictionary containing extracted commit metadata.
         """
         commit_hash = commit.id.hex()
+        logger.debug(f"Dulwich Commit hash: {commit_hash}")
         parent_hashes = " ".join([p.hex() for p in commit.parents])
         raw_author = commit.author.decode("utf-8")
         logger.debug(f"Raw author string: {raw_author}")
@@ -58,7 +59,7 @@ class DulwichCommitFormatter:
         Returns:
             A formatted string representing the commit.
         """
-        formatted_string = f"@@@COMMIT@@@{commit_metadata['commit_hash']}@@@FIELD@@@"
+        formatted_string = f"{commit_metadata['commit_hash']}@@@FIELD@@@"
         formatted_string += f"{commit_metadata['parent_hashes']}@@@FIELD@@@"
         formatted_string += f"{commit_metadata['author_name']}@@@FIELD@@@"
         formatted_string += f"{commit_metadata['author_email']}@@@FIELD@@@"

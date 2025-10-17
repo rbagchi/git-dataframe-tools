@@ -2,6 +2,7 @@ import pytest
 import subprocess
 import pyarrow.parquet as pq
 import os
+import sys
 from tests.conftest import sample_commits
 
 
@@ -19,21 +20,24 @@ def test_git_df_cli_basic(git_repo, tmp_path):
     os.chdir(git_repo)
 
     command = [
-        "git-df",
+        sys.executable,
+        "-m",
+        "git_dataframe_tools.cli.git_df",
         "--output",
         str(output_file),
         "--repo-path",
         ".",
+        "--debug", # Add debug flag
     ]
     result = subprocess.run(command, capture_output=True, text=True, check=True)
     assert result.returncode == 0
     assert output_file.exists()
 
+    # Read the Parquet file and convert to Pandas DataFrame
     table = pq.read_table(output_file)
     df = table.to_pandas()
+
     _assert_cli_output_dataframe(df, 4)
-
-
 @pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
 def test_git_df_cli_author_filter(git_repo, tmp_path):
     """Test the git-df CLI with an author filter."""
@@ -41,7 +45,9 @@ def test_git_df_cli_author_filter(git_repo, tmp_path):
     os.chdir(git_repo)
 
     command = [
-        "git-df",
+        sys.executable,
+        "-m",
+        "git_dataframe_tools.cli.git_df",
         "--output",
         str(output_file),
         "--repo-path",
@@ -65,7 +71,9 @@ def test_git_df_cli_no_commits_found(git_repo, tmp_path):
     os.chdir(git_repo)
 
     command = [
-        "git-df",
+        sys.executable,
+        "-m",
+        "git_dataframe_tools.cli.git_df",
         "--output",
         str(output_file),
         "--repo-path",
@@ -95,7 +103,9 @@ def test_git_df_cli_no_warnings_with_path_filter(git_repo, tmp_path, caplog):
     caplog.set_level(logging.WARNING)
 
     command = [
-        "git-df",
+        sys.executable,
+        "-m",
+        "git_dataframe_tools.cli.git_df",
         "--output",
         str(output_file),
         "--repo-path",

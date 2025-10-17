@@ -1,9 +1,11 @@
 import json
 from pathlib import Path
 from datetime import datetime
-from git2df.git_parser import parse_git_log # Changed from _parse_git_data_internal
 import logging
 import dataclasses
+
+from git2df.git_parser._chunk_processor import _process_commit_chunk
+from git2df.git_parser._commit_metadata_parser import GitLogEntry
 
 # Configure logging to output debug messages to console
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -17,7 +19,16 @@ def regenerate_golden_files():
         with open(log_file, "r") as f:
             git_log_output = f.read()
 
-        parsed_data = parse_git_log(git_log_output)
+        if not git_log_output.strip():
+            parsed_data = []
+        else:
+            commit_chunks = git_log_output.split("@@@COMMIT@@@")
+            commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
+            parsed_data: list[GitLogEntry] = []
+            for chunk in commit_chunks:
+                entry = _process_commit_chunk(chunk)
+                if entry:
+                    parsed_data.append(entry)
 
         # Convert dataclass objects to dictionaries for JSON serialization
         parsed_data_as_dicts = []

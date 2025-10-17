@@ -4,7 +4,8 @@ from typing import List, Optional
 
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 from git2df.backend_interface import GitBackend
-from git2df.git_parser import parse_git_log, GitLogEntry
+from git2df.git_parser import GitLogEntry
+from git2df.git_parser._chunk_processor import _process_commit_chunk
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +118,23 @@ class GitCliBackend(GitBackend):
         for commit_hash in commit_hashes:
             combined_output_lines.extend(self._process_commit(commit_hash, path_filters))
 
-        return parse_git_log("\n".join(combined_output_lines))
+        git_data = "\n".join(combined_output_lines)
 
+        if not git_data.strip():
+            return []
+
+        commit_chunks = git_data.split("@@@COMMIT@@@")
+        commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
+
+        parsed_entries: List[GitLogEntry] = []
+
+        for chunk in commit_chunks:
+            entry = _process_commit_chunk(chunk)
+            if entry:
+                parsed_entries.append(entry)
+
+        logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
+        return parsed_entries
 
 
     def _build_git_log_arguments(

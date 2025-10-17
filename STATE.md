@@ -72,4 +72,6 @@
 - **Resolved Regression in `GitCliBackend`'s `merged_only` Filter**: Fixed an issue where `GitCliBackend` failed to correctly handle the `merged_only` filter in local repositories without a remote 'origin'. This involved refining the default branch detection and conditional command construction.
 - **Fixed Regression in `test_git2df_backends.py`**: Updated the mocking strategy in `test_git2df_backends.py` to correctly handle the changes in `GitCliBackend`'s `_run_git_command` method, resolving `IndexError` and `StopIteration` failures.
 
-**Working on:** None. All planned edge case tests for `test_backend_consistency.py` are complete.
+- **Added Multiple Branches Test**: Implemented a new test case in `tests/test_backend_consistency.py` covering repositories with multiple branches, ensuring consistent results across all backends.
+
+**Working on:** Adding large binary files test to `test_backend_consistency.py` and `merged_only` test for `Pygit2Backend`.

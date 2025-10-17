@@ -159,6 +159,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
     *   **7.5.3.2: Add commit with no parents test to consistency tests**
         *   **Status:** COMPLETE
     *   **7.5.3.3: Add unusual characters test to consistency tests**
+        *   **Status:** COMPLETE
 
 #### Step 7.5.4: Add tests for diverse repository structures
 *   **Description:** Create new fixtures or modify existing ones to generate more complex repository histories (e.g., repositories with many branches, merges, submodules, large binary files, empty commits) and add corresponding tests in `tests/test_backend_consistency.py`.
@@ -166,6 +167,9 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Status:** IN PROGRESS
     *   **7.5.4.1: Add multiple branches test to consistency tests**
     *   **7.5.4.2: Add merge commits test to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.4.3: Add renames test to consistency tests**
+        *   **Status:** COMPLETE
     *   **7.5.4.3: Add large binary files test to consistency tests**
 
 #### Step 7.5.5: Verify `merged_only` behavior across backends
@@ -174,6 +178,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Status:** IN PROGRESS
     *   **7.5.5.1: Add `merged_only` test for `Pygit2Backend`**
     *   **7.5.5.2: Add `merged_only` consistency test**
+        *   **Status:** COMPLETE
 
 *   **Action:**
     *   Created `tests/test_backend_consistency.py` for cross-backend verification.

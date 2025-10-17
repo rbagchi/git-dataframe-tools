@@ -68,4 +68,8 @@
 - **Modified `git_repo` fixture to allow truly empty repositories**: `tests/fixtures/git_cli_fixtures.py`
 - **Modified `remote_git_repo` fixture to skip push for empty local repos**: `tests/fixtures/remote_repo_fixtures.py`
 
-**Working on:** Adding edge case tests to `test_backend_consistency.py` (unusual characters, diverse repository structures, `merged_only` behavior).
+- **Added Edge Case Tests for Backend Consistency**: Implemented new test cases in `tests/test_backend_consistency.py` covering unusual characters in commit data, file renames, and `merged_only` behavior, ensuring consistent results across all backends.
+- **Resolved Regression in `GitCliBackend`'s `merged_only` Filter**: Fixed an issue where `GitCliBackend` failed to correctly handle the `merged_only` filter in local repositories without a remote 'origin'. This involved refining the default branch detection and conditional command construction.
+- **Fixed Regression in `test_git2df_backends.py`**: Updated the mocking strategy in `test_git2df_backends.py` to correctly handle the changes in `GitCliBackend`'s `_run_git_command` method, resolving `IndexError` and `StopIteration` failures.
+
+**Working on:** None. All planned edge case tests for `test_backend_consistency.py` are complete.

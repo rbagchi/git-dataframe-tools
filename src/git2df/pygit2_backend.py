@@ -16,22 +16,47 @@ class Pygit2Backend(GitBackend):
     def __init__(self, repo_path: str = "."):
         self.repo_path = repo_path
 
+    def _is_merged_only_match(self, commit, merged_only: bool) -> bool:
+        if merged_only and len(commit.parent_ids) <= 1:
+            logger.debug(f"Commit {commit.id} excluded by merged_only filter: not a merge commit")
+            return False
+        return True
+
+    def _is_since_dt_match(self, commit_time: datetime, since_dt: Optional[datetime]) -> bool:
+        if since_dt and commit_time < since_dt:
+            logger.debug(f"Commit {commit.id} excluded by since_dt filter: {commit_time} < {since_dt}")
+            return False
+        return True
+
+    def _is_until_dt_match(self, commit_time: datetime, until_dt: Optional[datetime]) -> bool:
+        if until_dt and commit_time > until_dt:
+            logger.debug(f"Commit {commit.id} excluded by until_dt filter: {commit_time} > {until_dt}")
+            return False
+        return True
+
+    def _is_author_match(self, commit, author: Optional[str]) -> bool:
+        if author and author not in commit.author.name and author not in commit.author.email:
+            return False
+        return True
+
+    def _is_grep_match(self, commit, grep: Optional[str]) -> bool:
+        if grep and grep not in commit.message:
+            return False
+        return True
+
     def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep, merged_only):
         commit_time = datetime.fromtimestamp(commit.committer.time, tz=timezone.utc) # Use committer time
         logger.debug(f"Commit hash: {commit.id}, Commit time: {commit_time}, Since date: {since_dt}, Until date: {until_dt}, Merged only: {merged_only}")
 
-        if merged_only and len(commit.parent_ids) <= 1:
-            logger.debug(f"Commit {commit.id} excluded by merged_only filter: not a merge commit")
+        if not self._is_merged_only_match(commit, merged_only):
             return False, False
-        if since_dt and commit_time < since_dt:
-            logger.debug(f"Commit {commit.id} excluded by since_dt filter: {commit_time} < {since_dt}")
-            return False, True  # False for match, True to break walk
-        if until_dt and commit_time > until_dt:
-            logger.debug(f"Commit {commit.id} excluded by until_dt filter: {commit_time} > {until_dt}")
+        if not self._is_since_dt_match(commit_time, since_dt):
+            return False, True # False for match, True to break walk
+        if not self._is_until_dt_match(commit_time, until_dt):
             return False, False # False for match, False to continue walk
-        if author and author not in commit.author.name and author not in commit.author.email:
+        if not self._is_author_match(commit, author):
             return False, False
-        if grep and grep not in commit.message:
+        if not self._is_grep_match(commit, grep):
             return False, False
         return True, False # True for match, False to continue walk
 

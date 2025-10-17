@@ -1,5 +1,4 @@
 from pathlib import Path
-import pygit2
 
 def _handle_file_changes(repo, repo_path, commit_data):
     for filename, content in commit_data["files"].items():

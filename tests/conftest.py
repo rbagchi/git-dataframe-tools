@@ -47,25 +47,6 @@ def sample_unusual_character_commits():
         },
     ]
 
-@pytest.fixture
-def sample_unusual_character_commits():
-    return [
-        {
-            "author_name": "Jöhn Döe",
-            "author_email": "john.doe+test@example.com",
-            "message": "Commit with unicode characters: éàçüö",
-            "files": {"file_é.txt": "content with é"},
-            "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
-        },
-        {
-            "author_name": "User <with> special chars",
-            "author_email": "user@special.chars.com",
-            "message": "Another commit with [brackets] and !exclamations!",
-            "files": {"file_!.txt": "content with !"},
-            "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
-        },
-    ]
-
 logging.basicConfig(level=logging.DEBUG)
 
 @pytest.fixture

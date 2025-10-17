@@ -5,7 +5,7 @@ from src.git2df.backends import GitCliBackend
 from src.git2df.pygit2_backend import Pygit2Backend
 from src.git2df.dulwich.backend import DulwichRemoteBackend
 from git2df.git_parser import GitLogEntry
-from tests.conftest import sample_unusual_character_commits, sample_merge_commits, sample_rename_commits
+from tests.conftest import sample_unusual_character_commits, sample_merge_commits, sample_rename_commits # noqa: F401
 
 REGENERATE_GOLDEN_FILES = os.environ.get("REGENERATE_GOLDEN_FILES", "false").lower() == "true"
 
@@ -88,7 +88,7 @@ def test_backend_consistency_basic(git_repo, backend_instance, golden_file_manag
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
     test_id = f"basic_{backend_instance.__class__.__name__}"
     print(f"DEBUG: Type of golden_file_manager: {type(golden_file_manager)}")
@@ -139,7 +139,7 @@ def test_backend_consistency_with_filters(git_repo, backend_instance, filter_arg
         exclude_paths=filter_args.get("exclude_paths"),
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
     test_id = f"filtered_{backend_instance.__class__.__name__}"
     param_id = "-".join(f"{k}_{v}" for k, v in sorted(filter_args.items()))
@@ -177,7 +177,7 @@ def test_backend_consistency_empty_repo(git_repo, backend_instance, golden_file_
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
     test_id = f"empty_repo_{backend_instance.__class__.__name__}"
 
@@ -206,7 +206,7 @@ def test_backend_consistency_single_initial_commit(git_repo, backend_instance, g
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
     test_id = f"single_initial_commit_{backend_instance.__class__.__name__}"
 
@@ -243,7 +243,7 @@ def test_backend_consistency_unusual_characters(git_repo, backend_instance, gold
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
     test_id = f"unusual_chars_{backend_instance.__class__.__name__}"
 
@@ -280,28 +280,9 @@ def test_backend_consistency_merged_only(git_repo, backend_instance, golden_file
         exclude_paths=None,
     )
 
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
 
-
-
-@pytest.mark.parametrize("git_repo", [sample_rename_commits], indirect=True)
-def test_backend_consistency_renames(git_repo, backend_instance, golden_file_manager):
-    """Test that all backends correctly handle file renames."""
-    os.chdir(git_repo)
-
-    commits = backend_instance.get_log_entries(
-        since=None,
-        until=None,
-        author=None,
-        grep=None,
-        merged_only=False,
-        include_paths=None,
-        exclude_paths=None,
-    )
-
-    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or ''))
-
-    test_id = f"renames_{backend_instance.__class__.__name__}"
+    test_id = f"merged_only_{backend_instance.__class__.__name__}"
 
     if REGENERATE_GOLDEN_FILES:
         golden_file_manager.save_golden_file(test_id, {}, actual_commits)

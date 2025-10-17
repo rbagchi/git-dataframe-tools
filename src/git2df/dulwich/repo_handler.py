@@ -1,15 +1,16 @@
 import logging
 import tempfile
 import datetime
-from typing import Optional
+from typing import Optional, List
 import sys
 import re
 from urllib.parse import urlparse
 
 from dulwich.repo import Repo
-from dulwich.client import HttpGitClient, LocalGitClient
+from dulwich.client import HttpGitClient
 from tqdm import tqdm
 
+from ..git_parser import GitLogEntry
 from .commit_walker import DulwichCommitWalker
 from .diff_parser import DulwichDiffParser
 
@@ -42,7 +43,7 @@ class DulwichRepoHandler:
         author: Optional[str],
         grep: Optional[str],
         diff_parser: DulwichDiffParser,
-    ) -> str:
+    ) -> List[GitLogEntry]:
         repo = self.repo
         if repo is None:
             raise ValueError("Local repository not initialized.")
@@ -75,7 +76,7 @@ class DulwichRepoHandler:
         author: Optional[str],
         grep: Optional[str],
         diff_parser: DulwichDiffParser,
-    ) -> str:
+    ) -> List[GitLogEntry]:
         with tempfile.TemporaryDirectory() as tmpdir:
 
             parsed_url = urlparse(self.remote_url)

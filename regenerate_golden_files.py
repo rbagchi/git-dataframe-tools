@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from git2df.git_parser import parse_git_log # Changed from _parse_git_data_internal
 import logging
 import dataclasses

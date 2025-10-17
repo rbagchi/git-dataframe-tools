@@ -66,7 +66,7 @@ class DulwichCommitWalker:
         )
         for file_change in file_changes:
             commit_output_lines.append(
-                f"{file_change['additions']}\t{file_change['deletions']}\t{file_change['change_type']}\t{file_change['file_paths']}"
+                f"{file_change.additions}\t{file_change.deletions}\t{file_change.change_type}\t{file_change.file_path}"
             )
         return commit_output_lines
 
@@ -156,7 +156,7 @@ class DulwichCommitWalker:
         # Explicitly get the head of the remote_branch (main) and walk from there
         try:
             main_branch_sha = repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
-            print(f"DEBUG: main_branch_sha: {main_branch_sha}")
+            print(f"DEBUG: main_branch_sha: {main_branch_sha.hex()}")
         except KeyError:
             logger.warning(f"Branch {self.remote_branch} not found in repo {repo.path}. No commits to walk.")
             return []

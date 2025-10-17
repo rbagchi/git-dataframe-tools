@@ -1,23 +1,50 @@
 import re
 import pytest
 import tempfile
-from dulwich.repo import Repo
 import os
 import subprocess
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
-import time
+from datetime import datetime
 import pygit2
+import json
 
-from dulwich.objects import Commit
-import dulwich.index
-import dulwich.porcelain
 
 
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+GOLDEN_FILES_DIR = Path(__file__).parent / "data" / "golden_files"
+GOLDEN_FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+class GoldenFileManager:
+    def __init__(self, request):
+        self.request = request
+
+    def _get_golden_file_path(self, test_name, params):
+        # Create a unique filename based on test name and parameters
+        param_str = "-".join(f"{k}_{v}" for k, v in sorted(params.items()))
+        if param_str:
+            file_name = f"{test_name}-{param_str}.json"
+        else:
+            file_name = f"{test_name}.json"
+        return GOLDEN_FILES_DIR / file_name
+
+    def load_golden_file(self, test_name, params):
+        file_path = self._get_golden_file_path(test_name, params)
+        if file_path.exists():
+            with open(file_path, "r") as f:
+                return json.load(f)
+        return None
+
+    def save_golden_file(self, test_name, params, content):
+        file_path = self._get_golden_file_path(test_name, params)
+        with open(file_path, "w") as f:
+            json.dump(content, f, indent=4)
+
+@pytest.fixture
+def golden_file_manager(request):
+    return GoldenFileManager(request)
 
 sample_commits = [
     {
@@ -145,6 +172,31 @@ def git_repo(request):
             os.chdir(original_cwd)
 
 
+def _handle_file_changes(repo, repo_path, commit_data):
+    for filename, content in commit_data["files"].items():
+        file_path = Path(repo_path) / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(content)
+        repo.index.add(str(filename))
+
+def _handle_file_deletions(repo, repo_path, commit_data):
+    if "delete_files" in commit_data:
+        for filename in commit_data["delete_files"]:
+            file_path = Path(repo_path) / filename
+            if file_path.exists():
+                file_path.unlink()
+            repo.index.remove(str(filename))
+
+def _handle_file_renames(repo, repo_path, commit_data):
+    if "rename_files" in commit_data:
+        for old_name, new_name in commit_data["rename_files"]:
+            old_file_path = Path(repo_path) / old_name
+            
+            if old_file_path.exists():
+                old_file_path.unlink()
+            repo.index.remove(str(old_name))
+            repo.index.add(str(new_name)) # Assume new file content is handled by _handle_file_changes or is a pure rename
+
 @pytest.fixture
 def pygit2_repo(request):
     """
@@ -205,45 +257,9 @@ def pygit2_repo(request):
                     current_author = pygit2.Signature(current_author_name, current_author_email, commit_timestamp, 0)
                     current_committer = pygit2.Signature(current_author_name, current_author_email, commit_timestamp, 0)
 
-                    # Create/modify files
-                    for filename, content in commit_data["files"].items():
-                        file_path = Path(repo_path) / filename
-                        file_path.parent.mkdir(parents=True, exist_ok=True)
-                        file_path.write_text(content)
-                        repo.index.add(str(filename))
-
-                    # Handle file deletions
-                    if "delete_files" in commit_data:
-                        for filename in commit_data["delete_files"]:
-                            file_path = Path(repo_path) / filename
-                            if file_path.exists():
-                                file_path.unlink()
-                            repo.index.remove(str(filename))
-
-                    # Handle file renames
-                    if "rename_files" in commit_data:
-                        for old_name, new_name in commit_data["rename_files"]:
-                            old_file_path = Path(repo_path) / old_name
-                            new_file_path = Path(repo_path) / new_name
-                            
-                            # Remove old file from index and filesystem
-                            if old_file_path.exists():
-                                old_file_path.unlink()
-                            repo.index.remove(str(old_name))
-
-                            # Add new file to index and filesystem (content should be in commit_data["files"])
-                            # Ensure the new file content is already handled by the 'files' loop
-                            # If not, we need to read the content from the old file before deleting it
-                            # For now, assume new file content is provided in 'files' if it's a rename with content change
-                            # Or, if it's a pure rename, the content should be the same as the old file
-                            # For this test, we assume the content is passed in 'files' for the new_name
-                            if new_name not in commit_data["files"]:
-                                # This case should ideally not happen if 'files' is correctly populated for renames
-                                # But as a fallback, if new_name is not in 'files', we'll just add it to the index
-                                # assuming its content was already written by the 'files' loop (which it won't be if it's a pure rename)
-                                # This needs careful handling. For now, let's assume 'files' contains the new_name with its content.
-                                pass # The 'files' loop above should handle creating the new file
-                            repo.index.add(str(new_name))
+                    _handle_file_changes(repo, repo_path, commit_data)
+                    _handle_file_deletions(repo, repo_path, commit_data)
+                    _handle_file_renames(repo, repo_path, commit_data)
 
                     repo.index.write()
                     tree = repo.index.write_tree()

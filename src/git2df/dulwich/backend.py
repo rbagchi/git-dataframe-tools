@@ -1,11 +1,10 @@
 import logging
-import os
 from typing import List, Optional
 
 from dulwich.repo import Repo
 
 from ..backend_interface import GitBackend
-from ..git_parser import GitLogEntry, parse_git_log
+from ..git_parser import GitLogEntry
 from .date_utils import get_date_filters
 from .diff_parser import DulwichDiffParser
 from .commit_filters import DulwichCommitFilters

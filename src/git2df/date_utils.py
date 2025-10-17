@@ -1,6 +1,14 @@
 import parsedatetime as pdt
 from datetime import datetime, timezone
 
+def _adjust_time_for_date_only_string(dt: datetime, date_str: str, default_datetime: datetime) -> datetime:
+    if dt and not ('T' in date_str or ':' in date_str or '+' in date_str):
+        if default_datetime.hour == 0 and default_datetime.minute == 0 and default_datetime.second == 0: # Start of day
+            dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        else: # End of day
+            dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return dt
+
 def _parse_and_localize_date(date_str, default_datetime, cal):
     if not date_str:
         return None
@@ -10,12 +18,7 @@ def _parse_and_localize_date(date_str, default_datetime, cal):
     if dt and dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
 
-    # Adjust time based on whether it's a date-only string
-    if dt and not ('T' in date_str or ':' in date_str or '+' in date_str):
-        if default_datetime.hour == 0 and default_datetime.minute == 0 and default_datetime.second == 0: # Start of day
-            dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
-        else: # End of day
-            dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    dt = _adjust_time_for_date_only_string(dt, date_str, default_datetime)
     return dt
 
 def get_date_filters(since, until):

@@ -3,7 +3,33 @@ from git2df.backend_interface import GitBackend
 from git2df.pygit2_backend import Pygit2Backend
 from git2df.git_parser import GitLogEntry
 from datetime import datetime, timedelta, timezone
-import time
+
+def _assert_file_change(file_change, expected_file_path, expected_additions, expected_deletions, expected_change_type, expected_old_file_path=None):
+    assert file_change.file_path == expected_file_path
+    assert file_change.additions == expected_additions
+    assert file_change.deletions == expected_deletions
+    assert file_change.change_type == expected_change_type
+    assert file_change.old_file_path == expected_old_file_path
+
+def _assert_commit_details(commit, expected_message, expected_num_file_changes):
+    assert commit.commit_message == expected_message
+    assert len(commit.file_changes) == expected_num_file_changes
+
+def _assert_initial_fixture_commit(commit):
+    _assert_commit_details(commit, "Initial commit", 1)
+    _assert_file_change(commit.file_changes[0], "initial_file.txt", 1, 0, "A")
+
+def _assert_file_modification_commit(commit, expected_message, expected_file_path, expected_additions, expected_deletions, expected_change_type):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(commit.file_changes[0], expected_file_path, expected_additions, expected_deletions, expected_change_type)
+
+def _assert_file_rename_commit(commit, expected_message, expected_new_file_path, expected_old_file_path, expected_additions, expected_deletions, expected_change_type):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(commit.file_changes[0], expected_new_file_path, expected_additions, expected_deletions, expected_change_type, expected_old_file_path)
+
+def _assert_file_deletion_commit(commit, expected_message, expected_file_path, expected_additions, expected_deletions, expected_change_type):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(commit.file_changes[0], expected_file_path, expected_additions, expected_deletions, expected_change_type)
 
 def test_pygit2_backend_initialization():
     backend = Pygit2Backend(repo_path=".")
@@ -181,32 +207,16 @@ def test_get_log_entries_file_modifications(pygit2_repo):
     backend = Pygit2Backend(repo_path=repo_path)
     log_entries = backend.get_log_entries()
 
-    # We expect 3 commits: initial empty commit, initial file commit, and modification
     assert len(log_entries) == 3
 
     # The latest commit is the modification
-    mod_commit = log_entries[0]
-    assert mod_commit.commit_message == "Modify test_file.txt"
-    assert len(mod_commit.file_changes) == 1
-    file_change = mod_commit.file_changes[0]
-    assert file_change.file_path == "test_file.txt"
-    assert file_change.additions == 1
-    assert file_change.deletions == 1
-    assert file_change.change_type == "M"
+    _assert_file_modification_commit(log_entries[0], "Modify test_file.txt", "test_file.txt", 1, 1, "M")
 
     # The initial file commit
-    initial_file_commit = log_entries[1]
-    assert initial_file_commit.commit_message == "Initial commit"
-    assert len(initial_file_commit.file_changes) == 1
-    file_change = initial_file_commit.file_changes[0]
-    assert file_change.file_path == "test_file.txt"
-    assert file_change.additions == 3
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
+    _assert_file_modification_commit(log_entries[1], "Initial commit", "test_file.txt", 3, 0, "A")
 
-    assert file_change.change_type == "A"
-
-    assert file_change.change_type == "A"
+    # The very first commit from the fixture
+    _assert_initial_fixture_commit(log_entries[2])
 
 @pytest.mark.parametrize(
     "pygit2_repo",
@@ -239,35 +249,13 @@ def test_get_log_entries_file_rename(pygit2_repo):
     assert len(log_entries) == 3
 
     # The latest commit is the rename
-    rename_commit = log_entries[0]
-    assert rename_commit.commit_message == "Rename old_name.txt to new_name.txt"
-    assert len(rename_commit.file_changes) == 1
-    file_change = rename_commit.file_changes[0]
-    assert file_change.file_path == "new_name.txt"
-    assert file_change.old_file_path == "old_name.txt"
-    assert file_change.additions == 0
-    assert file_change.deletions == 0
-    assert file_change.change_type == "R"
+    _assert_file_rename_commit(log_entries[0], "Rename old_name.txt to new_name.txt", "new_name.txt", "old_name.txt", 0, 0, "R")
 
     # The initial file commit
-    initial_file_commit = log_entries[1]
-    assert initial_file_commit.commit_message == "Initial commit"
-    assert len(initial_file_commit.file_changes) == 1
-    file_change = initial_file_commit.file_changes[0]
-    assert file_change.file_path == "old_name.txt"
-    assert file_change.additions == 1
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
+    _assert_file_modification_commit(log_entries[1], "Initial commit", "old_name.txt", 1, 0, "A")
 
     # The very first commit from the fixture
-    fixture_initial_commit = log_entries[2]
-    assert fixture_initial_commit.commit_message == "Initial commit"
-    assert len(fixture_initial_commit.file_changes) == 1
-    file_change = fixture_initial_commit.file_changes[0]
-    assert file_change.file_path == "initial_file.txt"
-    assert file_change.additions == 1
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
+    _assert_initial_fixture_commit(log_entries[2])
 
 @pytest.mark.parametrize(
     "pygit2_repo",
@@ -300,31 +288,10 @@ def test_get_log_entries_file_deletion(pygit2_repo):
     assert len(log_entries) == 3
 
     # The latest commit is the deletion
-    del_commit = log_entries[0]
-    assert del_commit.commit_message == "Delete file_to_delete.txt"
-    assert len(del_commit.file_changes) == 1
-    file_change = del_commit.file_changes[0]
-    assert file_change.file_path == "file_to_delete.txt"
-    assert file_change.additions == 0
-    assert file_change.deletions == 3
-    assert file_change.change_type == "D"
+    _assert_file_deletion_commit(log_entries[0], "Delete file_to_delete.txt", "file_to_delete.txt", 0, 3, "D")
 
     # The initial file commit
-    initial_file_commit = log_entries[1]
-    assert initial_file_commit.commit_message == "Initial commit"
-    assert len(initial_file_commit.file_changes) == 1
-    file_change = initial_file_commit.file_changes[0]
-    assert file_change.file_path == "file_to_delete.txt"
-    assert file_change.additions == 3
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
+    _assert_file_modification_commit(log_entries[1], "Initial commit", "file_to_delete.txt", 3, 0, "A")
 
     # The very first commit from the fixture
-    fixture_initial_commit = log_entries[2]
-    assert fixture_initial_commit.commit_message == "Initial commit"
-    assert len(fixture_initial_commit.file_changes) == 1
-    file_change = fixture_initial_commit.file_changes[0]
-    assert file_change.file_path == "initial_file.txt"
-    assert file_change.additions == 1
-    assert file_change.deletions == 0
-    assert file_change.change_type == "A"
+    _assert_initial_fixture_commit(log_entries[2])

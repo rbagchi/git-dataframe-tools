@@ -6,7 +6,6 @@ from dulwich.objects import Commit, Blob, TreeEntry
 from dulwich.repo import Repo
 from dulwich.diff_tree import TreeChange
 
-from src.git2df.git_parser import FileChange
 from src.git2df.dulwich.diff_parser import DulwichDiffParser
 
 

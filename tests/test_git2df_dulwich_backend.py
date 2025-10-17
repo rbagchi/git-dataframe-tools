@@ -49,7 +49,7 @@ def mock_repo_with_commits(mocker):
         mocker.MagicMock(commit=commit3),
     ]
     repo.refs = mocker.MagicMock()
-    repo.refs.__getitem__.return_value = "main_sha"
+    repo.refs.__getitem__.return_value = b"a" * 20 # Simulate a 20-byte SHA
     return repo
 
 

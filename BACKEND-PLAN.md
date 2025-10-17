@@ -160,7 +160,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Level of Effort:** High
 *   **Status:** IN PROGRESS
     *   **7.5.4.1: Add multiple branches test to consistency tests**
-        *   **Status:** IN PROGRESS
+        *   **Status:** COMPLETE
         *   **Action:** Create a new fixture in `tests/conftest.py` that sets up a repository with multiple branches. Add a new test case in `tests/test_backend_consistency.py` that uses this fixture and verifies consistency across backends.
     *   **7.5.4.2: Add merge commits test to consistency tests**
         *   **Status:** COMPLETE
@@ -175,8 +175,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Level of Effort:** Low
 *   **Status:** IN PROGRESS
     *   **7.5.5.1: Add `merged_only` test for `Pygit2Backend`**
-        *   **Status:** IN PROGRESS
-        *   **Action:** Create a new test case in `tests/test_pygit2_backend.py` that specifically tests the `merged_only` filter for `Pygit2Backend`.
+        *   **Status:** COMPLETE
     *   **7.5.5.2: Add `merged_only` consistency test**
         *   **Status:** COMPLETE
 

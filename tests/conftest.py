@@ -13,6 +13,7 @@ from .fixtures.markdown_utils import extract_code_blocks
 from .fixtures.git_cli_fixtures import git_repo
 from .fixtures.pygit2_fixtures import pygit2_repo
 from .fixtures.remote_repo_fixtures import remote_git_repo
+import os
 from datetime import datetime, timedelta, timezone
 import pytest
 
@@ -92,6 +93,54 @@ def sample_rename_commits():
             "author_email": "rename@example.com",
             "message": "Rename old_name.txt to new_name.txt",
             "renames": [("old_name.txt", "new_name.txt")],
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+        },
+    ]
+
+@pytest.fixture
+def sample_multiple_branches_commits():
+    return [
+        {
+            "author_name": "Main Author",
+            "author_email": "main@example.com",
+            "message": "Initial commit on main",
+            "files": {"main_file.txt": "content"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=10)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "Feature Author",
+            "author_email": "feature@example.com",
+            "message": "First commit on feature branch",
+            "files": {"feature_file1.txt": "feature content 1"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=8)).strftime("%Y-%m-%d"),
+            "branch": "feature",
+        },
+        {
+            "author_name": "Main Author",
+            "author_email": "main@example.com",
+            "message": "Second commit on main",
+            "files": {"main_file2.txt": "content 2"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "Feature Author",
+            "author_email": "feature@example.com",
+            "message": "Second commit on feature branch",
+            "files": {"feature_file2.txt": "feature content 2"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=6)).strftime("%Y-%m-%d"),
+            "branch": "feature",
+        },
+    ]
+@pytest.fixture
+def sample_large_binary_files_commits():
+    # Create a large binary file (e.g., 1MB of random bytes)
+    large_file_content = os.urandom(1024 * 1024) # 1MB
+    return [
+        {
+            "author_name": "Binary Author",
+            "author_email": "binary@example.com",
+            "message": "Initial commit with large binary file",
+            "files": {"large_binary.bin": large_file_content},
             "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
         },
     ]

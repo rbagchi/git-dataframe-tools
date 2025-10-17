@@ -119,7 +119,7 @@ def _assert_subprocess_calls(mock_subprocess_run: MagicMock, repo_path: str, exp
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
-def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_branch):
+def test_get_log_entries_no_filters_cli(mock_subprocess_run, mock_get_default_branch):
     # Arrange
     rev_list_stdout = "commit1hash\n"
     metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
@@ -131,18 +131,30 @@ def test_get_raw_log_output_no_filters(mock_subprocess_run, mock_get_default_bra
     backend = GitCliBackend(repo_path)
 
     # Act
-    output = backend.get_raw_log_output()
-    expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n10\t5\tM\tfile1.txt"
-    )
-    assert output == expected_output
+    log_entries = backend.get_log_entries()
+
+    # Assert
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parent1hash"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
     _assert_subprocess_calls(mock_subprocess_run, repo_path, [], [])
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
-def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_branch):
+def test_get_log_entries_with_filters_cli(mock_subprocess_run, mock_get_default_branch):
     # Arrange
     rev_list_stdout = "commit1hash\n"
     metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
@@ -158,16 +170,26 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
     grep = "test_grep"
 
     # Act
-    output = backend.get_raw_log_output(
+    log_entries = backend.get_log_entries(
         since=since, until=until, author=author, grep=grep
     )
 
     # Assert
-    expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n10\t5\tM\tfile1.txt"
-    )
-    assert output == expected_output
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parent1hash"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
     expected_rev_list_args = [
         "--since", since, "--until", until, "--author", author, "--grep", grep
     ]
@@ -176,7 +198,7 @@ def test_get_raw_log_output_with_filters(mock_subprocess_run, mock_get_default_b
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("git2df.backends.GitCliBackend._run_git_command")
-def test_get_raw_log_output_with_merges(mock_run_git_command, mock_get_default_branch):
+def test_get_log_entries_with_merges(mock_run_git_command, mock_get_default_branch):
     # Arrange
     rev_list_stdout = "commit1hash\n"
     metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Merge commit---MSG_END---"
@@ -194,14 +216,24 @@ def test_get_raw_log_output_with_merges(mock_run_git_command, mock_get_default_b
     backend = GitCliBackend(repo_path)
 
     # Act
-    output = backend.get_raw_log_output(merged_only=True)
+    log_entries = backend.get_log_entries(merged_only=True)
 
     # Assert
-    expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Merge commit---MSG_END---"
-        "\n10\t5\tM\tfile1.txt"
-    )
-    assert output == expected_output
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parent1hash"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Merge commit",
+        "file_path": "file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
 
     # Assertions for mock_run_git_command calls
     mock_run_git_command.assert_any_call(["git", "remote", "show", "origin"])
@@ -217,12 +249,12 @@ def test_get_raw_log_output_with_merges(mock_run_git_command, mock_get_default_b
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
-def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_branch):
+def test_get_log_entries_with_paths(mock_subprocess_run, mock_get_default_branch):
     # Arrange
     rev_list_stdout = "commit1hash\n"
     metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-    numstat_stdout = "commit1hash\n10\t5\tsrc/file1.txt\n"
-    name_status_stdout = "commit1hash\nM\tsrc/file1.txt\n"
+    numstat_stdout = "10\t5\tsrc/file1.txt\n"
+    name_status_stdout = "M\tsrc/file1.txt\n"
     mock_subprocess_run.side_effect = _setup_mock_subprocess_run_side_effect(rev_list_stdout, metadata_stdout, numstat_stdout, name_status_stdout)
 
     repo_path = "/test/repo"
@@ -230,14 +262,24 @@ def test_get_raw_log_output_with_paths(mock_subprocess_run, mock_get_default_bra
     include_paths = ["src/"]
 
     # Act
-    output = backend.get_raw_log_output(include_paths=include_paths)
+    log_entries = backend.get_log_entries(include_paths=include_paths)
 
     # Assert
-    expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n10\t5\tM\tsrc/file1.txt"
-    )
-    assert output == expected_output
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parent1hash"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "src/file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
     expected_rev_list_args = []
     _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, include_paths)
 
@@ -305,7 +347,7 @@ def test_get_log_entries_no_filters(mock_subprocess_run, mock_get_default_branch
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
 @patch("subprocess.run")
-def test_get_raw_log_output_with_exclude_paths(
+def test_get_log_entries_with_exclude_paths(
     mock_subprocess_run, mock_get_default_branch
 ):
     # Arrange
@@ -320,9 +362,9 @@ def test_get_raw_log_output_with_exclude_paths(
             )
         ),
         # 3. git diff-tree for numstat
-        MagicMock(stdout="commit1hash\n10\t0\tsrc/main.py\n"),
+        MagicMock(stdout="10\t0\tsrc/main.py\n"),
         # 4. git diff-tree for name-status
-        MagicMock(stdout="commit1hash\nM\tsrc/main.py\n"),
+        MagicMock(stdout="M\tsrc/main.py\n"),
         # For commit2hash
         # 5. git show for metadata
         MagicMock(
@@ -331,9 +373,9 @@ def test_get_raw_log_output_with_exclude_paths(
             )
         ),
         # 6. git diff-tree for numstat
-        MagicMock(stdout="commit2hash\n20\t0\ttests/test_main.py\n"),
+        MagicMock(stdout="20\t0\ttests/test_main.py\n"),
         # 7. git diff-tree for name-status
-        MagicMock(stdout="commit2hash\nM\ttests/test_main.py\n"),
+        MagicMock(stdout="M\ttests/test_main.py\n"),
     ]
 
     repo_path = "/test/repo"
@@ -341,21 +383,46 @@ def test_get_raw_log_output_with_exclude_paths(
     exclude_paths = ["tests/"]
 
     # Act
-    output = backend.get_raw_log_output(exclude_paths=exclude_paths)
+    log_entries = backend.get_log_entries(exclude_paths=exclude_paths)
 
     # Assert
-    expected_output = (
-        "@@@COMMIT@@@commit1hash@@@FIELD@@@parenthash1@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
-        "\n10\t0\tM\tsrc/main.py\n"
-        "@@@COMMIT@@@commit2hash@@@FIELD@@@parenthash2@@@FIELD@@@Author Two@@@FIELD@@@author2@example.com@@@FIELD@@@2023-01-02T10:00:00+00:00\t1672617600@@@FIELD@@@---MSG_START---Subject 2---MSG_END---"
-        "\n20\t0\tM\ttests/test_main.py"
-    )
-    assert output == expected_output
+    assert len(log_entries) == 2
+
+    expected_values_1 = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parenthash1"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "src/main.py",
+        "additions": 10,
+        "deletions": 0,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values_1)
+
+    expected_values_2 = {
+        "commit_hash": "commit2hash",
+        "parent_hashes": ["parenthash2"],
+        "author_name": "Author Two",
+        "author_email": "author2@example.com",
+        "commit_date": "2023-01-02T10:00:00+00:00",
+        "commit_timestamp": 1672617600,
+        "commit_message": "Subject 2",
+        "file_path": "tests/test_main.py",
+        "additions": 20,
+        "deletions": 0,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[1], expected_values_2)
+
     assert mock_subprocess_run.call_count == 7
 
     # Assertions for the first call (rev-list)
     args0, kwargs0 = mock_subprocess_run.call_args_list[0]
-    assert "rev-list" in args0[0] # Corrected from "rev-.venv/lib/python3.9/site-packageslist"
+    assert "rev-list" in args0[0]
     assert "--all" in args0[0]
     assert "--" in args0[0]
     assert f":(exclude){exclude_paths[0]}" in args0[0]

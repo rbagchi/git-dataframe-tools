@@ -1,0 +1,1 @@
+- This is a uv project, so I should use uv for python tools.

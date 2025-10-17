@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.9.24, pytest-8.4.2, pluggy-1.6.0
+rootdir: /Users/ranjan/project/git-dataframe-tools
+configfile: pyproject.toml
+plugins: mock-3.15.1, json-report-1.5.0, metadata-3.1.1, cov-7.0.0
+collected 140 items
+
+tests/test_backend_consistency.py .....................                  [ 15%]
+tests/test_config_models_date_range.py .....                             [ 18%]
+tests/test_config_models_period_parsing.py ......                        [ 22%]
+tests/test_dulwich_diff_parser.py ......                                 [ 27%]
+tests/test_dulwich_remote.py ..                                          [ 28%]
+tests/test_failing_case.py .                                             [ 29%]
+tests/test_get_commits_df_with_all_filters.py ..                         [ 30%]
+tests/test_get_commits_df_with_all_filters_and_paths.py ..               [ 32%]
+tests/test_get_commits_df_with_filters.py ..                             [ 33%]
+tests/test_git2df_backends.py ......                                     [ 37%]
+tests/test_git2df_dataframe_builder.py ..                                [ 39%]
+tests/test_git2df_dulwich_backend.py ....                                [ 42%]
+tests/test_git2df_parser.py .......................                      [ 58%]
+tests/test_git_assumptions.py ...                                        [ 60%]
+tests/test_git_df.py .....                                               [ 64%]
+tests/test_git_df_cli.py ....                                            [ 67%]
+tests/test_git_integration.py .                                          [ 67%]
+tests/test_git_interaction.py ......                                     [ 72%]
+tests/test_git_stats_pandas.py ...........                               [ 80%]
+tests/test_pygit2_backend.py ........                                    [ 85%]
+tests/test_readme.py .                                                   [ 86%]
+tests/test_runbook.py .s.....                                            [ 91%]
+tests/test_scoreboard.py ....                                            [ 94%]
+tests/test_scoreboard_df_path.py ........                                [100%]
+
+======================= 139 passed, 1 skipped in 36.88s ========================

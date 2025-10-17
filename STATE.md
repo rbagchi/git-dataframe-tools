@@ -74,4 +74,5 @@
 
 - **Added Multiple Branches Test**: Implemented a new test case in `tests/test_backend_consistency.py` covering repositories with multiple branches, ensuring consistent results across all backends.
 
-**Working on:** Adding large binary files test to `test_backend_consistency.py` and `merged_only` test for `Pygit2Backend`.
+    *   **7.5.4.4: Add large binary files test to consistency tests**
+        *   **Status:** COMPLETE

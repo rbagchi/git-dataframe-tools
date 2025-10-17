@@ -78,34 +78,6 @@ class GitCliBackend(GitBackend):
         Retrieves a list of GitLogEntry objects by calling get_raw_log_output
         and then parsing the result.
         """
-        raw_output = self.get_raw_log_output(
-            log_args=log_args,
-            since=since,
-            until=until,
-            author=author,
-            grep=grep,
-            merged_only=merged_only,
-            include_paths=include_paths,
-            exclude_paths=exclude_paths,
-        )
-        return parse_git_log(raw_output)
-
-    def get_raw_log_output(
-        self,
-        log_args: Optional[List[str]] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-        author: Optional[str] = None,
-        grep: Optional[str] = None,
-        merged_only: bool = False,
-        include_paths: Optional[List[str]] = None,
-        exclude_paths: Optional[List[str]] = None,
-    ) -> str:
-        """
-        [DEPRECATED] Fetches git log information from a local repository using the Git CLI
-        and returns it in a raw string format compatible with git2df's parser.
-        Use get_log_entries instead.
-        """
         base_args_no_pretty_no_paths = self._build_git_log_arguments(
             log_args,
             since,
@@ -138,14 +110,16 @@ class GitCliBackend(GitBackend):
         ]
 
         if not commit_hashes:
-            return ""
+            return []
 
         combined_output_lines = []
 
         for commit_hash in commit_hashes:
             combined_output_lines.extend(self._process_commit(commit_hash, path_filters))
 
-        return "\n".join(combined_output_lines)
+        return parse_git_log("\n".join(combined_output_lines))
+
+
 
     def _build_git_log_arguments(
         self,

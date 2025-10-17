@@ -5,7 +5,7 @@ from src.git2df.backends import GitCliBackend
 from src.git2df.pygit2_backend import Pygit2Backend
 from src.git2df.dulwich.backend import DulwichRemoteBackend
 from git2df.git_parser import GitLogEntry
-from tests.conftest import sample_unusual_character_commits, sample_merge_commits, sample_rename_commits # noqa: F401
+from tests.conftest import sample_unusual_character_commits, sample_merge_commits, sample_rename_commits, sample_multiple_branches_commits, sample_large_binary_files_commits # noqa: F401
 
 REGENERATE_GOLDEN_FILES = os.environ.get("REGENERATE_GOLDEN_FILES", "false").lower() == "true"
 
@@ -300,3 +300,223 @@ def test_backend_consistency_merged_only(git_repo, backend_instance, golden_file
             print("DEBUG: Actual commit:")
             print(actual_commits[i])
             assert False, f"Commit dictionaries do not match for {test_id} at index {i}."
+
+
+
+
+
+@pytest.mark.parametrize("git_repo", [sample_multiple_branches_commits], indirect=True)
+
+
+def test_backend_consistency_multiple_branches(git_repo, backend_instance, golden_file_manager):
+
+
+    """Test that all backends correctly handle multiple branches."""
+
+
+    os.chdir(git_repo)
+
+
+
+
+
+    commits = backend_instance.get_log_entries(
+
+
+        since=None,
+
+
+        until=None,
+
+
+        author=None,
+
+
+        grep=None,
+
+
+        merged_only=False,
+
+
+        include_paths=None,
+
+
+        exclude_paths=None,
+
+
+    )
+
+
+
+
+
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
+
+
+
+
+
+    test_id = f"multiple_branches_{backend_instance.__class__.__name__}"
+
+
+
+
+
+    if REGENERATE_GOLDEN_FILES:
+
+
+        golden_file_manager.save_golden_file(test_id, {}, actual_commits)
+
+
+        pytest.skip(f"Golden file for {test_id} regenerated.")
+
+
+
+
+
+    expected_commits = golden_file_manager.load_golden_file(test_id, {})
+
+
+    assert expected_commits is not None, f"Golden file not found for {test_id}. Run with REGENERATE_GOLDEN_FILES=true."
+
+
+
+
+
+    assert len(actual_commits) == len(expected_commits), f"Mismatch in commit count for {test_id}"
+
+
+    for i in range(len(actual_commits)):
+
+
+        if not compare_commit_dicts(actual_commits[i], expected_commits[i]):
+
+
+            print(f"DEBUG: Mismatch in {test_id} at index {i}")
+
+
+            print("DEBUG: Expected commit:")
+
+
+            print(expected_commits[i])
+
+
+            print("DEBUG: Actual commit:")
+
+
+            print(actual_commits[i])
+
+
+            assert False, f"Commit dictionaries do not match for {test_id} at index {i}."
+
+
+
+
+
+
+
+
+@pytest.mark.parametrize("git_repo", [sample_large_binary_files_commits], indirect=True)
+
+
+def test_backend_consistency_large_binary_files(git_repo, backend_instance, golden_file_manager):
+
+
+    """Test that all backends correctly handle large binary files."""
+
+
+    os.chdir(git_repo)
+
+
+
+
+
+    commits = backend_instance.get_log_entries(
+
+
+        since=None,
+
+
+        until=None,
+
+
+        author=None,
+
+
+        grep=None,
+
+
+        merged_only=False,
+
+
+        include_paths=None,
+
+
+        exclude_paths=None,
+
+
+    )
+
+
+
+
+
+    actual_commits = sorted([commit_to_dict(c) for c in commits], key=lambda x: (x["commit_timestamp"], "".join(x["parent_hashes"]) or '')) # noqa: F841
+
+
+
+
+
+    test_id = f"large_binary_files_{backend_instance.__class__.__name__}"
+
+
+
+
+
+    if REGENERATE_GOLDEN_FILES:
+
+
+        golden_file_manager.save_golden_file(test_id, {}, actual_commits)
+
+
+        pytest.skip(f"Golden file for {test_id} regenerated.")
+
+
+
+
+
+    expected_commits = golden_file_manager.load_golden_file(test_id, {})
+
+
+    assert expected_commits is not None, f"Golden file not found for {test_id}. Run with REGENERATE_GOLDEN_FILES=true."
+
+
+
+
+
+    assert len(actual_commits) == len(expected_commits), f"Mismatch in commit count for {test_id}"
+
+
+    for i in range(len(actual_commits)):
+
+
+        if not compare_commit_dicts(actual_commits[i], expected_commits[i]):
+
+
+            print(f"DEBUG: Mismatch in {test_id} at index {i}")
+
+
+            print("DEBUG: Expected commit:")
+
+
+            print(expected_commits[i])
+
+
+            print("DEBUG: Actual commit:")
+
+
+            print(actual_commits[i])
+
+
+            assert False, f"Commit dictionaries do not match for {test_id} at index {i}."
+

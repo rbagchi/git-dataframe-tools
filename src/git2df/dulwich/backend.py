@@ -64,38 +64,3 @@ class DulwichRemoteBackend(GitBackend):
             since_dt, until_dt, author, grep, diff_parser
         )
 
-    def get_raw_log_output(
-        self,
-        log_args: Optional[List[str]] = None,
-        since: Optional[str] = None,
-        until: Optional[str] = None,
-        author: Optional[str] = None,
-        grep: Optional[str] = None,
-        merged_only: bool = False,  # Not directly supported by dulwich fetch by date
-        include_paths: Optional[List[str]] = None, # Will be filtered post-fetch
-        exclude_paths: Optional[List[str]] = None,  # Will be filtered post-fetch
-    ) -> str:
-        """
-        [DEPRECATED] Fetches git log information from a remote repository using Dulwich and returns it
-        in a raw string format compatible with git2df's parser.
-        Use get_log_entries instead.
-        """
-        parsed_entries = self.get_log_entries(
-            log_args=log_args,
-            since=since,
-            until=until,
-            author=author,
-            grep=grep,
-            merged_only=merged_only,
-            include_paths=include_paths,
-            exclude_paths=exclude_paths,
-        )
-
-        output_lines: List[str] = []
-        for entry in parsed_entries:
-            output_lines.append(self.commit_formatter.format_commit_line(entry.to_dict())) # Assuming to_dict() exists or similar
-            for file_change in entry.file_changes:
-                output_lines.append(
-                    f"{file_change.additions}\t{file_change.deletions}\t{file_change.change_type}\t{file_change.file_path}"
-                )
-        return "\n".join(output_lines)

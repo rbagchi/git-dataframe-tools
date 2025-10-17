@@ -1,0 +1,20 @@
+[
+    {
+        "parent_hashes": [
+            "946b3a2d28d96a3c74bc3d805d7e33c07119fefd"
+        ],
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "commit_message": "Second commit",
+        "commit_timestamp": 1672570800,
+        "file_changes": [
+            {
+                "file_path": "file2.txt",
+                "additions": 1,
+                "deletions": 0,
+                "change_type": "A",
+                "old_file_path": null
+            }
+        ]
+    }
+]

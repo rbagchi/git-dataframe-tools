@@ -22,13 +22,13 @@ class Pygit2Backend(GitBackend):
             return False
         return True
 
-    def _is_since_dt_match(self, commit_time: datetime, since_dt: Optional[datetime]) -> bool:
+    def _is_since_dt_match(self, commit, commit_time: datetime, since_dt: Optional[datetime]) -> bool:
         if since_dt and commit_time < since_dt:
             logger.debug(f"Commit {commit.id} excluded by since_dt filter: {commit_time} < {since_dt}")
             return False
         return True
 
-    def _is_until_dt_match(self, commit_time: datetime, until_dt: Optional[datetime]) -> bool:
+    def _is_until_dt_match(self, commit, commit_time: datetime, until_dt: Optional[datetime]) -> bool:
         if until_dt and commit_time > until_dt:
             logger.debug(f"Commit {commit.id} excluded by until_dt filter: {commit_time} > {until_dt}")
             return False
@@ -50,9 +50,9 @@ class Pygit2Backend(GitBackend):
 
         if not self._is_merged_only_match(commit, merged_only):
             return False, False
-        if not self._is_since_dt_match(commit_time, since_dt):
+        if not self._is_since_dt_match(commit, commit_time, since_dt):
             return False, True # False for match, True to break walk
-        if not self._is_until_dt_match(commit_time, until_dt):
+        if not self._is_until_dt_match(commit, commit_time, until_dt):
             return False, False # False for match, False to continue walk
         if not self._is_author_match(commit, author):
             return False, False
@@ -152,7 +152,11 @@ class Pygit2Backend(GitBackend):
         except KeyError:
             logger.warning(f"No git repository found at {self.repo_path}")
             return []
-        last = repo.head.target
+        try:
+            last = repo.head.target
+        except pygit2.GitError as e:
+            logger.warning(f"GitError accessing repo.head.target for {self.repo_path}: {e}. Assuming empty repository.")
+            return []
 
         since_dt, until_dt = get_date_filters(since, until)
 

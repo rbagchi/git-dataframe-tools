@@ -4,39 +4,131 @@ from git2df.pygit2_backend import Pygit2Backend
 from git2df.git_parser import GitLogEntry
 from datetime import datetime, timedelta, timezone
 
-def _assert_file_change(file_change, expected_file_path, expected_additions, expected_deletions, expected_change_type, expected_old_file_path=None):
+
+def _assert_file_change(
+    file_change,
+    expected_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+    expected_old_file_path=None,
+):
     assert file_change.file_path == expected_file_path
     assert file_change.additions == expected_additions
     assert file_change.deletions == expected_deletions
     assert file_change.change_type == expected_change_type
     assert file_change.old_file_path == expected_old_file_path
 
+
 def _assert_commit_details(commit, expected_message, expected_num_file_changes):
     assert commit.commit_message == expected_message
     assert len(commit.file_changes) == expected_num_file_changes
+
 
 def _assert_initial_fixture_commit(commit):
     _assert_commit_details(commit, "Initial commit", 1)
     _assert_file_change(commit.file_changes[0], "initial_file.txt", 1, 0, "A")
 
-def _assert_file_modification_commit(commit, expected_message, expected_file_path, expected_additions, expected_deletions, expected_change_type):
-    _assert_commit_details(commit, expected_message, 1)
-    _assert_file_change(commit.file_changes[0], expected_file_path, expected_additions, expected_deletions, expected_change_type)
 
-def _assert_file_rename_commit(commit, expected_message, expected_new_file_path, expected_old_file_path, expected_additions, expected_deletions, expected_change_type):
+def _assert_file_modification_commit(
+    commit,
+    expected_message,
+    expected_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+):
     _assert_commit_details(commit, expected_message, 1)
-    _assert_file_change(commit.file_changes[0], expected_new_file_path, expected_additions, expected_deletions, expected_change_type, expected_old_file_path)
+    _assert_file_change(
+        commit.file_changes[0],
+        expected_file_path,
+        expected_additions,
+        expected_deletions,
+        expected_change_type,
+    )
 
-def _assert_file_deletion_commit(commit, expected_message, expected_file_path, expected_additions, expected_deletions, expected_change_type):
+
+def _assert_file_rename_commit(
+    commit,
+    expected_message,
+    expected_new_file_path,
+    expected_old_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+):
     _assert_commit_details(commit, expected_message, 1)
-    _assert_file_change(commit.file_changes[0], expected_file_path, expected_additions, expected_deletions, expected_change_type)
+    _assert_file_change(
+        commit.file_changes[0],
+        expected_new_file_path,
+        expected_additions,
+        expected_deletions,
+        expected_change_type,
+        expected_old_file_path,
+    )
+
+
+def _assert_file_deletion_commit(
+    commit,
+    expected_message,
+    expected_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(
+        commit.file_changes[0],
+        expected_file_path,
+        expected_additions,
+        expected_deletions,
+        expected_change_type,
+    )
+
+
+def x_assert_file_deletion_commit(
+    commit,
+    expected_message,
+    expected_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(
+        commit.file_changes[0],
+        expected_file_path,
+        expected_additions,
+        expected_deletions,
+        expected_change_type,
+    )
+
+
+def _assert_filtered_commit_details(
+    commit,
+    expected_message,
+    expected_file_path,
+    expected_additions,
+    expected_deletions,
+    expected_change_type,
+):
+    _assert_commit_details(commit, expected_message, 1)
+    _assert_file_change(
+        commit.file_changes[0],
+        expected_file_path,
+        expected_additions,
+        expected_deletions,
+        expected_change_type,
+    )
+
 
 def test_pygit2_backend_initialization():
     backend = Pygit2Backend(repo_path=".")
     assert isinstance(backend, GitBackend)
 
+
 @pytest.mark.parametrize(
-    "pygit2_repo", # Use pygit2_repo fixture
+    "pygit2_repo",  # Use pygit2_repo fixture
     [
         [
             {
@@ -44,33 +136,39 @@ def test_pygit2_backend_initialization():
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"file1.txt": "hello world"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
                 "author_email": "test@example.com",
                 "message": "Second commit",
                 "files": {"file2.txt": "another file"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Dev User",
                 "author_email": "dev@example.com",
                 "message": "Third commit by Dev User",
                 "files": {"file1.txt": "hello world again"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
     indirect=True,
 )
-def test_get_log_entries_no_filters(pygit2_repo): # Use pygit2_repo fixture
+def test_get_log_entries_no_filters(pygit2_repo):  # Use pygit2_repo fixture
     repo_path = pygit2_repo
     backend = Pygit2Backend(repo_path=repo_path)
     log_entries = backend.get_log_entries()
 
     assert isinstance(log_entries, list)
-    assert len(log_entries) == 4 # Initial commit + 3 parameterized commits
+    assert len(log_entries) == 4  # Initial commit + 3 parameterized commits
     assert all(isinstance(entry, GitLogEntry) for entry in log_entries)
 
     # Basic check for expected content
@@ -79,8 +177,9 @@ def test_get_log_entries_no_filters(pygit2_repo): # Use pygit2_repo fixture
     assert first_entry.author_name is not None
     assert first_entry.commit_message is not None
 
+
 @pytest.mark.parametrize(
-    "pygit2_repo", # Use pygit2_repo fixture
+    "pygit2_repo",  # Use pygit2_repo fixture
     [
         [
             {
@@ -88,27 +187,33 @@ def test_get_log_entries_no_filters(pygit2_repo): # Use pygit2_repo fixture
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"file1.txt": "hello world"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
                 "author_email": "test@example.com",
                 "message": "Second commit",
                 "files": {"file2.txt": "another file"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Dev User",
                 "author_email": "dev@example.com",
                 "message": "Third commit by Dev User",
                 "files": {"file1.txt": "hello world again"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
     indirect=True,
 )
-def test_get_log_entries_since_filter(pygit2_repo): # Use pygit2_repo fixture
+def test_get_log_entries_since_filter(pygit2_repo):  # Use pygit2_repo fixture
     repo_path = pygit2_repo
     backend = Pygit2Backend(repo_path=repo_path)
 
@@ -129,6 +234,273 @@ def test_get_log_entries_since_filter(pygit2_repo): # Use pygit2_repo fixture
     for entry in filtered_log_entries:
         assert entry.commit_date.date() >= since_date.date()
 
+
+@pytest.mark.parametrize(
+    "pygit2_repo",  # Use pygit2_repo fixture
+    [
+        [
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Initial commit",
+                "files": {"file1.txt": "hello world"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Another User",
+                "author_email": "another@example.com",
+                "message": "Second commit by another user",
+                "files": {"file2.txt": "another file"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Third commit by Test User",
+                "files": {"file1.txt": "hello world again"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
+            },
+        ]
+    ],
+    indirect=True,
+)
+def test_get_log_entries_author_filter(pygit2_repo):  # Use pygit2_repo fixture
+    repo_path = pygit2_repo
+    backend = Pygit2Backend(repo_path=repo_path)
+
+    # Filter for commits by "Test User"
+    filtered_log_entries = backend.get_log_entries(author="Test User")
+
+    # Expected commits:
+    # - Initial commit (by Test User)
+    # - Third commit (by Test User)
+    # Total 2 commits
+    assert len(filtered_log_entries) == 2
+    assert all(entry.author_name == "Test User" for entry in filtered_log_entries)
+
+    # Filter for commits by "Another User"
+    filtered_log_entries = backend.get_log_entries(author="Another User")
+
+    # Expected commits:
+    # - Second commit (by Another User)
+    # Total 1 commit
+    assert len(filtered_log_entries) == 1
+    assert all(entry.author_name == "Another User" for entry in filtered_log_entries)
+
+
+@pytest.mark.parametrize(
+    "pygit2_repo",  # Use pygit2_repo fixture
+    [
+        [
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Initial commit with keyword ALPHA",
+                "files": {"file1.txt": "content"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Second commit with keyword BETA",
+                "files": {"file2.txt": "content"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Dev User",
+                "author_email": "dev@example.com",
+                "message": "Third commit with keyword ALPHA by Dev User",
+                "files": {"file3.txt": "content"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
+            },
+        ]
+    ],
+    indirect=True,
+)
+def test_get_log_entries_grep_filter(pygit2_repo):  # Use pygit2_repo fixture
+    repo_path = pygit2_repo
+    backend = Pygit2Backend(repo_path=repo_path)
+
+    # Filter for commits with "ALPHA"
+    filtered_log_entries = backend.get_log_entries(grep="ALPHA")
+
+    # Expected commits:
+    # - Initial commit (contains ALPHA)
+    # - Third commit (contains ALPHA)
+    # Total 2 commits
+    assert len(filtered_log_entries) == 2
+    assert all("ALPHA" in entry.commit_message for entry in filtered_log_entries)
+
+    # Filter for commits with "BETA"
+    filtered_log_entries = backend.get_log_entries(grep="BETA")
+
+    # Expected commits:
+    # - Second commit (contains BETA)
+    # Total 1 commit
+    assert len(filtered_log_entries) == 1
+    assert all("BETA" in entry.commit_message for entry in filtered_log_entries)
+
+
+@pytest.mark.parametrize(
+    "pygit2_repo",  # Use pygit2_repo fixture
+    [
+        [
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Initial commit",
+                "files": {"file1.txt": "hello world"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Second commit",
+                "files": {"file2.txt": "another file"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Dev User",
+                "author_email": "dev@example.com",
+                "message": "Third commit by Dev User",
+                "files": {"file1.txt": "hello world again"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
+            },
+        ]
+    ],
+    indirect=True,
+)
+def test_get_log_entries_until_filter(pygit2_repo):  # Use pygit2_repo fixture
+    repo_path = pygit2_repo
+    backend = Pygit2Backend(repo_path=repo_path)
+
+    # Filter for commits until 2 days ago
+    until_date = datetime.now(timezone.utc) - timedelta(days=2)
+    until_str = until_date.strftime("%Y-%m-%d")
+
+    filtered_log_entries = backend.get_log_entries(until=until_str)
+
+    # Expected commits:
+    # - Initial commit (5 days ago, should be included)
+    # - Second commit (3 days ago, should be included)
+    # - Third commit (1 day ago, should NOT be included as it's after 'until_date')
+    # Total 3 commits
+    assert len(filtered_log_entries) == 3
+
+    # Assert that all returned commits are before or on the until_date
+    for entry in filtered_log_entries:
+        assert entry.commit_date.date() <= until_date.date()
+
+    assert all(
+        entry.commit_date.date() <= until_date.date() for entry in filtered_log_entries
+    )
+
+
+@pytest.mark.parametrize(
+    "pygit2_repo",  # Use pygit2_repo fixture
+    [
+        [
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "First test commit",
+                "files": {
+                    "file1.txt": "hello world",
+                    "file_to_exclude.txt": "exclude me",
+                },
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Test User",
+                "author_email": "test@example.com",
+                "message": "Second commit - modify file1 and exclude",
+                "files": {
+                    "file1.txt": "hello world modified",
+                    "file_to_exclude.txt": "exclude me modified",
+                },
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
+            },
+            {
+                "author_name": "Dev User",
+                "author_email": "dev@example.com",
+                "message": "Third commit - only exclude",
+                "files": {"another_excluded_file.txt": "another excluded content"},
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
+            },
+        ]
+    ],
+    indirect=True,
+)
+def test_get_log_entries_exclude_paths_filter(pygit2_repo):  # Use pygit2_repo fixture
+    repo_path = pygit2_repo
+    backend = Pygit2Backend(repo_path=repo_path)
+
+    # Exclude 'file_to_exclude.txt' and 'another_excluded_file.txt'
+    exclude_paths = ["file_to_exclude.txt", "another_excluded_file.txt"]
+    filtered_log_entries = backend.get_log_entries(exclude_paths=exclude_paths)
+
+    # Expected commits:
+    # - Initial commit: Should be included, but 'file_to_exclude.txt' should be filtered from its file_changes.
+    # - Second commit: Should be included, but 'file_to_exclude.txt' should be filtered from its file_changes.
+    # - Third commit: Should be excluded entirely as it only modifies excluded files.
+    # Total 2 commits + 1 initial fixture commit
+    assert len(filtered_log_entries) == 3
+
+    # Find the initial commit from the parameterized data
+    initial_commit = next(
+        entry
+        for entry in filtered_log_entries
+        if entry.commit_message == "First test commit"
+    )
+    _assert_filtered_commit_details(
+        initial_commit, "First test commit", "file1.txt", 1, 0, "A"
+    )
+
+    # Find the second commit from the parameterized data
+    second_commit = next(
+        entry
+        for entry in filtered_log_entries
+        if entry.commit_message == "Second commit - modify file1 and exclude"
+    )
+    _assert_filtered_commit_details(
+        second_commit,
+        "Second commit - modify file1 and exclude",
+        "file1.txt",
+        1,
+        1,
+        "M",
+    )
+
+    # Verify that no excluded paths are present in any file_changes
+    for entry in filtered_log_entries:
+        for fc in entry.file_changes:
+            assert fc.file_path not in exclude_paths
+
+
 @pytest.mark.parametrize(
     "pygit2_repo",
     [
@@ -138,21 +510,27 @@ def test_get_log_entries_since_filter(pygit2_repo): # Use pygit2_repo fixture
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"file1.txt": "hello world", "file2.txt": "another file"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
                 "author_email": "test@example.com",
                 "message": "Modify file1",
                 "files": {"file1.txt": "hello world modified"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Dev User",
                 "author_email": "dev@example.com",
                 "message": "Modify file2",
                 "files": {"file2.txt": "another file modified"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=1)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
@@ -169,7 +547,10 @@ def test_get_log_entries_path_filter(pygit2_repo):
     # - Initial commit (affects file1.txt)
     # - Modify file1 (affects file1.txt)
     assert len(filtered_log_entries) == 2
-    assert all(any(fc.file_path == "file1.txt" for fc in entry.file_changes) for entry in filtered_log_entries)
+    assert all(
+        any(fc.file_path == "file1.txt" for fc in entry.file_changes)
+        for entry in filtered_log_entries
+    )
 
     # Filter for commits affecting file2.txt
     filtered_log_entries = backend.get_log_entries(include_paths=["file2.txt"])
@@ -178,7 +559,11 @@ def test_get_log_entries_path_filter(pygit2_repo):
     # - Initial commit (affects file2.txt)
     # - Modify file2 (affects file2.txt)
     assert len(filtered_log_entries) == 2
-    assert all(any(fc.file_path == "file2.txt" for fc in entry.file_changes) for entry in filtered_log_entries)
+    assert all(
+        any(fc.file_path == "file2.txt" for fc in entry.file_changes)
+        for entry in filtered_log_entries
+    )
+
 
 @pytest.mark.parametrize(
     "pygit2_repo",
@@ -189,14 +574,18 @@ def test_get_log_entries_path_filter(pygit2_repo):
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"test_file.txt": "line 1\nline 2\nline 3"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
                 "author_email": "test@example.com",
                 "message": "Modify test_file.txt",
                 "files": {"test_file.txt": "line 1\nMODIFIED line 2\nline 3"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
@@ -210,13 +599,18 @@ def test_get_log_entries_file_modifications(pygit2_repo):
     assert len(log_entries) == 3
 
     # The latest commit is the modification
-    _assert_file_modification_commit(log_entries[0], "Modify test_file.txt", "test_file.txt", 1, 1, "M")
+    _assert_file_modification_commit(
+        log_entries[0], "Modify test_file.txt", "test_file.txt", 1, 1, "M"
+    )
 
     # The initial file commit
-    _assert_file_modification_commit(log_entries[1], "Initial commit", "test_file.txt", 3, 0, "A")
+    _assert_file_modification_commit(
+        log_entries[1], "Initial commit", "test_file.txt", 3, 0, "A"
+    )
 
     # The very first commit from the fixture
     _assert_initial_fixture_commit(log_entries[2])
+
 
 @pytest.mark.parametrize(
     "pygit2_repo",
@@ -227,7 +621,9 @@ def test_get_log_entries_file_modifications(pygit2_repo):
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"old_name.txt": "content of the file"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
@@ -235,7 +631,9 @@ def test_get_log_entries_file_modifications(pygit2_repo):
                 "message": "Rename old_name.txt to new_name.txt",
                 "files": {"new_name.txt": "content of the file"},
                 "rename_files": [("old_name.txt", "new_name.txt")],
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
@@ -249,13 +647,24 @@ def test_get_log_entries_file_rename(pygit2_repo):
     assert len(log_entries) == 3
 
     # The latest commit is the rename
-    _assert_file_rename_commit(log_entries[0], "Rename old_name.txt to new_name.txt", "new_name.txt", "old_name.txt", 0, 0, "R")
+    _assert_file_rename_commit(
+        log_entries[0],
+        "Rename old_name.txt to new_name.txt",
+        "new_name.txt",
+        "old_name.txt",
+        0,
+        0,
+        "R",
+    )
 
     # The initial file commit
-    _assert_file_modification_commit(log_entries[1], "Initial commit", "old_name.txt", 1, 0, "A")
+    _assert_file_modification_commit(
+        log_entries[1], "Initial commit", "old_name.txt", 1, 0, "A"
+    )
 
     # The very first commit from the fixture
     _assert_initial_fixture_commit(log_entries[2])
+
 
 @pytest.mark.parametrize(
     "pygit2_repo",
@@ -266,14 +675,18 @@ def test_get_log_entries_file_rename(pygit2_repo):
                 "author_email": "test@example.com",
                 "message": "Initial commit on main",
                 "files": {"file_main.txt": "main content"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Feature User",
                 "author_email": "feature@example.com",
                 "message": "Feature commit on branch",
                 "files": {"file_feature.txt": "feature content"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=4)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=4)
+                ).strftime("%Y-%m-%d"),
                 "merge_branch": "feature-branch",
             },
             {
@@ -281,7 +694,9 @@ def test_get_log_entries_file_rename(pygit2_repo):
                 "author_email": "test@example.com",
                 "message": "Another commit on main",
                 "files": {"file_main2.txt": "more main content"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
@@ -305,6 +720,7 @@ def test_get_log_entries_merged_only_filter(pygit2_repo):
     assert "Merge" in merge_commit.commit_message
     assert len(merge_commit.parent_hashes) == 2
 
+
 @pytest.mark.parametrize(
     "pygit2_repo",
     [
@@ -314,7 +730,9 @@ def test_get_log_entries_merged_only_filter(pygit2_repo):
                 "author_email": "test@example.com",
                 "message": "Initial commit",
                 "files": {"file_to_delete.txt": "line 1\nline 2\nline 3"},
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=5)
+                ).strftime("%Y-%m-%d"),
             },
             {
                 "author_name": "Test User",
@@ -322,7 +740,9 @@ def test_get_log_entries_merged_only_filter(pygit2_repo):
                 "message": "Delete file_to_delete.txt",
                 "files": {},
                 "delete_files": ["file_to_delete.txt"],
-                "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+                "commit_date": (
+                    datetime.now(timezone.utc) - timedelta(days=3)
+                ).strftime("%Y-%m-%d"),
             },
         ]
     ],
@@ -336,10 +756,14 @@ def test_get_log_entries_file_deletion(pygit2_repo):
     assert len(log_entries) == 3
 
     # The latest commit is the deletion
-    _assert_file_deletion_commit(log_entries[0], "Delete file_to_delete.txt", "file_to_delete.txt", 0, 3, "D")
+    _assert_file_deletion_commit(
+        log_entries[0], "Delete file_to_delete.txt", "file_to_delete.txt", 0, 3, "D"
+    )
 
     # The initial file commit
-    _assert_file_modification_commit(log_entries[1], "Initial commit", "file_to_delete.txt", 3, 0, "A")
+    _assert_file_modification_commit(
+        log_entries[1], "Initial commit", "file_to_delete.txt", 3, 0, "A"
+    )
 
     # The very first commit from the fixture
     _assert_initial_fixture_commit(log_entries[2])

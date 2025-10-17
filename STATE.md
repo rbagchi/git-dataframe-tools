@@ -49,5 +49,23 @@
 - **Resolved `AssertionError: DataFrame.columns are different` in `tests/test_git2df_dataframe_builder.py`**: Fixed `src/git2df/dataframe_builder.py` to include `commit_timestamp` and `old_file_path` in the list of columns for an empty DataFrame, and updated the expected columns in the test.
 - **Resolved `FileNotFoundError` for CLI tools**: Updated `tests/test_scoreboard.py` and `tests/test_git_df_cli.py` to call CLI tools using `sys.executable -m <module_path>` instead of direct executable names.
 - **Resolved All Test Failures**: Fixed a cascade of test failures by ensuring backend consistency, updating test fixtures and cases, and fixing bugs related to data versioning and file path handling. All tests in the suite are now passing.
+- **Refactored `Pygit2Backend._commit_matches_filters`**: Reduced cyclomatic complexity from 'C' to 'B' by extracting helper methods.
+- **Improved `tests/conftest.py`**: Added a comment explaining the `noqa: F401` directive.
+- **Cleaned up `tests/fixtures/git_helpers.py`**: Removed unused `pygit2` import.
+- **Resolved `ruff` and `mypy` issues**: All checks pass.
+- **Resolved `radon` issues**: All functions are now graded 'B' or higher.
+- **Added `author` filter test for `Pygit2Backend`**: `tests/test_pygit2_backend.py`
+- **Added `grep` filter test for `Pygit2Backend`**: `tests/test_pygit2_backend.py`
+- **Added `until` filter test for `Pygit2Backend`**: `tests/test_pygit2_backend.py`
+- **Added `exclude_paths` filter test for `Pygit2Backend`**: `tests/test_pygit2_backend.py`
+- **Added `since` and `until` combination to consistency tests**: `tests/test_backend_consistency.py`
+- **Added `author` and `grep` combination to consistency tests**: `tests/test_backend_consistency.py`
+- **Added `include_paths` and `exclude_paths` combination to consistency tests**: `tests/test_backend_consistency.py`
+- **Added a comprehensive filter combination to consistency tests**: `tests/test_backend_consistency.py`
+- **Added empty repository test to consistency tests**: `tests/test_backend_consistency.py`
+- **Added commit with no parents test to consistency tests**: `tests/test_backend_consistency.py`
+- **Graceful handling of empty repositories in `Pygit2Backend.get_log_entries`**: `src/git2df/pygit2_backend.py`
+- **Modified `git_repo` fixture to allow truly empty repositories**: `tests/fixtures/git_cli_fixtures.py`
+- **Modified `remote_git_repo` fixture to skip push for empty local repos**: `tests/fixtures/remote_repo_fixtures.py`
 
-**Working on:** Refactoring `tests/test_backend_consistency.py` to use golden files and reduce cyclomatic complexity, and debugging `golden_file_manager` fixture injection issues.
+**Working on:** Adding edge case tests to `test_backend_consistency.py` (unusual characters, diverse repository structures, `merged_only` behavior).

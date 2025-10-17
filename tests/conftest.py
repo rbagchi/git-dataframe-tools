@@ -13,5 +13,38 @@ from .fixtures.markdown_utils import extract_code_blocks
 from .fixtures.git_cli_fixtures import git_repo
 from .fixtures.pygit2_fixtures import pygit2_repo
 from .fixtures.remote_repo_fixtures import remote_git_repo
+from datetime import datetime, timedelta, timezone
+import pytest
+
+@pytest.fixture
+def sample_single_initial_commit():
+    return [
+        {
+            "author_name": "Initial Author",
+            "author_email": "initial@example.com",
+            "message": "Initial commit with no parents",
+            "files": {"first_file.txt": "content"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=10)).strftime("%Y-%m-%d"),
+        },
+    ]
+
+@pytest.fixture
+def sample_unusual_character_commits():
+    return [
+        {
+            "author_name": "Jöhn Döe",
+            "author_email": "john.doe+test@example.com",
+            "message": "Commit with unicode characters: éàçüö",
+            "files": {"file_é.txt": "content with é"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%d"),
+        },
+        {
+            "author_name": "User <with> special chars",
+            "author_email": "user@special.chars.com",
+            "message": "Another commit with [brackets] and !exclamations!",
+            "files": {"file_!.txt": "content with !"},
+            "commit_date": (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d"),
+        },
+    ]
 
 logging.basicConfig(level=logging.DEBUG)

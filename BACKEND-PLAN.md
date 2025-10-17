@@ -121,38 +121,66 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Rationale:** This step is critical for building confidence in the correctness and consistency of all backend implementations, ensuring they produce identical results for the same input.
 *   **Location:** `tests/` directory
 *   **Level of Effort:** High
+*   **Status:** IN PROGRESS
+
+#### Step 7.5.1: Add comprehensive test cases for `Pygit2Backend` filters
+*   **Description:** Add dedicated test cases in `tests/test_pygit2_backend.py` to explicitly verify the functionality of `author`, `grep`, `until`, and `exclude_paths` filters.
+*   **Level of Effort:** Low
+*   **Status:** COMPLETE
+    *   **7.5.1.1: Add `author` filter test for `Pygit2Backend`**
+        *   **Status:** COMPLETE
+    *   **7.5.1.2: Add `grep` filter test for `Pygit2Backend`**
+        *   **Status:** COMPLETE
+    *   **7.5.1.3: Add `until` filter test for `Pygit2Backend`**
+        *   **Status:** COMPLETE
+    *   **7.5.1.4: Add `exclude_paths` filter test for `Pygit2Backend`**
+        *   **Status:** COMPLETE
+        *   **Status:** COMPLETE
+
+#### Step 7.5.2: Expand `test_backend_consistency.py` with more filter combinations
+*   **Description:** Add more `@pytest.mark.parametrize` entries to `tests/test_backend_consistency.py` to cover a wider range of filter combinations for all backends.
+*   **Level of Effort:** Medium
+*   **Status:** COMPLETE
+    *   **7.5.2.1: Add `since` and `until` combination to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.2.2: Add `author` and `grep` combination to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.2.3: Add `include_paths` and `exclude_paths` combination to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.2.4: Add a comprehensive filter combination to consistency tests**
+        *   **Status:** COMPLETE
+
+#### Step 7.5.3: Add edge case tests to `test_backend_consistency.py`
+*   **Description:** Create specific test cases in `tests/test_backend_consistency.py` for scenarios like empty repositories, commits with no parents, commits with unusual characters in messages/authors, and very large number of commits/files.
+*   **Level of Effort:** Medium
+*   **Status:** IN PROGRESS
+    *   **7.5.3.1: Add empty repository test to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.3.2: Add commit with no parents test to consistency tests**
+        *   **Status:** COMPLETE
+    *   **7.5.3.3: Add unusual characters test to consistency tests**
+
+#### Step 7.5.4: Add tests for diverse repository structures
+*   **Description:** Create new fixtures or modify existing ones to generate more complex repository histories (e.g., repositories with many branches, merges, submodules, large binary files, empty commits) and add corresponding tests in `tests/test_backend_consistency.py`.
+*   **Level of Effort:** High
+*   **Status:** IN PROGRESS
+    *   **7.5.4.1: Add multiple branches test to consistency tests**
+    *   **7.5.4.2: Add merge commits test to consistency tests**
+    *   **7.5.4.3: Add large binary files test to consistency tests**
+
+#### Step 7.5.5: Verify `merged_only` behavior across backends
+*   **Description:** Once the `merged_only` filter is implemented in `Pygit2Backend`, add test cases to `tests/test_backend_consistency.py` to verify its consistent behavior across all backends.
+*   **Level of Effort:** Low
+*   **Status:** IN PROGRESS
+    *   **7.5.5.1: Add `merged_only` test for `Pygit2Backend`**
+    *   **7.5.5.2: Add `merged_only` consistency test**
+
 *   **Action:**
     *   Created `tests/test_backend_consistency.py` for cross-backend verification.
     *   Implemented detailed comparison of `GitLogEntry` objects, including sorting and timestamp tolerance.
     *   Resolved `NameError`, `AttributeError`, and `TypeError` issues in test setup.
     *   Successfully tested `GitCliBackend` and `Pygit2Backend` for basic commit data and various filter combinations.
     *   `DulwichRemoteBackend` is now being tested with a local bare remote repository.
-*   **Status:** IN PROGRESS
-
-#### Step 7.5.1: Add comprehensive test cases for `Pygit2Backend` filters
-*   **Description:** Add dedicated test cases in `tests/test_pygit2_backend.py` to explicitly verify the functionality of `author`, `grep`, `until`, and `exclude_paths` filters.
-*   **Level of Effort:** Low
-*   **Status:** TO DO
-
-#### Step 7.5.2: Expand `test_backend_consistency.py` with more filter combinations
-*   **Description:** Add more `@pytest.mark.parametrize` entries to `tests/test_backend_consistency.py` to cover a wider range of filter combinations for all backends.
-*   **Level of Effort:** Medium
-*   **Status:** TO DO
-
-#### Step 7.5.3: Add edge case tests to `test_backend_consistency.py`
-*   **Description:** Create specific test cases in `tests/test_backend_consistency.py` for scenarios like empty repositories, commits with no parents, commits with unusual characters in messages/authors, and very large number of commits/files.
-*   **Level of Effort:** Medium
-*   **Status:** TO DO
-
-#### Step 7.5.4: Add tests for diverse repository structures
-*   **Description:** Create new fixtures or modify existing ones to generate more complex repository histories (e.g., repositories with many branches, merges, submodules, large binary files, empty commits) and add corresponding tests in `tests/test_backend_consistency.py`.
-*   **Level of Effort:** High
-*   **Status:** TO DO
-
-#### Step 7.5.5: Verify `merged_only` behavior across backends
-*   **Description:** Once the `merged_only` filter is implemented in `Pygit2Backend`, add test cases to `tests/test_backend_consistency.py` to verify its consistent behavior across all backends.
-*   **Level of Effort:** Low
-*   **Status:** TO DO
 
 ### Step 8: Cleanup and Removal of Deprecated Code
 *   **Description:** Remove the deprecated `get_raw_log_output` methods and the `parse_git_log` function once all code paths are confirmed to use `get_log_entries`.

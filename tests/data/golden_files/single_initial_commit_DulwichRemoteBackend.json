@@ -1,0 +1,10 @@
+[
+    {
+        "parent_hashes": [],
+        "author_name": "Default User",
+        "author_email": "default@example.com",
+        "commit_message": "Initial commit\n",
+        "commit_timestamp": 1672563600,
+        "file_changes": []
+    }
+]

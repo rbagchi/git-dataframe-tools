@@ -1,0 +1,38 @@
+[
+    {
+        "parent_hashes": [
+            "abd5b5d2892e60b51cf0d5547c1f1c6749c93a6f"
+        ],
+        "author_name": "Test User",
+        "author_email": "test@example.com",
+        "commit_message": "Initial commit",
+        "commit_timestamp": 1672567200,
+        "file_changes": [
+            {
+                "file_path": "file1.txt",
+                "additions": 1,
+                "deletions": 0,
+                "change_type": "A",
+                "old_file_path": null
+            }
+        ]
+    },
+    {
+        "parent_hashes": [
+            "c598530b3172202ebcf2d3f8edbde5a303d3571e"
+        ],
+        "author_name": "Dev User",
+        "author_email": "dev@example.com",
+        "commit_message": "Third commit by Dev User",
+        "commit_timestamp": 1672574400,
+        "file_changes": [
+            {
+                "file_path": "file1.txt",
+                "additions": 1,
+                "deletions": 1,
+                "change_type": "M",
+                "old_file_path": null
+            }
+        ]
+    }
+]

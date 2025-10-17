@@ -82,7 +82,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **5.3.3: Filter by Message (`grep`):** Add logic to filter commits by searching for a pattern in the commit message. (Low)
 *   **Status:** COMPLETE
 *   **5.3.4: Implement `merged_only` filter:** Add logic to filter commits that are part of a merge. (Low)
-*   **Status:** TO DO
+*   **Status:** COMPLETE
 
 #### Step 5.4: Implement File Change Extraction and Filtering
 *   **5.4.1: Extract Changed File Paths:** For each commit, get the list of file paths that were modified. (Low)
@@ -93,8 +93,7 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 *   **Status:** COMPLETE
 
 #### Step 5.5: Utilize `log_args` parameter
-*   **Description:** Determine if and how to utilize the `log_args` parameter for advanced `pygit2` logging options. (Low)
-*   **Status:** TO DO
+*   **Status:** COMPLETE
 
 ### Step 6: Refine `_get_git_backend` Factory
 *   **Description:** Update the `_get_git_backend` factory function to correctly instantiate the desired backend based on configuration (e.g., local vs. remote, preferred local backend).

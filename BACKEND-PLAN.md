@@ -153,30 +153,30 @@ All Git backends will implement a common interface (`GitBackend` Protocol/ABC) t
 #### Step 7.5.3: Add edge case tests to `test_backend_consistency.py`
 *   **Description:** Create specific test cases in `tests/test_backend_consistency.py` for scenarios like empty repositories, commits with no parents, commits with unusual characters in messages/authors, and very large number of commits/files.
 *   **Level of Effort:** Medium
-*   **Status:** IN PROGRESS
-    *   **7.5.3.1: Add empty repository test to consistency tests**
-        *   **Status:** COMPLETE
-    *   **7.5.3.2: Add commit with no parents test to consistency tests**
-        *   **Status:** COMPLETE
-    *   **7.5.3.3: Add unusual characters test to consistency tests**
-        *   **Status:** COMPLETE
+*   **Status:** COMPLETE
 
 #### Step 7.5.4: Add tests for diverse repository structures
-*   **Description:** Create new fixtures or modify existing ones to generate more complex repository histories (e.g., repositories with many branches, merges, submodules, large binary files, empty commits) and add corresponding tests in `tests/test_backend_consistency.py`.
+*   **Description:** Create new fixtures or modify existing ones to generate more complex repository histories (e.g., repositories with many branches, submodules, large binary files, empty commits) and add corresponding tests in `tests/test_backend_consistency.py`.
 *   **Level of Effort:** High
 *   **Status:** IN PROGRESS
     *   **7.5.4.1: Add multiple branches test to consistency tests**
+        *   **Status:** IN PROGRESS
+        *   **Action:** Create a new fixture in `tests/conftest.py` that sets up a repository with multiple branches. Add a new test case in `tests/test_backend_consistency.py` that uses this fixture and verifies consistency across backends.
     *   **7.5.4.2: Add merge commits test to consistency tests**
         *   **Status:** COMPLETE
     *   **7.5.4.3: Add renames test to consistency tests**
         *   **Status:** COMPLETE
-    *   **7.5.4.3: Add large binary files test to consistency tests**
+    *   **7.5.4.4: Add large binary files test to consistency tests**
+        *   **Status:** IN PROGRESS
+        *   **Action:** Create a new fixture in `tests/conftest.py` that adds large binary files to a repository. Add a new test case in `tests/test_backend_consistency.py` that uses this fixture and verifies consistency across backends.
 
 #### Step 7.5.5: Verify `merged_only` behavior across backends
-*   **Description:** Once the `merged_only` filter is implemented in `Pygit2Backend`, add test cases to `tests/test_backend_consistency.py` to verify its consistent behavior across all backends.
+*   **Description:** Add test cases to `tests/test_backend_consistency.py` to verify its consistent behavior across all backends.
 *   **Level of Effort:** Low
 *   **Status:** IN PROGRESS
     *   **7.5.5.1: Add `merged_only` test for `Pygit2Backend`**
+        *   **Status:** IN PROGRESS
+        *   **Action:** Create a new test case in `tests/test_pygit2_backend.py` that specifically tests the `merged_only` filter for `Pygit2Backend`.
     *   **7.5.5.2: Add `merged_only` consistency test**
         *   **Status:** COMPLETE
 

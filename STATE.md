@@ -83,3 +83,10 @@
     - Updated `tests/test_git2df_backends.py` to use `get_log_entries` and assert against structured `GitLogEntry` objects, resolving previous `AttributeError` failures.
     - Added new test fixtures (`sample_multiple_branches_commits`, `sample_large_binary_files_commits`) and corresponding consistency tests in `tests/test_backend_consistency.py`.
     - All linting, type checking, and complexity checks passed without issues.
+
+- **Resolved ImportError after removing `parse_git_log`**:
+    - Updated imports in `src/git2df/backends.py`, `regenerate_golden_files.py`, and `tests/test_git2df_parser.py` to remove references to `parse_git_log`.
+    - Integrated the commit parsing logic directly into `GitCliBackend.get_log_entries` and `regenerate_golden_files.py` using `_process_commit_chunk`.
+    - Removed the `parse_git_log` function and its associated `tqdm` imports from `src/git2df/git_parser/__init__.py`.
+    - Removed the obsolete `test_parse_git_data_internal` function from `tests/test_git2df_parser.py`.
+    - All linting, type checking, and complexity checks passed without issues.

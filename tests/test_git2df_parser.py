@@ -1,5 +1,3 @@
-import pytest
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -9,9 +7,6 @@ from git2df.git_parser._file_stat_parser import (
     _parse_numstat_line,
     _parse_name_status_line,
 )
-
-
-import dataclasses
 
 def get_golden_file_pairs():
     data_dir = Path(__file__).parent / "data"

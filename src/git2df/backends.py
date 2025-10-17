@@ -64,6 +64,47 @@ class GitCliBackend(GitBackend):
             )
             return "main"
 
+    def _parse_git_data_to_log_entries(self, git_data: str) -> List[GitLogEntry]:
+        if not git_data.strip():
+            return []
+
+        commit_chunks = git_data.split("@@@COMMIT@@@")
+        commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
+
+        parsed_entries: List[GitLogEntry] = []
+
+        for chunk in commit_chunks:
+            entry = _process_commit_chunk(chunk)
+            if entry:
+                parsed_entries.append(entry)
+
+        logger.debug(f"Parsed {len(parsed_entries)} GitLogEntry objects.")
+        return parsed_entries
+
+    def _get_commit_hashes(self, base_args_no_pretty_no_paths: List[str], path_filters: List[str]) -> List[str]:
+        rev_list_cmd = (
+            ["git", "rev-list", "--all"]
+            + base_args_no_pretty_no_paths[2:]
+            + path_filters
+        )
+        commit_hashes_output = self._run_git_command(rev_list_cmd)
+        commit_hashes = [
+            h.strip() for h in commit_hashes_output.strip().splitlines() if h.strip()
+        ]
+        return commit_hashes
+
+    def _build_path_filters(self, include_paths: Optional[List[str]], exclude_paths: Optional[List[str]]) -> List[str]:
+        path_filters = []
+        if include_paths:
+            path_filters.append("--")
+            path_filters.extend(include_paths)
+        if exclude_paths:
+            if not path_filters:
+                path_filters.append("--")
+            for p in exclude_paths:
+                path_filters.append(f":(exclude){p}")
+        return path_filters
+
     def get_log_entries(
         self,
         log_args: Optional[List[str]] = None,
@@ -90,25 +131,9 @@ class GitCliBackend(GitBackend):
             None,  # exclude_paths handled separately
         )
 
-        path_filters = []
-        if include_paths:
-            path_filters.append("--")
-            path_filters.extend(include_paths)
-        if exclude_paths:
-            if not path_filters:
-                path_filters.append("--")
-            for p in exclude_paths:
-                path_filters.append(f":(exclude){p}")
+        path_filters = self._build_path_filters(include_paths, exclude_paths)
 
-        rev_list_cmd = (
-            ["git", "rev-list", "--all"]
-            + base_args_no_pretty_no_paths[2:]
-            + path_filters
-        )
-        commit_hashes_output = self._run_git_command(rev_list_cmd)
-        commit_hashes = [
-            h.strip() for h in commit_hashes_output.strip().splitlines() if h.strip()
-        ]
+        commit_hashes = self._get_commit_hashes(base_args_no_pretty_no_paths, path_filters)
 
         if not commit_hashes:
             return []
@@ -120,11 +145,7 @@ class GitCliBackend(GitBackend):
 
         git_data = "\n".join(combined_output_lines)
 
-        if not git_data.strip():
-            return []
-
-        commit_chunks = git_data.split("@@@COMMIT@@@")
-        commit_chunks = [chunk for chunk in commit_chunks if chunk.strip()]
+        return self._parse_git_data_to_log_entries(git_data)
 
         parsed_entries: List[GitLogEntry] = []
 

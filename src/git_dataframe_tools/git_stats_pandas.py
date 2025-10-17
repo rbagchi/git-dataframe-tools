@@ -12,18 +12,33 @@ def parse_git_log(git_data: pd.DataFrame) -> list[dict]:
 def _calculate_deciles(
     df: pd.DataFrame, sort_by_col: str, decile_col_name: str
 ) -> pd.DataFrame:
+    if df.empty:
+        df[decile_col_name] = pd.Series(dtype=pd.Int64Dtype())
+        return df
+
+    # Sort the DataFrame by the specified column in descending order
     df_sorted = df.sort_values(by=sort_by_col, ascending=False).reset_index(drop=True)
-    n = len(df_sorted)
-    if n > 0:
-        current_decile = 1
-        for i in range(n):
-            current_val = df_sorted[sort_by_col].iloc[i]
-            if i > 0 and current_val < df_sorted[sort_by_col].iloc[i - 1]:
-                current_rank = i + 1
-                current_decile = min(10, math.ceil(current_rank * 10 / n))
-            df_sorted.loc[i, decile_col_name] = int(current_decile)
+
+    # Calculate deciles using qcut
+    # qcut requires at least 2 unique values to create quantiles. If not enough, use cut.
+    if df_sorted[sort_by_col].nunique() > 1:
+        df_sorted[decile_col_name] = (
+            pd.qcut(
+                df_sorted[sort_by_col],
+                q=10,
+                labels=False,
+                duplicates="drop",
+            )
+            .fillna(0)  # Fill NaN for dropped duplicates, if any
+            .astype(int) + 1 # qcut labels are 0-9, convert to 1-10
+        )
     else:
-        df_sorted[decile_col_name] = pd.Series(dtype=pd.Int64Dtype())
+        # If all values are the same or only one unique value, assign all to decile 1
+        df_sorted[decile_col_name] = 1
+
+    # Ensure decile column is of Int64Dtype
+    df_sorted[decile_col_name] = df_sorted[decile_col_name].astype(pd.Int64Dtype())
+
     return df_sorted
 
 
@@ -143,11 +158,7 @@ def find_author_stats(
         return author_stats
 
     query_parts = [p.strip().lower() for p in author_query.split("|")]
-    matches = []
-    for author in author_stats:
-        if _author_matches_query(author, query_parts):
-            matches.append(author)
-    return matches
+    return [author for author in author_stats if _author_matches_query(author, query_parts)]
 
 
 def get_ranking(author_stats: list[dict]) -> list[dict]:

@@ -76,3 +76,10 @@
 
     *   **7.5.4.4: Add large binary files test to consistency tests**
         *   **Status:** COMPLETE
+
+- **Standardized Git Backends and Updated Tests**:
+    - Removed deprecated `get_raw_log_output` methods from `GitCliBackend` and `DulwichRemoteBackend`.
+    - Refactored `GitCliBackend.get_log_entries` to directly parse git log output into `GitLogEntry` objects.
+    - Updated `tests/test_git2df_backends.py` to use `get_log_entries` and assert against structured `GitLogEntry` objects, resolving previous `AttributeError` failures.
+    - Added new test fixtures (`sample_multiple_branches_commits`, `sample_large_binary_files_commits`) and corresponding consistency tests in `tests/test_backend_consistency.py`.
+    - All linting, type checking, and complexity checks passed without issues.

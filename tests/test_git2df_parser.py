@@ -60,7 +60,7 @@ def test_parse_commit_metadata_line_valid():
     line = "@@@COMMIT@@@a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0@@@FIELD@@@p1p2p3p4p5p6p7p8p9d0e1f2a3b4c5d6e7f8a9b0@@@FIELD@@@John Doe@@@FIELD@@@john.doe@example.com@@@FIELD@@@2023-10-26T10:00:00+00:00\t1698307200@@@FIELD@@@---MSG_START---Initial commit message---MSG_END---"
     expected = {
         "commit_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
-        "parent_hash": "p1p2p3p4p5p6p7p8p9d0e1f2a3b4c5d6e7f8a9b0",
+        "parent_hashes": ["p1p2p3p4p5p6p7p8p9d0e1f2a3b4c5d6e7f8a9b0"],
         "author_name": "John Doe",
         "author_email": "john.doe@example.com",
         "commit_date": datetime.fromisoformat("2023-10-26T10:00:00+00:00"),
@@ -75,7 +75,7 @@ def test_parse_commit_metadata_line_no_parent_hash():
     line = "@@@COMMIT@@@a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0@@@FIELD@@@@@@FIELD@@@John Doe@@@FIELD@@@john.doe@example.com@@@FIELD@@@2023-10-26T10:00:00+00:00\t1698307200@@@FIELD@@@---MSG_START---Initial commit message---MSG_END---"
     expected = {
         "commit_hash": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0",
-        "parent_hash": None,
+        "parent_hashes": [],
         "author_name": "John Doe",
         "author_email": "john.doe@example.com",
         "commit_date": datetime.fromisoformat("2023-10-26T10:00:00+00:00"),

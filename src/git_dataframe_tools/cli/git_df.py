@@ -86,10 +86,9 @@ def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str) -> None:
 
         # Fill None values in 'old_file_path' and 'parent_hash' with empty strings to prevent issues with Parquet serialization
         commits_df['old_file_path'] = commits_df['old_file_path'].fillna('')
-        commits_df['parent_hash'] = commits_df['parent_hash'].fillna('')
 
         # Explicitly convert all string columns to str type in Pandas to ensure consistency
-        for col in ["commit_hash", "parent_hash", "author_name", "author_email", "commit_message", "file_paths", "change_type", "old_file_path"]:
+        for col in ["commit_hash", "author_name", "author_email", "commit_message", "file_paths", "change_type", "old_file_path"]:
             if col in commits_df.columns:
                 commits_df[col] = commits_df[col].astype(str)
 

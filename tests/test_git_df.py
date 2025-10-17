@@ -79,7 +79,7 @@ def temp_git_repo_with_remote(tmp_path):
 def _assert_common_dataframe_columns(df):
     expected_columns = [
         "commit_hash",
-        "parent_hash",
+        "parent_hashes",
         "author_name",
         "author_email",
         "commit_date",

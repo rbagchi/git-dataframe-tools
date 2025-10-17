@@ -70,7 +70,7 @@ def test_build_commits_df_commit_centric():
         },
         {
             "commit_hash": "commit1hash",
-            "parent_hash": "parent1hash",
+            "parent_hashes": ["parent1hash"],
             "author_name": "Author One",
             "author_email": "author1@example.com",
             "commit_date": commit1_date,

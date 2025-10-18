@@ -87,6 +87,20 @@ def main(
         "--force-version-mismatch",
         help="Proceed with analysis even if the DataFrame version does not match the expected version.",
     ),
+    force_pivot: Annotated[
+        bool,
+        typer.Option(
+            "--force-pivot",
+            help="Force pivoted display for single author output, even if format is not markdown.",
+        ),
+    ] = False,
+    force_table: Annotated[
+        bool,
+        typer.Option(
+            "--force-table",
+            help="Force tabular display, even if only one author is returned and format is markdown.",
+        ),
+    ] = False,
     verbose: Verbose = False,
     debug: Debug = False,
     format: Annotated[
@@ -150,7 +164,7 @@ def main(
         author_stats_list = stats_module.find_author_stats(
             parsed_git_log_data, config.author_query
         )
-        return _display_author_specific_stats(config, author_stats_list, format)
+        return _display_author_specific_stats(config, author_stats_list, format, force_pivot, force_table)
     else:
         # Otherwise show full ranking
         # When not author-specific, find_author_stats should return all authors
@@ -158,7 +172,7 @@ def main(
             parsed_git_log_data, None
         )
         author_list = stats_module.get_ranking(all_author_stats_list)
-        return _display_full_ranking(config, author_list, format)
+        return _display_full_ranking(config, author_list, format, force_pivot, force_table)
 
 
 if __name__ == "__main__":

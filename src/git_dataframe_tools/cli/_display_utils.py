@@ -74,12 +74,10 @@ def _print_author_stats_header(config: GitAnalysisConfig) -> None:
 
 def _print_multiple_author_warning(author_matches: List[Dict[str, Any]]) -> None:
     logger.warning(f"Found {len(author_matches)} matching authors:")
-    for author in author_matches:
-        print(f"- {author['author_name']} <{author['author_email']}>")
     print()
 
 def _display_author_specific_stats(
-    config: GitAnalysisConfig, author_stats: List[Dict[str, Any]], output_format: OutputFormat
+    config: GitAnalysisConfig, author_stats: List[Dict[str, Any]], output_format: OutputFormat, force_pivot: bool, force_table: bool
 ) -> int:
     if config.use_current_user:
         logger.info(
@@ -100,9 +98,19 @@ def _display_author_specific_stats(
         _log_no_author_matches(config)
         return 1
 
-    if output_format == OutputFormat.MARKDOWN:
-        if len(author_matches) == 1:
-            _display_single_author_markdown_table(author_matches[0], len(author_matches))
+    if output_format == OutputFormat.MARKDOWN or force_pivot or force_table:
+        if force_table:
+            # Force table, even if single author
+            should_pivot = False
+        elif force_pivot:
+            # Force pivot, even if multiple authors (though this case is less common for author-specific)
+            should_pivot = True
+        else:
+            # Default behavior: pivot if single author, table if multiple
+            should_pivot = len(author_matches) == 1
+
+        if should_pivot:
+            _display_single_author_markdown_table(config, author_matches[0], len(author_matches))
         else:
             headers = [
                 "Author",
@@ -140,6 +148,16 @@ def _display_author_specific_stats(
                 )
             df = pd.DataFrame(table_data, columns=headers)
             print(format_as_markdown_table(df))
+
+    else:  # Default to TABLE format
+        print()
+        _print_author_stats_header(config)
+
+        if len(author_matches) > 1:
+            _print_multiple_author_warning(author_matches)
+
+        for author in author_matches:
+            _print_author_stats_detail(author, len(author_matches))
 
     else:  # Default to TABLE format
         print()
@@ -249,7 +267,10 @@ def _print_summary(
     print(f"- Total unique authors: {len(author_list)}")
 
 
-def _display_single_author_markdown_table(author: Dict[str, Any], total_authors: int) -> None:
+def _display_single_author_markdown_table(config: GitAnalysisConfig, author: Dict[str, Any], total_authors: int) -> None:
+    print()
+    print(config.get_analysis_description())
+    print()
     table_data = []
 
     author_display = f"{author['author_name']} <{author['author_email']}>"
@@ -276,6 +297,8 @@ def _display_full_ranking(
     config: GitAnalysisConfig,
     author_list: List[Dict[str, Any]],
     output_format: OutputFormat,
+    force_pivot: bool,
+    force_table: bool,
 ) -> int:
     if not author_list:
         start_date_str = config.start_date.isoformat() if config.start_date else "N/A"
@@ -285,9 +308,16 @@ def _display_full_ranking(
         )
         return 0 # Return 0 even if no authors, as it's a successful empty result
 
-    if output_format == OutputFormat.MARKDOWN:
-        if len(author_list) == 1:
-            _display_single_author_markdown_table(author_list[0], len(author_list))
+    if output_format == OutputFormat.MARKDOWN or force_pivot or force_table:
+        if force_table:
+            should_pivot = False
+        elif force_pivot:
+            should_pivot = True
+        else:
+            should_pivot = len(author_list) == 1
+
+        if should_pivot:
+            _display_single_author_markdown_table(config, author_list[0], len(author_list))
         else:
             # Prepare data for Markdown table
             headers = [

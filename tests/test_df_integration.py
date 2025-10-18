@@ -1,7 +1,4 @@
 import os
-import subprocess
-import sys
-import pyarrow.parquet as pq
 import pytest
 from typer.testing import CliRunner
 

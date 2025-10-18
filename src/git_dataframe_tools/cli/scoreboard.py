@@ -150,7 +150,7 @@ def main(
         author_stats_list = stats_module.find_author_stats(
             parsed_git_log_data, config.author_query
         )
-        return _display_author_specific_stats(config, author_stats_list)
+        return _display_author_specific_stats(config, author_stats_list, format)
     else:
         # Otherwise show full ranking
         # When not author-specific, find_author_stats should return all authors

@@ -77,7 +77,7 @@ def _print_multiple_author_warning(num_matches: int) -> None:
     print()
 
 def _display_author_specific_stats(
-    config: GitAnalysisConfig, author_stats: List[Dict[str, Any]]
+    config: GitAnalysisConfig, author_stats: List[Dict[str, Any]], output_format: OutputFormat
 ) -> int:
     if config.use_current_user:
         logger.info(
@@ -98,14 +98,52 @@ def _display_author_specific_stats(
         _log_no_author_matches(config)
         return 1
 
-    print()
-    _print_author_stats_header(config)
+    if output_format == OutputFormat.MARKDOWN:
+        headers = [
+            "Author",
+            "Rank",
+            "Lines Added",
+            "Lines Deleted",
+            "Total Diff",
+            "Commits",
+            "Diff D",
+            "Comm D",
+            "Percentile",
+            "Avg Diff/Commit",
+        ]
+        table_data = []
+        for author in author_matches:
+            author_display = f"{author['author_name']} <{author['author_email']}>"
+            added_str = str(author["added"]) if author["added"] > 0 else "-"
+            deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
+            percentile = (author["rank"] - 1) / len(author_matches) * 100
+            avg_diff_per_commit = author["total"] / author["commits"] if author["commits"] > 0 else 0
 
-    if len(author_matches) > 1:
-        _print_multiple_author_warning(len(author_matches))
+            table_data.append(
+                {
+                    "Author": author_display,
+                    "Rank": f"#{author['rank']} of {len(author_matches)}",
+                    "Lines Added": added_str,
+                    "Lines Deleted": deleted_str,
+                    "Total Diff": author["total"],
+                    "Commits": author["commits"],
+                    "Diff D": author["diff_decile"],
+                    "Comm D": author["commit_decile"],
+                    "Percentile": f"Top {percentile:.1f}%",
+                    "Avg Diff/Commit": f"{avg_diff_per_commit:.0f} lines",
+                }
+            )
+        df = pd.DataFrame(table_data, columns=headers)
+        print(format_as_markdown_table(df))
+    else:
+        print()
+        _print_author_stats_header(config)
 
-    for author in author_matches:
-        _print_author_stats_detail(author, len(author_matches))
+        if len(author_matches) > 1:
+            _print_multiple_author_warning(len(author_matches))
+
+        for author in author_matches:
+            _print_author_stats_detail(author, len(author_matches))
     return 0
 
 

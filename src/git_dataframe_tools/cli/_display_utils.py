@@ -72,8 +72,10 @@ def _print_author_stats_header(config: GitAnalysisConfig) -> None:
     print(f"Analysis period: {start_date_str} to {end_date_str}")
     print()
 
-def _print_multiple_author_warning(num_matches: int) -> None:
-    logger.warning(f"Found {num_matches} matching authors:")
+def _print_multiple_author_warning(author_matches: List[Dict[str, Any]]) -> None:
+    logger.warning(f"Found {len(author_matches)} matching authors:")
+    for author in author_matches:
+        print(f"- {author['author_name']} <{author['author_email']}>")
     print()
 
 def _display_author_specific_stats(
@@ -100,29 +102,7 @@ def _display_author_specific_stats(
 
     if output_format == OutputFormat.MARKDOWN:
         if len(author_matches) == 1:
-            author = author_matches[0]
-            table_data = []
-            total_authors = len(author_matches)
-
-            author_display = f"{author['author_name']} <{author['author_email']}>"
-            added_str = str(author["added"]) if author["added"] > 0 else "-"
-            deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
-            percentile = (author["rank"] - 1) / total_authors * 100
-            avg_diff_per_commit = author["total"] / author["commits"] if author["commits"] > 0 else 0
-
-            table_data.append({"Metric": "Author", "Value": author_display})
-            table_data.append({"Metric": "Rank", "Value": f"#{author['rank']} of {total_authors}"})
-            table_data.append({"Metric": "Lines Added", "Value": added_str})
-            table_data.append({"Metric": "Lines Deleted", "Value": deleted_str})
-            table_data.append({"Metric": "Total Diff", "Value": author["total"]})
-            table_data.append({"Metric": "Commits", "Value": author["commits"]})
-            table_data.append({"Metric": "Diff Decile", "Value": author["diff_decile"]})
-            table_data.append({"Metric": "Commit Decile", "Value": author["commit_decile"]})
-            table_data.append({"Metric": "Percentile", "Value": f"Top {percentile:.1f}%"})
-            table_data.append({"Metric": "Avg Diff/Commit", "Value": f"{avg_diff_per_commit:.0f} lines"})
-
-            df = pd.DataFrame(table_data, columns=["Metric", "Value"])
-            print(format_as_markdown_table(df))
+            _display_single_author_markdown_table(author_matches[0], len(author_matches))
         else:
             headers = [
                 "Author",
@@ -166,7 +146,7 @@ def _display_author_specific_stats(
         _print_author_stats_header(config)
 
         if len(author_matches) > 1:
-            _print_multiple_author_warning(len(author_matches))
+            _print_multiple_author_warning(author_matches)
 
         for author in author_matches:
             _print_author_stats_detail(author, len(author_matches))
@@ -269,6 +249,29 @@ def _print_summary(
     print(f"- Total unique authors: {len(author_list)}")
 
 
+def _display_single_author_markdown_table(author: Dict[str, Any], total_authors: int) -> None:
+    table_data = []
+
+    author_display = f"{author['author_name']} <{author['author_email']}>"
+    added_str = str(author["added"]) if author["added"] > 0 else "-"
+    deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
+    percentile = (author["rank"] - 1) / total_authors * 100
+    avg_diff_per_commit = author["total"] / author["commits"] if author["commits"] > 0 else 0
+
+    table_data.append({"Metric": "Author", "Value": author_display})
+    table_data.append({"Metric": "Rank", "Value": f"#{author['rank']} of {total_authors}"})
+    table_data.append({"Metric": "Lines Added", "Value": added_str})
+    table_data.append({"Metric": "Lines Deleted", "Value": deleted_str})
+    table_data.append({"Metric": "Total Diff", "Value": author["total"]})
+    table_data.append({"Metric": "Commits", "Value": author["commits"]})
+    table_data.append({"Metric": "Diff Decile", "Value": author["diff_decile"]})
+    table_data.append({"Metric": "Commit Decile", "Value": author["commit_decile"]})
+    table_data.append({"Metric": "Percentile", "Value": f"Top {percentile:.1f}%"})
+    table_data.append({"Metric": "Avg Diff/Commit", "Value": f"{avg_diff_per_commit:.0f} lines"})
+
+    df = pd.DataFrame(table_data, columns=["Metric", "Value"])
+    print(format_as_markdown_table(df))
+
 def _display_full_ranking(
     config: GitAnalysisConfig,
     author_list: List[Dict[str, Any]],
@@ -283,37 +286,40 @@ def _display_full_ranking(
         return 0 # Return 0 even if no authors, as it's a successful empty result
 
     if output_format == OutputFormat.MARKDOWN:
-        # Prepare data for Markdown table
-        headers = [
-            "Rank",
-            "Author",
-            "Lines Added",
-            "Lines Deleted",
-            "Total Diff",
-            "Commits",
-            "Diff D",
-            "Comm D",
-        ]
-        table_data = []
-        for author in author_list:
-            author_display = f"{author['author_name']} <{author['author_email']}>"
-            added_str = str(author["added"]) if author["added"] > 0 else "-"
-            deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
+        if len(author_list) == 1:
+            _display_single_author_markdown_table(author_list[0], len(author_list))
+        else:
+            # Prepare data for Markdown table
+            headers = [
+                "Rank",
+                "Author",
+                "Lines Added",
+                "Lines Deleted",
+                "Total Diff",
+                "Commits",
+                "Diff D",
+                "Comm D",
+            ]
+            table_data = []
+            for author in author_list:
+                author_display = f"{author['author_name']} <{author['author_email']}>"
+                added_str = str(author["added"]) if author["added"] > 0 else "-"
+                deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
 
-            table_data.append(
-                {
-                    "Rank": author["rank"],
-                    "Author": author_display,
-                    "Lines Added": added_str,
-                    "Lines Deleted": deleted_str,
-                    "Total Diff": author["total"],
-                    "Commits": author["commits"],
-                    "Diff D": author["diff_decile"],
-                    "Comm D": author["commit_decile"],
-                }
-            )
-        df = pd.DataFrame(table_data, columns=headers)
-        print(format_as_markdown_table(df))
+                table_data.append(
+                    {
+                        "Rank": author["rank"],
+                        "Author": author_display,
+                        "Lines Added": added_str,
+                        "Lines Deleted": deleted_str,
+                        "Total Diff": author["total"],
+                        "Commits": author["commits"],
+                        "Diff D": author["diff_decile"],
+                        "Comm D": author["commit_decile"],
+                    }
+                )
+            df = pd.DataFrame(table_data, columns=headers)
+            print(format_as_markdown_table(df))
 
     else:  # Default to TABLE format
         _display_ranking_table(config, author_list)

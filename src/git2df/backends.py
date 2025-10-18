@@ -111,6 +111,7 @@ class GitCliBackend(GitBackend):
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
+        me: bool = False,
         grep: Optional[str] = None,
         merged_only: bool = False,
         include_paths: Optional[List[str]] = None,
@@ -120,15 +121,29 @@ class GitCliBackend(GitBackend):
         Retrieves a list of GitLogEntry objects by calling get_raw_log_output
         and then parsing the result.
         """
+        if author and me:
+            raise ValueError("Cannot use both 'author' and 'me' filters together.")
+
+        effective_author = author
+        if me:
+            try:
+                user_name = self._run_git_command(["git", "config", "--global", "user.name"]).strip()
+                user_email = self._run_git_command(["git", "config", "--global", "user.email"]).strip()
+                if user_name or user_email:
+                    effective_author = f"{user_name}|{user_email}"
+                else:
+                    logger.warning("'--me' was used, but Git user.name and user.email are not configured globally.")
+            except Exception as e:
+                logger.error(f"Error retrieving current Git user config for '--me': {e}")
+                raise
+
         base_args_no_pretty_no_paths = self._build_git_log_arguments(
             log_args,
             since,
             until,
-            author,
+            effective_author,
             grep,
             merged_only,
-            None,  # include_paths handled separately
-            None,  # exclude_paths handled separately
         )
 
         path_filters = self._build_path_filters(include_paths, exclude_paths)
@@ -148,6 +163,25 @@ class GitCliBackend(GitBackend):
         return self._parse_git_data_to_log_entries(git_data)
 
 
+    def _add_arg_if_present(self, cmd: List[str], arg_name: str, value: Optional[str]) -> None:
+        if value:
+            cmd.extend([arg_name, value])
+
+    def _add_author_args(self, cmd: List[str], author: Optional[str]) -> None:
+        if author:
+            author_parts = [p.strip() for p in author.split("|") if p.strip()]
+            for part in author_parts:
+                cmd.extend(["--author", part])
+
+    def _add_merged_only_args(self, cmd: List[str], merged_only: bool) -> None:
+        if merged_only:
+            try:
+                self._run_git_command(["git", "remote", "show", "origin"])
+                default_branch = self._get_default_branch()
+                cmd.extend(["--merges", f"origin/{default_branch}"])
+            except subprocess.CalledProcessError:
+                cmd.append("--merges")
+
     def _build_git_log_arguments(
         self,
         log_args: Optional[List[str]] = None,
@@ -156,47 +190,17 @@ class GitCliBackend(GitBackend):
         author: Optional[str] = None,
         grep: Optional[str] = None,
         merged_only: bool = False,
-        include_paths: Optional[List[str]] = None,
-        exclude_paths: Optional[List[str]] = None,
     ) -> List[str]:
         cmd = ["git", "log"]
 
-        arg_map = {
-            "--since": since,
-            "--until": until,
-            "--grep": grep,
-        }
-        for arg, value in arg_map.items():
-            if value:
-                cmd.extend([arg, value])
-
-        if author:
-            author_parts = [p.strip() for p in author.split("|") if p.strip()]
-            for part in author_parts:
-                cmd.extend(["--author", part])
-
-        if merged_only:
-            try:
-                # Check if 'origin' remote exists
-                self._run_git_command(["git", "remote", "show", "origin"])
-                default_branch = self._get_default_branch()
-                cmd.extend(["--merges", f"origin/{default_branch}"])
-            except subprocess.CalledProcessError:
-                # If 'origin' remote does not exist, just use --merges
-                cmd.append("--merges")
+        self._add_arg_if_present(cmd, "--since", since)
+        self._add_arg_if_present(cmd, "--until", until)
+        self._add_arg_if_present(cmd, "--grep", grep)
+        self._add_author_args(cmd, author)
+        self._add_merged_only_args(cmd, merged_only)
 
         if log_args:
             cmd.extend(log_args)
-
-        pathspecs = []
-        if include_paths:
-            pathspecs.extend(include_paths)
-        if exclude_paths:
-            pathspecs.extend([f":(exclude){p}" for p in exclude_paths])
-
-        if pathspecs:
-            cmd.append("--")
-            cmd.extend(pathspecs)
         return cmd
 
     def _run_git_command(self, cmd: List[str]) -> str:

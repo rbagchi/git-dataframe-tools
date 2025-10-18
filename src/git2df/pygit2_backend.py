@@ -44,7 +44,25 @@ class Pygit2Backend(GitBackend):
             return False
         return True
 
-    def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep, merged_only):
+    def _get_effective_author(self, author: Optional[str], me: bool, repo: pygit2.Repository) -> Optional[str]:
+        if not me:
+            return author
+
+        try:
+            user_name = repo.config['user.name']
+            user_email = repo.config['user.email']
+            if user_name or user_email:
+                return f"{user_name}|{user_email}"
+            else:
+                logger.warning("'--me' was used, but Git user.name and user.email are not configured in the repository.")
+        except KeyError:
+            logger.warning("'--me' was used, but Git user.name or user.email are not configured in the repository.")
+        except Exception as e:
+            logger.error(f"Error retrieving current Git user config for '--me': {e}")
+            raise
+        return author
+
+    def _commit_matches_filters(self, commit, since_dt, until_dt, author, grep, merged_only, repo, include_paths, exclude_paths):
         commit_time = datetime.fromtimestamp(commit.committer.time, tz=timezone.utc) # Use committer time
         logger.debug(f"Commit hash: {commit.id}, Commit time: {commit_time}, Since date: {since_dt}, Until date: {until_dt}, Merged only: {merged_only}")
 
@@ -94,6 +112,23 @@ class Pygit2Backend(GitBackend):
         return additions, deletions, final_change_type
 
 
+    def _get_file_paths_from_patch(self, patch):
+        file_path = None
+        old_file_path = None
+
+        if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
+            old_file_path_raw = patch.delta.old_file.path
+            file_path_raw = patch.delta.new_file.path
+            old_file_path = old_file_path_raw.decode('utf-8') if isinstance(old_file_path_raw, bytes) else old_file_path_raw
+            file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+        elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
+            file_path_raw = patch.delta.old_file.path
+            file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+        else:
+            file_path_raw = patch.delta.new_file.path
+            file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+        return file_path, old_file_path
+
     def _process_commit_file_changes(self, repo, commit, include_paths, exclude_paths) -> List[FileChange]:
         file_changes = []
         if commit.parents:
@@ -104,20 +139,7 @@ class Pygit2Backend(GitBackend):
         diff.find_similar(flags=pygit2.enums.DiffFind.FIND_RENAMES | pygit2.enums.DiffFind.FIND_COPIES)
 
         for patch in diff:
-            file_path = None
-            old_file_path = None
-
-            if patch.delta.status == pygit2.enums.DeltaStatus.RENAMED:
-                old_file_path_raw = patch.delta.old_file.path
-                file_path_raw = patch.delta.new_file.path
-                old_file_path = old_file_path_raw.decode('utf-8') if isinstance(old_file_path_raw, bytes) else old_file_path_raw
-                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
-            elif patch.delta.status == pygit2.enums.DeltaStatus.DELETED:
-                file_path_raw = patch.delta.old_file.path
-                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
-            else:
-                file_path_raw = patch.delta.new_file.path
-                file_path = file_path_raw.decode('utf-8') if isinstance(file_path_raw, bytes) else file_path_raw
+            file_path, old_file_path = self._get_file_paths_from_patch(patch)
 
             if self._is_path_filtered(file_path, include_paths, exclude_paths):
                 continue
@@ -135,34 +157,55 @@ class Pygit2Backend(GitBackend):
             )
         return file_changes
 
+    def _create_git_log_entry(self, commit, commit_time, file_changes) -> GitLogEntry:
+        return GitLogEntry(
+            commit_hash=str(commit.id),
+            parent_hashes=[str(parent_id) for parent_id in commit.parent_ids],
+            author_name=commit.author.name,
+            author_email=commit.author.email,
+            commit_date=commit_time,
+            commit_timestamp=commit.committer.time,
+            commit_message=commit.message.strip(),
+            file_changes=file_changes,
+        )
+
+    def _initialize_repo_and_head(self):
+        try:
+            repo = pygit2.Repository(self.repo_path)
+        except KeyError:
+            logger.warning(f"No git repository found at {self.repo_path}")
+            return None, None
+        try:
+            last = repo.head.target
+        except pygit2.GitError as e:
+            logger.warning(f"GitError accessing repo.head.target for {self.repo_path}: {e}. Assuming empty repository.")
+            return repo, None
+        return repo, last
+
     def get_log_entries(
         self,
         log_args: Optional[List[str]] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
+        me: bool = False,
         grep: Optional[str] = None,
         merged_only: bool = False,
         include_paths: Optional[List[str]] = None,
         exclude_paths: Optional[List[str]] = None,
     ) -> List[GitLogEntry]:
         logger.debug(f"Pygit2Backend.get_log_entries called with repo_path={self.repo_path}")
-        try:
-            repo = pygit2.Repository(self.repo_path)
-        except KeyError:
-            logger.warning(f"No git repository found at {self.repo_path}")
+        repo, last = self._initialize_repo_and_head()
+        if repo is None or last is None:
             return []
-        try:
-            last = repo.head.target
-        except pygit2.GitError as e:
-            logger.warning(f"GitError accessing repo.head.target for {self.repo_path}: {e}. Assuming empty repository.")
-            return []
+
+        effective_author = self._get_effective_author(author, me, repo)
 
         since_dt, until_dt = get_date_filters(since, until)
 
         log_entries = []
         for commit in repo.walk(last, pygit2.GIT_SORT_TIME):
-            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, author, grep, merged_only)
+            matches, should_break = self._commit_matches_filters(commit, since_dt, until_dt, effective_author, grep, merged_only, repo, include_paths, exclude_paths)
             if should_break:
                 break
             if not matches:
@@ -175,17 +218,6 @@ class Pygit2Backend(GitBackend):
             if not file_changes and (include_paths or exclude_paths):
                 continue
 
-            log_entries.append(
-                GitLogEntry(
-                    commit_hash=str(commit.id),
-                    parent_hashes=[str(parent_id) for parent_id in commit.parent_ids],
-                    author_name=commit.author.name,
-                    author_email=commit.author.email,
-                    commit_date=commit_time,
-                    commit_timestamp=commit.committer.time,
-                    commit_message=commit.message.strip(),
-                    file_changes=file_changes,
-                )
-            )
+            log_entries.append(self._create_git_log_entry(commit, commit_time, file_changes))
         logger.debug(f"Pygit2Backend.get_log_entries returning {len(log_entries)} entries.")
         return log_entries

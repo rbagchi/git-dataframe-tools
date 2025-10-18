@@ -164,12 +164,16 @@ class GitCliBackend(GitBackend):
         arg_map = {
             "--since": since,
             "--until": until,
-            "--author": author,
             "--grep": grep,
         }
         for arg, value in arg_map.items():
             if value:
                 cmd.extend([arg, value])
+
+        if author:
+            author_parts = [p.strip() for p in author.split("|") if p.strip()]
+            for part in author_parts:
+                cmd.extend(["--author", part])
 
         if merged_only:
             try:

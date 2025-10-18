@@ -19,12 +19,18 @@ def _format_table_with_tabulate(headers: List[str], data: List[List[Any]]) -> st
 def _get_matching_authors(
     config: GitAnalysisConfig, author_stats: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    author_query_lower = config.author_query.lower() if config.author_query else ""
+    if not config.author_query:
+        return []
+
+    query_parts = [p.strip().lower() for p in config.author_query.split("|") if p.strip()]
+
     return [
         a
         for a in author_stats
-        if author_query_lower in a["author_name"].lower()
-        or author_query_lower in a["author_email"].lower()
+        if any(
+            part in a["author_name"].lower() or part in a["author_email"].lower()
+            for part in query_parts
+        )
     ]
 
 
@@ -77,8 +83,16 @@ def _display_author_specific_stats(
         logger.info(
             f"Looking up stats for current user: {config.current_user_name} <{config.current_user_email}>"
         )
+    logger.debug(f"Author query for filtering: {config.author_query!r}")
+    logger.debug(f"Total author stats entries before filtering: {len(author_stats)}")
+    for i, author_entry in enumerate(author_stats):
+        logger.debug(f"  Author stats entry {i}: Name={author_entry.get('author_name')!r}, Email={author_entry.get('author_email')!r}")
 
     author_matches = _get_matching_authors(config, author_stats)
+    logger.debug(f"Total author matches after filtering: {len(author_matches)}")
+    if author_matches:
+        for i, author_entry in enumerate(author_matches):
+            logger.debug(f"  Matched author {i}: Name={author_entry.get('author_name')!r}, Email={author_entry.get('author_email')!r}")
 
     if not author_matches:
         _log_no_author_matches(config)

@@ -71,8 +71,10 @@ class GitAnalysisConfig:
         self._set_date_range()
         if self.use_current_user:
             self._set_current_git_user()
+            logger.debug(f"Retrieved current user: Name={self.current_user_name!r}, Email={self.current_user_email!r}")
         if self.author_query is None and self.use_current_user:
             self.author_query = f"{self.current_user_name}|{self.current_user_email}"
+            logger.debug(f"Constructed author_query for --me: {self.author_query!r}")
 
     def _set_date_range(self):
         cal = Calendar(version=parsedatetime.VERSION_CONTEXT_STYLE)

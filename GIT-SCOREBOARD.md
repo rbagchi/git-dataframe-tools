@@ -13,7 +13,6 @@ git-scoreboard --since "6 months ago" --me --format markdown
 ```
 
 **Explanation:**
-*   `.`: Analyze the current repository. Because, obviously, that's where all the magic happens.
 *   `--since "6 months ago"`: Focus on recent, relevant contributions. Anything older is ancient history, right?
 *   `--me`: Crucially, filter *only* for your own commits. We're not here to highlight team effort, are we?
 *   `--format markdown`: Because a nicely formatted table looks far more professional than raw text when you're pasting it into a document.

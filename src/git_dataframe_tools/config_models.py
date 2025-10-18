@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 import re
 from enum import Enum
 from loguru import logger
-import sys
+import typer
 
 from git_dataframe_tools.git_repo_info_provider import GitRepoInfoProvider
 
@@ -112,10 +112,10 @@ class GitAnalysisConfig:
             logger.error(
                 "Error: GitRepoInfoProvider must be provided when use_current_user is True."
             )
-            sys.exit(1)
+            raise typer.BadParameter("GitRepoInfoProvider must be provided when use_current_user is True.")
         if not self.repo_info_provider.is_git_repo(os.getcwd()):
             logger.error("Error: Not in a git repository")
-            sys.exit(1)
+            raise typer.BadParameter("Not in a git repository")
         try:
             self.current_user_name, self.current_user_email = (
                 self.repo_info_provider.get_current_user_info(os.getcwd())
@@ -124,11 +124,13 @@ class GitAnalysisConfig:
             logger.error(
                 f"Error: Could not retrieve git user.name or user.email: {e}. Please configure git or run without --me."
             )
-            sys.exit(1)
+            raise typer.BadParameter(
+                f"Could not retrieve git user.name or user.email: {e}. Please configure git or run without --me."
+            )
 
     def is_author_specific(self) -> bool:
         """Checks if the analysis is focused on a specific author."""
-        return self.author_query is not None
+        return self.author_query is not None or self.use_current_user
 
     def get_analysis_description(self) -> str:
         """Returns a description of the current analysis configuration."""

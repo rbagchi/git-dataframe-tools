@@ -8,7 +8,8 @@ The primary function to use is `git2df.get_commits_df`.
 
 `git2df` uses different backends to extract data depending on the source of the repository.
 
-*   **`GitCliBackend`**: This is the default backend and is used for local repositories. It uses the `git` command-line interface to extract data.
+*   **`GitCliBackend`**: This backend is used for local repositories. It uses the `git` command-line interface to extract data.
+*   **`Pygit2Backend`**: This backend is also used for local repositories, offering a potentially more performant alternative to `GitCliBackend` by using the `pygit2` library.
 *   **`DulwichRemoteBackend`**: This backend is used for remote repositories. It uses the `dulwich` library to extract data directly from the remote repository without needing to clone it locally.
 
 ## Basic Usage

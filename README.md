@@ -13,13 +13,13 @@ Git DataFrame Tools is a project designed to analyze Git repository history, pro
 ### `git2df` Library: The Analytical Foundation
 
 *   **Deep Dive into Git History:** Extracts comprehensive commit information, including hash, parent hash, author details, commit date, message, and granular file-level changes (additions, deletions, change type, file paths).
-*   **Local and Remote Repositories:** Analyze local repositories using the `GitCliBackend` or remote repositories using the `DulwichRemoteBackend`.
+*   **Local and Remote Repositories:** Analyze local repositories using `GitCliBackend` or `Pygit2Backend`, or remote repositories using the `DulwichRemoteBackend`.
 *   **Structured Data for Analysis:** Delivers data in a commit-centric Pandas DataFrame, where each row precisely details a single file change within a commit.
 *   **Flexible Filtering:** Supports a wide array of filtering options (since, until, author, grep, merged-only, include/exclude paths) to pinpoint the exact data you need.
 
 ### `git-df` CLI: Your Data Extraction Powerhouse
 
-*   **Effortless Data Export:** Quickly extracts Git commit data from local or remote repositories and saves it to highly efficient Parquet files, optimized for large repositories and subsequent analytical workflows.
+*   **Effortless Data Export:** Quickly extracts structured Git commit data from local or remote repositories and saves it to highly efficient Parquet files, optimized for large repositories and subsequent analytical workflows.
 *   **Built-in Data Provenance:** Automatically embeds `data_version` and `description` metadata directly into your Parquet files, ensuring data integrity and compatibility for future use.
 *   **Cross-Environment Compatibility:** Designed for portable execution, ensuring your data extraction process is consistent wherever you run it.
 
@@ -27,7 +27,7 @@ Git DataFrame Tools is a project designed to analyze Git repository history, pro
 
 **Get instant insights into who's driving change and how your team contributes!**
 
-*   **Flexible Data Source:** Analyze directly from any local or remote Git repository, or supercharge your workflow by loading pre-extracted data from a `git-df` generated Parquet file (using the `--df-path` option).
+*   **Flexible Data Source:** Analyze directly from any local or remote Git repository, or supercharge your workflow by loading pre-extracted structured data from a `git-df` generated Parquet file (using the `--df-path` option).
 *   **Smart Data Compatibility:** Automatically verifies the `data_version` of loaded Parquet files, safeguarding your analysis from outdated or incompatible data. Need to proceed anyway? Use `--force-version-mismatch`.
 *   **Clear Author Rankings:** See at a glance who's leading in lines added, deleted, and total commits.
 *   **Contribution Hotspots:** Understand the distribution of effort with intuitive decile analysis for both diff size and commit count.

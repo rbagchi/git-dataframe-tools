@@ -17,9 +17,12 @@ The codebase is structured around several key modules responsible for different 
 *   **`src/git_dataframe_tools/git_python_repo_info_provider.py`**: An implementation of `GitRepoInfoProvider` using the `GitPython` library.
 *   **`src/git_dataframe_tools/git_stats_pandas.py`**: Contains the core logic for processing Git DataFrames using Pandas, primarily for calculating author statistics, ranks, and deciles.
 *   **`src/git2df/`**: This package is responsible for the core functionality of converting Git log output into a structured DataFrame.
-    *   `backends.py`: Implements `GitCliBackend`, which interacts with the underlying Git CLI to fetch raw log data.
-    *   `dulwich/`: A subpackage containing components for a Dulwich-based backend (e.g., `repo_handler.py`, `commit_walker.py`, `diff_parser.py`).
-    *   `git_parser/`: Handles the parsing of raw Git log output.
+    *   `backend_interface.py`: Defines the `GitBackend` abstract base class (ABC) that all Git backends must implement, ensuring a consistent API for retrieving `List[GitLogEntry]` objects.
+    *   `backends.py`: Implements `GitCliBackend`, which interacts with the underlying Git CLI to fetch log data and directly returns `List[GitLogEntry]` objects.
+    *   `pygit2_backend.py`: Implements `Pygit2Backend`, providing a high-performance Git backend using the `pygit2` library, directly returning `List[GitLogEntry]` objects.
+    *   `dulwich/`: A subpackage containing components for a Dulwich-based backend.
+        *   `backend.py`: Implements `DulwichRemoteBackend`, which fetches log data from remote repositories using Dulwich and directly returns `List[GitLogEntry]` objects.
+    *   `git_parser/`: Handles the parsing of raw Git log output into `GitLogEntry` objects. The main parsing logic is now integrated directly into the backend implementations (e.g., `GitCliBackend`) or uses `_chunk_processor` directly.
         *   `_commit_metadata_parser.py`: Parses individual commit metadata lines.
         *   `_file_stat_parser.py`: Parses file change statistics (additions, deletions, change type).
         *   `_chunk_processor.py`: Processes raw chunks of Git log output, combining metadata and file changes into `GitLogEntry` objects.
@@ -52,10 +55,8 @@ sequenceDiagram
     GitAnalysisConfig->>GitAnalysisConfig: Initialize with defaults & parsed args
     CLI_Program->>Backend: Select/Instantiate Git Backend (e.g., GitCliBackend)
     Backend->>Backend: Initialize with repo_path
-    CLI_Program->>Backend: Request raw Git log data
-    Backend->>GitParser: Raw Git log output
-    GitParser->>GitParser: Parse raw output into GitLogEntry objects
-    GitParser-->>CLI_Program: List of GitLogEntry objects
+    CLI_Program->>Backend: Request Git log entries
+    Backend-->>CLI_Program: List of GitLogEntry objects
     CLI_Program->>DataFrameBuilder: Build Pandas DataFrame from GitLogEntry objects
     DataFrameBuilder-->>CLI_Program: Pandas DataFrame
     alt git-scoreboard specific
@@ -89,11 +90,8 @@ sequenceDiagram
     git_df->>GitAnalysisConfig: Create configuration object
     GitAnalysisConfig->>GitAnalysisConfig: Apply date filters, author info
     git_df->>GitCliBackend: Instantiate with repo_path
-    git_df->>GitCliBackend: get_raw_log_output(config)
-    GitCliBackend->>GitCliBackend: Execute 'git show' commands for each commit
-    GitCliBackend-->>git_df: Raw combined Git log output
-    git_df->>GitParser: parse_git_log(raw_output)
-    GitParser->>git_df: List of GitLogEntry objects
+    git_df->>GitCliBackend: get_log_entries(config)
+    GitCliBackend-->>git_df: List of GitLogEntry objects
     git_df->>DataFrameBuilder: build_commits_df(GitLogEntry_list)
     DataFrameBuilder-->>git_df: Pandas DataFrame
     alt Output to file
@@ -131,10 +129,8 @@ sequenceDiagram
         DataLoader-->>scoreboard: Pandas DataFrame
     else Generate new DataFrame
         scoreboard->>GitCliBackend: Instantiate with repo_path
-        scoreboard->>GitCliBackend: get_raw_log_output(config)
-        GitCliBackend-->>scoreboard: Raw combined Git log output
-        scoreboard->>GitParser: parse_git_log(raw_output)
-        GitParser-->>scoreboard: List of GitLogEntry objects
+        scoreboard->>GitCliBackend: get_log_entries(config)
+        GitCliBackend-->>scoreboard: List of GitLogEntry objects
         scoreboard->>DataFrameBuilder: build_commits_df(GitLogEntry_list)
         DataFrameBuilder-->>scoreboard: Pandas DataFrame
     end

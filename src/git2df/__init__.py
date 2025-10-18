@@ -37,6 +37,7 @@ def get_commits_df(
     since: Optional[str] = None,
     until: Optional[str] = None,
     author: Optional[str] = None,
+    me: bool = False,
     grep: Optional[str] = None,
     merged_only: bool = False,
     include_paths: Optional[List[str]] = None,
@@ -54,6 +55,7 @@ def get_commits_df(
         since: Optional string for --since argument (e.g., "1.month ago").
         until: Optional string for --until argument (e.g., "yesterday").
         author: Optional string to filter by author (e.g., "John Doe").
+        me: If True, filter by the current Git user.
         grep: Optional string to filter by commit message (e.g., "fix").
         merged_only: If True, only include merged commits.
         include_paths: Optional list of paths to include.
@@ -65,7 +67,7 @@ def get_commits_df(
         A Pandas DataFrame containing commit information.
     """
     logger.debug(
-        f"get_commits_df called with: repo_path={repo_path}, remote_url={remote_url}, remote_branch={remote_branch}, since={since}, until={until}, author={author}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}, repo_info_provider={repo_info_provider}, local_backend_type={local_backend_type}"
+        f"get_commits_df called with: repo_path={repo_path}, remote_url={remote_url}, remote_branch={remote_branch}, since={since}, until={until}, author={author}, me={me}, grep={grep}, merged_only={merged_only}, include_paths={include_paths}, exclude_paths={exclude_paths}, repo_info_provider={repo_info_provider}, local_backend_type={local_backend_type}"
     )
 
     backend = _get_git_backend(repo_path, remote_url, remote_branch, repo_info_provider, local_backend_type)
@@ -75,6 +77,7 @@ def get_commits_df(
         since=since,
         until=until,
         author=author,
+        me=me,
         grep=grep,
         merged_only=merged_only,
         include_paths=include_paths,

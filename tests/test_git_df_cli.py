@@ -127,3 +127,42 @@ def test_git_df_cli_no_warnings_with_path_filter(git_repo, tmp_path, caplog):
 
     df = pq.read_table(output_file).to_pandas()
     _assert_cli_output_dataframe(df, 2) # file1.txt has 2 commits in sample_commits
+
+
+@pytest.mark.parametrize("git_repo", [sample_commits], indirect=True)
+def test_git_df_cli_me_option(git_repo, tmp_path):
+    """Test the git-df CLI with the --me option."""
+    output_file = tmp_path / "me_commits.parquet"
+    original_cwd = os.getcwd()
+    os.chdir(git_repo)
+
+    # Set global git config for the "current user"
+    subprocess.run(["git", "config", "--global", "user.name", "Test User"], check=True)
+    subprocess.run(["git", "config", "--global", "user.email", "test@example.com"], check=True)
+
+    try:
+        command = [
+            sys.executable,
+            "-m",
+            "git_dataframe_tools.cli.git_df",
+            "--output",
+            str(output_file),
+            "--repo-path",
+            ".",
+            "--me",
+            "--debug",
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        assert result.returncode == 0
+        assert output_file.exists()
+
+        df = pq.read_table(output_file).to_pandas()
+        assert not df.empty
+        assert (df["author_name"] == "Test User").all()
+        # Assuming 'Test User' has 2 commits in sample_commits
+        assert len(df) == 2
+    finally:
+        # Clean up global git config
+        subprocess.run(["git", "config", "--global", "--unset", "user.name"], check=True)
+        subprocess.run(["git", "config", "--global", "--unset", "user.email"], check=True)
+        os.chdir(original_cwd)

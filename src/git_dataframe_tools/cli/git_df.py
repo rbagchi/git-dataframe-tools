@@ -21,6 +21,7 @@ from git_dataframe_tools.cli.common_args import (
     Since,
     Until,
     Verbose,
+    Me,
 )
 from git_dataframe_tools.git_python_repo_info_provider import GitPythonRepoInfoProvider
 from git_dataframe_tools.logger import setup_logging
@@ -78,7 +79,7 @@ def _handle_empty_dataframe(output: str, repo_path: str) -> None:
         raise typer.Exit(1)
 
 
-def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str) -> None:
+def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str, since: Optional[str], until: Optional[str]) -> None:
     logger.info(f"Saving {len(commits_df)} commits to '{output}'...")
     try:
         # Reset index to ensure a default integer index, which can be more robust for PyArrow conversion
@@ -103,6 +104,8 @@ def _save_dataframe_to_parquet(commits_df: pd.DataFrame, output: str) -> None:
         custom_metadata = {
             "data_version": DATA_VERSION,
             "description": "Git commit data extracted by git-df CLI",
+            "since": since if since else "",
+            "until": until if until else "",
         }
         metadata_bytes = {
             k.encode(): str(v).encode() for k, v in custom_metadata.items()
@@ -134,6 +137,7 @@ def main(
     since: Since = None,
     until: Until = None,
     author: Author = None,
+    me: Me = False,
     grep: Grep = None,
     merges: Merges = False,
     path: Path = None,
@@ -143,6 +147,10 @@ def main(
 ):
     setup_logging(debug=debug, verbose=verbose)
     logger.bind(name="git-df").debug(f"CLI arguments: {locals()}")
+
+    if author and me:
+        logger.error("Error: Cannot use both --author and --me options together.")
+        raise typer.Exit(1)
 
     repo_path_arg = _validate_and_setup_paths(repo_path, remote_url, remote_branch)
 
@@ -155,6 +163,7 @@ def main(
             since=since,
             until=until,
             author=author,
+            me=me,
             grep=grep,
             merged_only=merges,
             include_paths=path,
@@ -169,7 +178,7 @@ def main(
         _handle_empty_dataframe(output, repo_path)
         return
 
-    _save_dataframe_to_parquet(commits_df, output)
+    _save_dataframe_to_parquet(commits_df, output, since, until)
 
 
 if __name__ == "__main__":

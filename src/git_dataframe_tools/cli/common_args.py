@@ -53,6 +53,14 @@ Author = Annotated[
     ),
 ]
 
+Me = Annotated[
+    bool,
+    typer.Option(
+        "--me",
+        help="Filter by the current Git user (based on global Git config)",
+    ),
+]
+
 Grep = Annotated[
     Optional[str],
     typer.Option(

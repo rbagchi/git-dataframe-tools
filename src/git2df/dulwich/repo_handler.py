@@ -80,8 +80,6 @@ class DulwichRepoHandler:
         with tempfile.TemporaryDirectory() as tmpdir:
 
             parsed_url = urlparse(self.remote_url)
-            print(f"DEBUG: remote_url: {self.remote_url}")
-            print(f"DEBUG: parsed_url.scheme: {parsed_url.scheme}")
             if parsed_url.scheme == "file":
                 local_path = parsed_url.path
                 # Directly open the bare repository

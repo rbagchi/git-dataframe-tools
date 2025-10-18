@@ -50,6 +50,16 @@ def _load_dataframe(args, config: GitAnalysisConfig):
             if not is_valid:
                 return None, status_code
 
+            since = metadata.get(b"since", b"").decode()
+            until = metadata.get(b"until", b"").decode()
+
+            if since:
+                config._start_date_str = since
+            if until:
+                config._end_date_str = until
+            
+            config._set_date_range()
+
             git_log_data = table.to_pandas()
         except Exception as e:
             logger.error(f"Error loading DataFrame from '{args.df_path}': {e}")

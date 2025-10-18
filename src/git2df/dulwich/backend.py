@@ -1,5 +1,6 @@
 import logging
 from typing import List, Optional
+import subprocess
 
 from dulwich.repo import Repo
 
@@ -46,6 +47,7 @@ class DulwichRemoteBackend(GitBackend):
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
+        me: bool = False,
         grep: Optional[str] = None,
         merged_only: bool = False,
         include_paths: Optional[List[str]] = None,
@@ -54,6 +56,23 @@ class DulwichRemoteBackend(GitBackend):
         """
         Retrieves a list of GitLogEntry objects directly from the Dulwich backend.
         """
+        if author and me:
+            raise ValueError("Cannot use both 'author' and 'me' filters together.")
+
+        effective_author = author
+        if me:
+            try:
+                # For remote backend, use local git config for '--me'
+                user_name = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, check=True).stdout.strip()
+                user_email = subprocess.run(["git", "config", "user.email"], capture_output=True, text=True, check=True).stdout.strip()
+                if user_name or user_email:
+                    effective_author = f"{user_name}|{user_email}"
+                else:
+                    logger.warning("'--me' was used, but Git user.name and user.email are not configured globally.")
+            except Exception as e:
+                logger.error(f"Error retrieving current Git user config for '--me': {e}")
+                raise
+
         since_dt, until_dt = get_date_filters(since, until)
 
         diff_parser = DulwichDiffParser(
@@ -61,6 +80,6 @@ class DulwichRemoteBackend(GitBackend):
         )
 
         return self.repo_handler.handle_remote_repo(
-            since_dt, until_dt, author, grep, diff_parser
+            since_dt, until_dt, effective_author, grep, diff_parser
         )
 

@@ -125,6 +125,7 @@ def test_get_commits_df_with_all_filters_and_paths(
         since=since_arg,
         until=until_arg,
         author=author_arg,
+        me=False,
         grep=grep_arg,
         merged_only=merged_only_arg,
         include_paths=include_paths_arg,

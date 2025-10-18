@@ -115,6 +115,7 @@ def test_get_commits_df_with_all_filters(
         since=since_arg,
         until=until_arg,
         author=author_arg,
+        me=False,
         grep=grep_arg,
         merged_only=False,
         include_paths=None,

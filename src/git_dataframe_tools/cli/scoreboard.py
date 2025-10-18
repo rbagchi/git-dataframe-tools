@@ -11,6 +11,7 @@ from typing import Optional
 
 import typer
 from typing_extensions import Annotated
+import pandas as pd
 
 from git_dataframe_tools.cli._data_loader import _load_dataframe, _gather_git_data
 from git_dataframe_tools.cli._display_utils import (
@@ -157,6 +158,13 @@ def main(
             raise typer.Exit(status_code)
 
     logger.info("Processing commits...")
+    if config.is_author_specific():
+        queries = [q.strip() for q in config.author_query.split("|")]
+        mask = pd.Series(False, index=git_log_data.index)
+        for query in queries:
+            mask |= git_log_data["author_name"].str.contains(query, case=False)
+            mask |= git_log_data["author_email"].str.contains(query, case=False)
+        git_log_data = git_log_data[mask]
     parsed_git_log_data = stats_module.parse_git_log(git_log_data)
 
     # If author-specific analysis requested, show only their stats

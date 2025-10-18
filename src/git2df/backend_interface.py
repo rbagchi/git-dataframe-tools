@@ -18,6 +18,7 @@ class GitBackend(abc.ABC):
         since: Optional[str] = None,
         until: Optional[str] = None,
         author: Optional[str] = None,
+        me: bool = False,
         grep: Optional[str] = None,
         merged_only: bool = False,
         include_paths: Optional[List[str]] = None,
@@ -31,6 +32,7 @@ class GitBackend(abc.ABC):
             since: Optional string for --since argument (e.g., "1.month ago").
             until: Optional string for --until argument (e.g., "yesterday").
             author: Optional string to filter by author (e.g., "John Doe").
+            me: If True, filter by the current Git user.
             grep: Optional string to filter by commit message (e.g., "fix").
             merged_only: If True, only include merged commits.
             include_paths: Optional list of paths to include.

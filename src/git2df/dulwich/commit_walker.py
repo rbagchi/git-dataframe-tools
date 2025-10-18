@@ -152,11 +152,9 @@ class DulwichCommitWalker:
     ) -> List[Commit]:
         all_commits = []
         logger.debug(f"Starting commit collection for repo: {repo.path}")
-        print(f"DEBUG: repo.refs: {repo.refs}")
         # Explicitly get the head of the remote_branch (main) and walk from there
         try:
             main_branch_sha = repo.refs[f"refs/heads/{self.remote_branch}".encode("utf-8")]
-            print(f"DEBUG: main_branch_sha: {main_branch_sha.hex()}")
         except KeyError:
             logger.warning(f"Branch {self.remote_branch} not found in repo {repo.path}. No commits to walk.")
             return []

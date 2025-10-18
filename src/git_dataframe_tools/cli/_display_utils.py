@@ -44,7 +44,7 @@ def _log_no_author_matches(config: GitAnalysisConfig) -> None:
 
 
 def _print_author_stats_detail(author: Dict[str, Any], total_authors: int) -> None:
-    logger.info(f"Author: {author['author_name']} <{author['author_email']}>")
+    print(f"Author: {author['author_name']} <{author['author_email']}>")
     print(f"  Rank:          #{author['rank']} of {total_authors} authors")
     print(f"  Lines Added:   {author['added']:,}")
     print(f"  Lines Deleted: {author['deleted']:,}")
@@ -94,11 +94,8 @@ def _display_author_specific_stats(
         for i, author_entry in enumerate(author_matches):
             logger.debug(f"  Matched author {i}: Name={author_entry.get('author_name')!r}, Email={author_entry.get('author_email')!r}")
 
-    if not author_matches:
-        _log_no_author_matches(config)
-        return 1
-
     if output_format == OutputFormat.MARKDOWN or force_pivot or force_table:
+        print(config.get_analysis_description())
         if force_table:
             # Force table, even if single author
             should_pivot = False
@@ -110,7 +107,8 @@ def _display_author_specific_stats(
             should_pivot = len(author_matches) == 1
 
         if should_pivot:
-            _display_single_author_markdown_table(config, author_matches[0], len(author_matches))
+            for author in author_matches:
+                _display_single_author_markdown_table(config, author, len(author_matches))
         else:
             headers = [
                 "Author",
@@ -148,16 +146,6 @@ def _display_author_specific_stats(
                 )
             df = pd.DataFrame(table_data, columns=headers)
             print(format_as_markdown_table(df))
-
-    else:  # Default to TABLE format
-        print()
-        _print_author_stats_header(config)
-
-        if len(author_matches) > 1:
-            _print_multiple_author_warning(author_matches)
-
-        for author in author_matches:
-            _print_author_stats_detail(author, len(author_matches))
 
     else:  # Default to TABLE format
         print()
@@ -317,8 +305,10 @@ def _display_full_ranking(
             should_pivot = len(author_list) == 1
 
         if should_pivot:
-            _display_single_author_markdown_table(config, author_list[0], len(author_list))
+            for author in author_list:
+                _display_single_author_markdown_table(config, author, len(author_list))
         else:
+            print(config.get_analysis_description())
             # Prepare data for Markdown table
             headers = [
                 "Rank",

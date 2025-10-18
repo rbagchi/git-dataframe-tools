@@ -99,43 +99,69 @@ def _display_author_specific_stats(
         return 1
 
     if output_format == OutputFormat.MARKDOWN:
-        headers = [
-            "Author",
-            "Rank",
-            "Lines Added",
-            "Lines Deleted",
-            "Total Diff",
-            "Commits",
-            "Diff D",
-            "Comm D",
-            "Percentile",
-            "Avg Diff/Commit",
-        ]
-        table_data = []
-        for author in author_matches:
+        if len(author_matches) == 1:
+            author = author_matches[0]
+            table_data = []
+            total_authors = len(author_matches)
+
             author_display = f"{author['author_name']} <{author['author_email']}>"
             added_str = str(author["added"]) if author["added"] > 0 else "-"
             deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
-            percentile = (author["rank"] - 1) / len(author_matches) * 100
+            percentile = (author["rank"] - 1) / total_authors * 100
             avg_diff_per_commit = author["total"] / author["commits"] if author["commits"] > 0 else 0
 
-            table_data.append(
-                {
-                    "Author": author_display,
-                    "Rank": f"#{author['rank']} of {len(author_matches)}",
-                    "Lines Added": added_str,
-                    "Lines Deleted": deleted_str,
-                    "Total Diff": author["total"],
-                    "Commits": author["commits"],
-                    "Diff D": author["diff_decile"],
-                    "Comm D": author["commit_decile"],
-                    "Percentile": f"Top {percentile:.1f}%",
-                    "Avg Diff/Commit": f"{avg_diff_per_commit:.0f} lines",
-                }
-            )
-        df = pd.DataFrame(table_data, columns=headers)
-        print(format_as_markdown_table(df))
-    else:
+            table_data.append({"Metric": "Author", "Value": author_display})
+            table_data.append({"Metric": "Rank", "Value": f"#{author['rank']} of {total_authors}"})
+            table_data.append({"Metric": "Lines Added", "Value": added_str})
+            table_data.append({"Metric": "Lines Deleted", "Value": deleted_str})
+            table_data.append({"Metric": "Total Diff", "Value": author["total"]})
+            table_data.append({"Metric": "Commits", "Value": author["commits"]})
+            table_data.append({"Metric": "Diff Decile", "Value": author["diff_decile"]})
+            table_data.append({"Metric": "Commit Decile", "Value": author["commit_decile"]})
+            table_data.append({"Metric": "Percentile", "Value": f"Top {percentile:.1f}%"})
+            table_data.append({"Metric": "Avg Diff/Commit", "Value": f"{avg_diff_per_commit:.0f} lines"})
+
+            df = pd.DataFrame(table_data, columns=["Metric", "Value"])
+            print(format_as_markdown_table(df))
+        else:
+            headers = [
+                "Author",
+                "Rank",
+                "Lines Added",
+                "Lines Deleted",
+                "Total Diff",
+                "Commits",
+                "Diff D",
+                "Comm D",
+                "Percentile",
+                "Avg Diff/Commit",
+            ]
+            table_data = []
+            for author in author_matches:
+                author_display = f"{author['author_name']} <{author['author_email']}>"
+                added_str = str(author["added"]) if author["added"] > 0 else "-"
+                deleted_str = str(author["deleted"]) if author["deleted"] > 0 else "-"
+                percentile = (author["rank"] - 1) / len(author_matches) * 100
+                avg_diff_per_commit = author["total"] / author["commits"] if author["commits"] > 0 else 0
+
+                table_data.append(
+                    {
+                        "Author": author_display,
+                        "Rank": f"#{author['rank']} of {len(author_matches)}",
+                        "Lines Added": added_str,
+                        "Lines Deleted": deleted_str,
+                        "Total Diff": author["total"],
+                        "Commits": author["commits"],
+                        "Diff D": author["diff_decile"],
+                        "Comm D": author["commit_decile"],
+                        "Percentile": f"Top {percentile:.1f}%",
+                        "Avg Diff/Commit": f"{avg_diff_per_commit:.0f} lines",
+                    }
+                )
+            df = pd.DataFrame(table_data, columns=headers)
+            print(format_as_markdown_table(df))
+
+    else:  # Default to TABLE format
         print()
         _print_author_stats_header(config)
 

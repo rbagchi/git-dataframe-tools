@@ -94,15 +94,15 @@ def _assert_git_diff_tree_name_status_call(call_args: Any, commit_hash: str, rep
         assert filter_arg in args[0]
     assert kwargs["cwd"] == repo_path
 
-def _assert_subprocess_calls(mock_subprocess_run: MagicMock, repo_path: str, expected_rev_list_args: List[str], expected_path_filters_raw: List[str], num_commits: int = 1) -> None:
-    assert mock_subprocess_run.call_count == 1 + (num_commits * 3)
+def _assert_subprocess_calls(mock_subprocess_run: MagicMock, repo_path: str, expected_rev_list_args: List[str], expected_path_filters_raw: List[str], num_commits: int = 1, num_git_config_calls: int = 0) -> None:
+    assert mock_subprocess_run.call_count == num_git_config_calls + 1 + (num_commits * 3)
 
     # Construct the expected rev-list command arguments
     is_exclude = any(":(" in p for p in expected_path_filters_raw)
     full_rev_list_args = ["git", "rev-list", "--all"] + expected_rev_list_args + _format_path_filters_for_assertion(expected_path_filters_raw, is_exclude_test=is_exclude)
 
     # Assertions for the first call (rev-list)
-    args0, kwargs0 = mock_subprocess_run.call_args_list[0]
+    args0, kwargs0 = mock_subprocess_run.call_args_list[num_git_config_calls]
     assert args0[0] == full_rev_list_args
     assert kwargs0["cwd"] == repo_path
     assert kwargs0["capture_output"] is True
@@ -112,9 +112,9 @@ def _assert_subprocess_calls(mock_subprocess_run: MagicMock, repo_path: str, exp
 
     for i in range(num_commits):
         commit_hash = f"commit{i+1}hash"
-        _assert_metadata_call(mock_subprocess_run.call_args_list[1 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
-        _assert_numstat_call(mock_subprocess_run.call_args_list[2 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
-        _assert_name_status_call(mock_subprocess_run.call_args_list[3 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
+        _assert_metadata_call(mock_subprocess_run.call_args_list[num_git_config_calls + 1 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
+        _assert_numstat_call(mock_subprocess_run.call_args_list[num_git_config_calls + 2 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
+        _assert_name_status_call(mock_subprocess_run.call_args_list[num_git_config_calls + 3 + (i * 3)], commit_hash, repo_path, expected_path_filters_raw, is_exclude_test=is_exclude)
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
@@ -149,7 +149,7 @@ def test_get_log_entries_no_filters_cli(mock_subprocess_run, mock_get_default_br
         "change_type": "M",
     }
     _assert_log_entry(log_entries[0], expected_values)
-    _assert_subprocess_calls(mock_subprocess_run, repo_path, [], [])
+    _assert_subprocess_calls(mock_subprocess_run, repo_path, [], [], num_git_config_calls=0)
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
@@ -171,7 +171,7 @@ def test_get_log_entries_with_filters_cli(mock_subprocess_run, mock_get_default_
 
     # Act
     log_entries = backend.get_log_entries(
-        since=since, until=until, author=author, grep=grep
+        since=since, until=until, author=author, grep=grep, me=False
     )
 
     # Assert
@@ -191,9 +191,55 @@ def test_get_log_entries_with_filters_cli(mock_subprocess_run, mock_get_default_
     }
     _assert_log_entry(log_entries[0], expected_values)
     expected_rev_list_args = [
-        "--since", since, "--until", until, "--author", author, "--grep", grep
+        "--since", since, "--until", until, "--grep", grep, "--author", author
     ]
-    _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, [])
+    _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, [], num_git_config_calls=0)
+
+
+@patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")
+@patch("subprocess.run")
+def test_get_log_entries_with_me_cli(mock_subprocess_run, mock_get_default_branch):
+    # Arrange
+    rev_list_stdout = "commit1hash\n"
+    metadata_stdout = "@@@COMMIT@@@commit1hash@@@FIELD@@@parent1hash@@@FIELD@@@Author One@@@FIELD@@@author1@example.com@@@FIELD@@@2023-01-01T10:00:00+00:00\t1672531200@@@FIELD@@@---MSG_START---Subject 1---MSG_END---"
+    numstat_stdout = "10\t5\tfile1.txt\n"
+    name_status_stdout = "M\tfile1.txt\n"
+
+    mock_subprocess_run.side_effect = [
+        MagicMock(stdout="Test User\n"), # git config --global user.name
+        MagicMock(stdout="test@example.com\n"), # git config --global user.email
+        MagicMock(stdout=rev_list_stdout), # git rev-list
+        MagicMock(stdout=metadata_stdout), # git show (metadata)
+        MagicMock(stdout=numstat_stdout), # git diff-tree --numstat
+        MagicMock(stdout=name_status_stdout), # git diff-tree --name-status
+    ]
+
+    repo_path = "/test/repo"
+    backend = GitCliBackend(repo_path)
+
+    # Act
+    log_entries = backend.get_log_entries(me=True)
+
+    # Assert
+    assert len(log_entries) == 1
+    expected_values = {
+        "commit_hash": "commit1hash",
+        "parent_hashes": ["parent1hash"],
+        "author_name": "Author One",
+        "author_email": "author1@example.com",
+        "commit_date": "2023-01-01T10:00:00+00:00",
+        "commit_timestamp": 1672531200,
+        "commit_message": "Subject 1",
+        "file_path": "file1.txt",
+        "additions": 10,
+        "deletions": 5,
+        "change_type": "M",
+    }
+    _assert_log_entry(log_entries[0], expected_values)
+    expected_rev_list_args = [
+        "--author", "Test User", "--author", "test@example.com"
+    ]
+    _assert_subprocess_calls(mock_subprocess_run, repo_path, expected_rev_list_args, [], num_git_config_calls=2)
 
 
 @patch("git2df.backends.GitCliBackend._get_default_branch", return_value="main")

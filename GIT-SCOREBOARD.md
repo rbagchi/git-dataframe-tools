@@ -9,7 +9,7 @@ This isn't just a tool; it's your personal data-driven narrative generator for p
 First, navigate to your most impactful (or at least, most active) repository. Then, unleash the power of `git-scoreboard` to quantify your brilliance.
 
 ```bash
-git-scoreboard . --since "6 months ago" --me --format markdown
+git-scoreboard --since "6 months ago" --me --format markdown
 ```
 
 **Explanation:**
